@@ -7,6 +7,8 @@
 
 <!--moonwave-hide-before-this-line-->
 
+# Main
+
 **VluxySoundFactory** is a modular sound management system for Roblox, designed for structured sound definitions, dynamic playback, and efficient memory use.
 
 - Define, organize, and manage sounds and sound groups with schema-driven configuration.
@@ -14,12 +16,20 @@
 - Supports advanced features: property/effect serialization, deep cloning, and variance/randomization.
 - Integrates seamlessly with game systems.
 
-**CompanionExtension**
+# Extras
+
+If you really want type checking when fetching your sounds you can use the Companion Extension and plugin to do that!
+
+*On request an array of sound names are sent and converted into types in VS-Code*
+
+## CompanionExtension
+
 The companion extension requires the Companion plugin to function!
 
-Not made yet!
+[Companion Extension]()
 
-**CompanionPlugin**
+## CompanionPlugin
+
 The companion plugin requires the Companion Extension to function!
 
 [Companion Plugin](https://create.roblox.com/store/asset/135156375922001/Vluxy-Sound-Factory-Companion?viewFromStudio=true&keyword=&searchId=58eb3ad0-447b-4e8d-a720-bca87c689362)
