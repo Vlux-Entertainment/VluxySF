@@ -12,7 +12,14 @@
 - Define, organize, and manage sounds and sound groups with schema-driven configuration.
 - Easily create, clone, and manipulate sounds programmatically or by name.
 - Supports advanced features: property/effect serialization, deep cloning, and variance/randomization.
-- Provides both client and server APIs for secure, synchronized sound data and validation.
-- Includes utilities for preloading, rate limiting, and property management.
-- Enables custom sound behaviors, concurrent operations, and lifecycle management.
-- Integrates seamlessly with game systems for dynamic, reusable, and memory-efficient audio.
+- Integrates seamlessly with game systems.
+
+**CompanionExtension**
+The companion extension requires the Companion plugin to function!
+
+Not made yet!
+
+**CompanionPlugin**
+The companion plugin requires the Companion Extension to function!
+
+[Companion Plugin](https://create.roblox.com/store/asset/135156375922001/Vluxy-Sound-Factory-Companion?viewFromStudio=true&keyword=&searchId=58eb3ad0-447b-4e8d-a720-bca87c689362)
