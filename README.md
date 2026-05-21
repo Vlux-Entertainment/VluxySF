@@ -26,7 +26,7 @@ If you really want type checking when fetching your sounds you can use the Compa
 
 The companion extension requires the Companion plugin to function!
 
-[Companion Extension]()
+[Companion Extension](https://github.com/greenviper126/VluxySFExtension)
 
 ## CompanionPlugin
 
