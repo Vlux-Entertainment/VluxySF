@@ -1,8 +1,13 @@
 --!strict
+local HttpService = game:GetService("HttpService")
 
 local FormatMessage = require(script.Parent.Utility.FormatMessage)
 local Settings = require(script.Parent.Tools.Settings)
+local Sound = require(script.Parent.Utility.Sound)
 local SoundsLocation = require(script.Parent.Tools.SoundsLocation)
+local Trove = require(script.Parent.Utility.Trove)
+
+local onSocketError = Instance.new("BindableEvent")
 
 -- This module handles all the requested data from the port.
 local SocketRequests = {}
@@ -40,6 +45,82 @@ function SocketRequests.FullBake(): { string }
 	--print(soundNames) --test
 
 	return soundNames
+end
+
+--this is supposed to find all the sound names in the soundsFolder that are not already in the plugin's settings.
+function SocketRequests.MinimalBake()
+	FormatMessage.Warn("Minimal bake is not implemented yet!")
+	return {}
+end
+
+--returns event that fires when there is a socket error, such as the connection being closed or failing to connect
+function SocketRequests.ListenSocketError(): RBXScriptSignal
+	return onSocketError.Event
+end
+
+--this is used to clean up the websocket connection when the plugin is disabled or the port changes
+local socketCleaner: Trove.Trove
+function SocketRequests.CleanSocket()
+	if socketCleaner then
+		socketCleaner:Clean()
+	end
+end
+
+--this sets up the websocket connection and listens for messages
+function SocketRequests.SetSocket(port: number)
+	SocketRequests.CleanSocket()
+	socketCleaner = Trove.new()
+
+	local webSocket = HttpService:CreateWebStreamClient(Enum.WebStreamClientType.WebSocket, {
+		Url = "ws://127.0.0.1:" .. port,
+		Method = "GET",
+	})
+
+	socketCleaner:Connect(webSocket.MessageReceived, function(message)
+		print("_", message) --test
+
+		if message == "GetFullBake" then
+			local result = SocketRequests.FullBake()
+			webSocket:Send(HttpService:JSONEncode({ data = result }))
+		elseif message == "GetMinimalBake" then
+			local result = SocketRequests.MinimalBake()
+			webSocket:Send(HttpService:JSONEncode({ data = result }))
+		else
+			FormatMessage.Warn(`Received unknown message: {message}`)
+		end
+	end)
+
+	socketCleaner:Connect(webSocket.Error, function(err)
+		onSocketError:Fire()
+
+		FormatMessage.Warn("WebSocket connection error: " .. err)
+
+		if err ~= 400 then
+			return
+		end
+
+		FormatMessage.Warn("Make sure your ports match!")
+	end)
+end
+
+--toggles the port if a location exists and plays sounds
+function SocketRequests.TogglePort(enabled: boolean)
+	if Settings.GetSoundsLocation() == nil then
+		SocketRequests.CleanSocket()
+
+		FormatMessage.Warn("Could not locate a Configuration named SOUNDS!")
+		return
+	end
+
+	if enabled then
+		SocketRequests.SetSocket(Settings.GetPort())
+
+		Sound.PlayConnect()
+	else
+		SocketRequests.CleanSocket()
+
+		Sound.PlayDisconnect()
+	end
 end
 
 return SocketRequests

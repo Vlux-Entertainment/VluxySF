@@ -5,61 +5,43 @@ if game:GetService("RunService"):IsRunning() then
 	return
 end
 
-local ICONS = {
-	ENABLED = "rbxassetid://115780670428316",
-	DISABLED = "rbxassetid://104027421823400",
-}
+------------------------------------------------------------------------------------------------------------------------
+--INIT------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
-local HttpService = game:GetService("HttpService")
+local src = script
 
-local FormatMessage = require(script.Utility.FormatMessage)
-local Settings = require(script.Tools.Settings)
-local SocketRequests = require(script.SocketRequests)
-local Sound = require(script.Utility.Sound)
-local SoundsLocation = require(script.Tools.SoundsLocation)
-local Trove = require(script.Utility.Trove)
+local Settings = require(src.Tools.Settings)
 
---
+local AutoSearchLocation = require(src.AutoSearchLocation)
+local OptionsPanel = require(src.OptionsPanel)
+local SocketRequests = require(src.SocketRequests)
+local Toolbar = require(src.Toolbar)
 
-local function setSoundsLocation()
-	local _, formatLocation = SoundsLocation.AutoFindFormatLocation()
-	Settings.SetSoundsLocation(formatLocation)
-end
+local settingsButton = Toolbar.GetSettingsButton()
+local pluginEnableButton = Toolbar.GetPluginEnableButton()
 
-task.spawn(function()
-	setSoundsLocation()
+local optionsWidget = OptionsPanel.GetOptionsWidget()
 
-	while true do
-		task.wait(3)
-
-		if not Settings.GetPluginEnabled() then
-			continue
-		end
-
-		setSoundsLocation()
-	end
+--fixes issue were options widget doesnt open on first click.
+optionsWidget.Enabled = true
+task.delay(0.1, function()
+	optionsWidget.Enabled = false
 end)
 
---
+------------------------------------------------------------------------------------------------------------------------
+--STARTUP---------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
-local onSocketError = Instance.new("BindableEvent")
+AutoSearchLocation.Start()
 
-local function getCurrentEnableIcon(): string
-	return Settings.GetPluginEnabled() and ICONS.ENABLED or ICONS.DISABLED
-end
-
---[[
-	Topbar plugin Interface.
-]]
-local toolbar = plugin:CreateToolbar("Vluxy Sound Factory")
-
-local pluginEnableText = "Vluxy Sound Factory"
-local pluginEnabletoolTip = "Enables sounds to be baked into lookup types!"
-local pluginEnableButton = toolbar:CreateButton(pluginEnableText, pluginEnabletoolTip, getCurrentEnableIcon())
+------------------------------------------------------------------------------------------------------------------------
+--TOOLBAR_BUTTONS-------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
 local lastUserPluginEnablePress = 0
 pluginEnableButton.Click:Connect(function()
-	if os.time() - lastUserPluginEnablePress < 0.25 then
+	if os.time() - lastUserPluginEnablePress < 0.2 then
 		return
 	end
 	lastUserPluginEnablePress = os.time()
@@ -67,87 +49,69 @@ pluginEnableButton.Click:Connect(function()
 	Settings.TogglePluginEnabled()
 end)
 
---[[
-	Web Socket
-]]
-local socketCleaner: Trove.Trove
-local function cleanSocket()
-	if socketCleaner then
-		socketCleaner:Clean()
-	end
-end
+--settings button
+settingsButton.Click:Connect(function()
+	Settings.ToggleOptionsOpened()
+end)
 
-local function setSocket(port: number)
-	cleanSocket()
-	socketCleaner = Trove.new()
+------------------------------------------------------------------------------------------------------------------------
+--CONNECTIONS-----------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
-	local webSocket = HttpService:CreateWebStreamClient(Enum.WebStreamClientType.WebSocket, {
-		Url = "ws://127.0.0.1:" .. port,
-		Method = "GET",
-	})
-
-	socketCleaner:Connect(webSocket.MessageReceived, function(message)
-		print("_", message) --test
-
-		if message == "GetFullBake" then
-			local result = SocketRequests.FullBake()
-			webSocket:Send(HttpService:JSONEncode({ data = result }))
-		elseif message == "GetMinimalBake" then
-			FormatMessage.Warn("GetMinimalBake is not implemented yet!")
-		else
-			FormatMessage.Warn(`Received unknown message: {message}`)
-		end
-	end)
-
-	socketCleaner:Connect(webSocket.Error, function(err)
-		onSocketError:Fire()
-
-		FormatMessage.Warn("WebSocket connection error: " .. err)
-
-		if err ~= 400 then
-			return
-		end
-
-		FormatMessage.Warn("Make sure your ports match!")
-	end)
-end
-
---[[
-	Initialize plugin state based on settings and set up listeners for changes.
-]]
+--plugin enable
 if Settings.GetPluginEnabled() then
-	setSocket(Settings.GetPort())
+	SocketRequests.SetSocket(Settings.GetPort())
 end
 
-onSocketError.Event:Connect(function()
+Settings.ListenPluginEnabled():Connect(function(enabled: boolean)
+	Toolbar.UpdatePluginEnableIcon()
+
+	SocketRequests.TogglePort(enabled)
+end)
+
+--socket
+SocketRequests.ListenSocketError():Connect(function()
 	Settings.SetPluginEnabled(false)
 end)
 
-Settings.ListenPluginEnabled():Connect(function(enabled: boolean)
-	pluginEnableButton.Icon = getCurrentEnableIcon()
-
-	if Settings.GetSoundsLocation() == nil then
-		cleanSocket()
-
-		FormatMessage.Warn("Could not locate a Configuration named SOUNDS!")
+--port
+Settings.ListenPortChanged():Connect(function(_port: number)
+	if not Settings.GetPluginEnabled() then
 		return
 	end
 
-	if enabled then
-		setSocket(Settings.GetPort())
-
-		Sound.PlayConnect()
-	else
-		cleanSocket()
-
-		Sound.PlayDisconnect()
-	end
+	SocketRequests.TogglePort(true)
 end)
 
-Settings.ListenPortChanged():Connect(function(port: number)
-	if Settings.GetPluginEnabled() then
-		setSocket(port)
+--options
+optionsWidget:GetPropertyChangedSignal("Enabled"):Connect(function()
+	Settings.SetOptionsOpened(optionsWidget.Enabled)
+end)
 
-		Sound.PlayConnect()
+Settings.ListenOptionsOpened():Connect(function(opened: boolean)
+	Toolbar.UpdateSettingsIcon()
+
+	optionsWidget.Enabled = opened
+end)
+
+------------------------------------------------------------------------------------------------------------------------
+--OPTIONS---------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+local _, portInput = OptionsPanel.GetPortOption()
+portInput.FocusLost:Connect(function(_enterPressed: boolean)
+	if portInput.Text == "" then
+		Settings.SetPort(Settings.GetDefaultPort())
+		return
 	end
+
+	local portNumber = tonumber(portInput.Text)
+	if not portNumber then
+		Settings.SetPort(Settings.GetDefaultPort())
+
+		portInput.Text = ""
+		return
+	end
+
+	Settings.SetPort(portNumber)
 end)

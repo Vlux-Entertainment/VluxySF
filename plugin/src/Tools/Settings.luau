@@ -3,6 +3,7 @@
 local onPluginEnabled = Instance.new("BindableEvent")
 local onPortChanged = Instance.new("BindableEvent")
 local onSoundsLocationChanged = Instance.new("BindableEvent")
+local onOptionsOpened = Instance.new("BindableEvent")
 
 local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
 
@@ -40,6 +41,37 @@ end
 function Settings.TogglePluginEnabled(): boolean
 	local currentState = Settings.GetPluginEnabled()
 	Settings.SetPluginEnabled(not currentState)
+
+	return not currentState
+end
+
+--[[Options toggle]]
+
+--checks options opened state
+function Settings.GetOptionsOpened(): boolean
+	if plugin:GetSetting("OptionsOpened") == nil then
+		plugin:SetSetting("OptionsOpened", false)
+	end
+
+	return plugin:GetSetting("OptionsOpened")
+end
+
+--sets options opened state
+function Settings.SetOptionsOpened(opened: boolean)
+	plugin:SetSetting("OptionsOpened", opened)
+
+	onOptionsOpened:Fire(opened)
+end
+
+--returns event that fires when options opened state changes, passing new state as argument
+function Settings.ListenOptionsOpened(): RBXScriptSignal
+	return onOptionsOpened.Event
+end
+
+--toggles options opened state and returns new state
+function Settings.ToggleOptionsOpened(): boolean
+	local currentState = Settings.GetOptionsOpened()
+	Settings.SetOptionsOpened(not currentState)
 
 	return not currentState
 end

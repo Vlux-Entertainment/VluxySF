@@ -5,7 +5,8 @@ local SOUNDS = {
 	DISCONNECT = "rbxassetid://116995696565929",
 }
 
-local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin")
+local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
+
 local widget = nil
 if plugin then
 	widget = plugin:CreateDockWidgetPluginGuiAsync(

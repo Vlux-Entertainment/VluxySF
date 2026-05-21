@@ -2,7 +2,7 @@
 
 local ServerStorage = game:GetService("ServerStorage")
 
-local FormatMessage = require(ServerStorage.VluxySFPlugin.Utility.FormatMessage)
+local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 
 local SoundsLocation = {}
 
