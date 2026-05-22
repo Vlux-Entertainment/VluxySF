@@ -1,5 +1,4 @@
 {
-    "stylua.targetReleaseVersion": "latest",
     "editor.formatOnSave": true,
     "cSpell.words": [
         "Flipbook",
@@ -14,9 +13,7 @@
         "vluxysf",
         "vluxysoundfactory"
     ],
-    "luau-lsp.sourcemap.enabled": true,
     "luau-lsp.sourcemap.rojoProjectFile": "test-place.project.json",
-    "luau-lsp.sourcemap.autogenerate": true,
     "[luau]": {
         "editor.defaultFormatter": "JohnnyMorganz.stylua",
         "editor.formatOnSave": true

@@ -42,8 +42,6 @@ function SocketRequests.FullBake(): { string }
 		table.insert(soundNames, sound.Name)
 	end
 
-	--print(soundNames) --test
-
 	return soundNames
 end
 
@@ -77,14 +75,18 @@ function SocketRequests.SetSocket(port: number)
 	})
 
 	socketCleaner:Connect(webSocket.MessageReceived, function(message)
-		print("_", message) --test
+		FormatMessage.Print(`Extension Request of {message} Recived!`)
 
 		if message == "GetFullBake" then
 			local result = SocketRequests.FullBake()
-			webSocket:Send(HttpService:JSONEncode({ data = result }))
-		elseif message == "GetMinimalBake" then
+			local data = { Name = "FullBakeResult", SoundNames = result }
+
+			webSocket:Send(HttpService:JSONEncode(data))
+		elseif message == "GetMinimalBake" then --this doesnt work atm
 			local result = SocketRequests.MinimalBake()
-			webSocket:Send(HttpService:JSONEncode({ data = result }))
+			local data = { Name = "MinimalBakeResult", NewSoundNames = result, RemovedSoundNames = {} }
+
+			webSocket:Send(HttpService:JSONEncode(data))
 		else
 			FormatMessage.Warn(`Received unknown message: {message}`)
 		end

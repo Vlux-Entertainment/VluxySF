@@ -4,6 +4,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
-VluxySF.WaitForSchema()
+VluxySF.Startup.WaitForSchema()
 
-VluxySF.GetSoundGroups()
+print(VluxySF.Schema.Get()) --test
+
+local sound = VluxySF.Fetch("")
