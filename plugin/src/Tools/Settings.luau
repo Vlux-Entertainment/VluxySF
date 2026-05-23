@@ -4,6 +4,7 @@ local onPluginEnabled = Instance.new("BindableEvent")
 local onPortChanged = Instance.new("BindableEvent")
 local onSoundsLocationChanged = Instance.new("BindableEvent")
 local onOptionsOpened = Instance.new("BindableEvent")
+local onAutoBakeChanged = Instance.new("BindableEvent")
 
 local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
 
@@ -75,6 +76,33 @@ function Settings.ToggleOptionsOpened(): boolean
 
 	return not currentState
 end
+
+------------------------------------------------------------------------------------------------------------------------
+
+--[[Socket]]
+
+--returns list of sound names for the full bake
+function Settings.GetAutoBakeEnabled(): boolean
+	if plugin:GetSetting("AutoBakeEnabled") == nil then
+		plugin:SetSetting("AutoBakeEnabled", false)
+	end
+
+	return plugin:GetSetting("AutoBakeEnabled")
+end
+
+--sets auto bake enabled state
+function Settings.SetAutoBake(enabled: boolean)
+	plugin:SetSetting("AutoBakeEnabled", enabled)
+
+	onAutoBakeChanged:Fire(enabled)
+end
+
+--returns list of sound names for the full bake
+function Settings.ListenAutoBakeChanged(): RBXScriptSignal
+	return onAutoBakeChanged.Event
+end
+
+------------------------------------------------------------------------------------------------------------------------
 
 --[[port]]
 

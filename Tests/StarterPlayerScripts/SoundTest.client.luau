@@ -8,4 +8,5 @@ VluxySF.Startup.WaitForSchema()
 
 print(VluxySF.Schema.Get()) --test
 
-local sound = VluxySF.Fetch("")
+task.wait(4)
+VluxySF.FetchPlayOnce("DoorClose")

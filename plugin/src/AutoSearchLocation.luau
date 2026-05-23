@@ -1,5 +1,7 @@
 --!strict
 
+local ServerStorage = game:GetService("ServerStorage")
+
 --for now this works but an event version would be better in the future prob.
 
 local Settings = require(script.Parent.Tools.Settings)
@@ -8,28 +10,38 @@ local SoundsLocation = require(script.Parent.Tools.SoundsLocation)
 -- This module handles the auto searching for the sounds folder location and updating it in the plugin's settings.
 local AutoSearchLocation = {}
 
--- Returns whether the auto search was successful and an error message if it was not.
-function AutoSearchLocation.Start(): (boolean, string?)
-	local function setSoundsLocation()
-		local _, formatLocation = SoundsLocation.AutoFindFormatLocation()
-		Settings.SetSoundsLocation(formatLocation)
+--
+function AutoSearchLocation.SetFolder(location: Configuration?)
+	local formatLocation = nil
+	if location then
+		formatLocation = SoundsLocation.GetLocationFromSoundsFolder(location)
+	else
+		local _, fLocation = SoundsLocation.AutoFindFormatLocation()
+		formatLocation = fLocation
 	end
 
-	task.spawn(function()
-		setSoundsLocation()
+	Settings.SetSoundsLocation(formatLocation)
+end
 
-		while true do
-			task.wait(3)
+--
+function AutoSearchLocation.Start()
+	AutoSearchLocation.SetFolder(nil)
 
-			if not Settings.GetPluginEnabled() then
-				continue
-			end
-
-			setSoundsLocation()
+	ServerStorage.DescendantAdded:Connect(function(descendant: Instance)
+		if not descendant:IsA("Configuration") or descendant.Name ~= "SOUNDS" then
+			return
 		end
+
+		AutoSearchLocation.SetFolder(descendant)
 	end)
 
-	return false, nil
+	ServerStorage.DescendantRemoving:Connect(function(descendant: Instance)
+		if not descendant:IsA("Configuration") or descendant.Name ~= "SOUNDS" then
+			return
+		end
+
+		AutoSearchLocation.SetFolder(nil)
+	end)
 end
 
 return AutoSearchLocation

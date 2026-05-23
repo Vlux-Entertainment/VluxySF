@@ -11,7 +11,6 @@ local FormatMessage = require(utility.FormatMessage)
 local Tables = require(utility.Tables)
 
 local Converters = require(tools.Converters)
-local Fetching = require(tools.Fetching)
 
 local Conversions = require(sections.Conversions)
 local Jitter = require(sections.Jitter)
@@ -331,31 +330,33 @@ end
 	@within VluxySF
 
 	@param name string -- The name of the `SoundDefinition`.
+	@param parent Instance? -- Optional parent for the fetched sound.
 	@param preset (Sound) -> ()? -- Function to preconfigure the sound.
 
 	@return Sound? -- The fetched sound instance if found, otherwise nil.
 	
 	Finds the specified `SoundDefinition` and gives back a playable `Sound` if it exists.
 ]=]
-function Sounds.Fetch(name: GeneratedSoundNames, preset: (Sound) -> ()?): Types.SoundDefinitionInstanced?
+function Sounds.Fetch(
+	name: GeneratedSoundNames,
+	parent: Instance?,
+	preset: (Sound) -> ()?
+): Types.SoundDefinitionInstanced?
 	schemaFailCheck()
-	local realLocation = Fetching.FromName(soundSchema, name)
 
-	if not realLocation then
+	local definition = soundSchema.SoundDefinitions[name]
+	if not definition then
 		FormatMessage.Warn(`Sound with name '{name}' was not found in schema!`)
 		return nil
 	end
 
-	local definition = soundSchema.SoundDefinitions[realLocation]
-	if not definition then
-		FormatMessage.Warn(`SoundDefinition for location '{realLocation}' was not found in schema!`)
-		return nil
-	end
-
 	local sound = Converters.DefinitionToSound(definition)
+
 	if preset then
 		preset(sound)
 	end
+
+	sound.Parent = parent or soundSchema.UnattachedSounds
 
 	return sound
 end
@@ -364,20 +365,26 @@ end
 	@within VluxySF
 
 	@param name string -- The name of the sound definition to fetch.
+	@param parent Instance? -- Optional parent for the fetched sound.
 	@param preset (Sound) -> ()? -- A callback function to execute before the sound plays.
-	@param waitOnLoad boolean? -- Whether to wait for the sound to load before playing (default: false).
+	@param waitOnLoad boolean? -- Whether to wait for the sound to load before playing. Always runs on a separate thread.
 
 	@return Sound? -- The fetched sound instance if found, otherwise nil.
 
 	Fetches a sound, sets it up for one-time playback, and optionally waits for it to load before playing. The sound will be automatically cleaned up after it finishes playing.
 ]=]
-function Sounds.FetchPlayOnce(name: GeneratedSoundNames, preset: (Sound) -> ()?, waitOnLoad: boolean?)
+function Sounds.FetchPlayOnce(
+	name: GeneratedSoundNames,
+	parent: Instance?,
+	preset: (Sound) -> ()?,
+	waitOnLoad: boolean?
+): () -> ()
 	schemaFailCheck()
 
-	local sound = Sounds.Fetch(name, preset)
+	local sound = Sounds.Fetch(name, parent, preset)
 
 	if not sound then
-		return nil
+		return function() end
 	end
 	sound.Looped = false
 
@@ -386,54 +393,20 @@ function Sounds.FetchPlayOnce(name: GeneratedSoundNames, preset: (Sound) -> ()?,
 			sound.Loaded:Wait()
 		end
 
-		if not sound.Parent then
-			return
-		end
+		sound.Ended:Connect(function()
+			sound:Destroy()
+		end)
 
 		sound:Play()
+	end)
 
-		if not sound.Parent then
+	return function()
+		if not sound then
 			return
 		end
 
-		local playLength = Sounds.Misc.GetPlayLength(sound) or 1
-		Debris:AddItem(sound, playLength)
-	end)
-
-	return nil
-end
-
---[=[
-	@within VluxySF
-
-	@param location string -- The direct location of the `SoundDefinition`.
-	@param preset (Sound) -> ()? -- function to preconfigure the sound.
-
-	@return Sound? -- The fetched sound instance if found, otherwise nil.
-	
-	Finds the specified `SoundDefinition` and gives back a playable `Sound` if it exists.
-]=]
-function Sounds.FetchDirectly(location: string, preset: (Sound) -> ()?): Types.SoundDefinitionInstanced?
-	schemaFailCheck()
-	local realLocation = Fetching.Direct(soundSchema, location)
-
-	if not realLocation then
-		FormatMessage.Warn(`Sound with location '{location}' was not found in schema!`)
-		return nil
+		sound:Destroy()
 	end
-
-	local definition = soundSchema.SoundDefinitions[realLocation]
-	if not definition then
-		FormatMessage.Warn(`SoundDefinition for location '{realLocation}' was not found in schema!`)
-		return nil
-	end
-
-	local sound = Converters.DefinitionToSound(definition)
-	if preset then
-		preset(sound)
-	end
-
-	return sound
 end
 
 ----------------------------------------------------------------------------------------------------------------

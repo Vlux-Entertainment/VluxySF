@@ -25,58 +25,6 @@ local ALLOWED_SOUND_CHILDREN = {
 local Converters = {}
 
 --[[
-	Converts a SoundConfig to a list of SoundGroups.
-
-	@param soundConfig Configuration -- The SoundConfig to convert.
-	@param parent Instance -- The parent instance to create the SoundGroups under.
-
-	@return SoundGroups -- A table of SoundGroups created from the SoundConfig.
-]]
-function Converters.SoundConfigToSoundGroups(soundConfig: Configuration, parent: Instance): Types.SoundGroups
-	local soundGroups: Types.SoundGroups = {}
-
-	--first set of children defines sound groups
-	for _, childFolder in pairs(soundConfig:GetChildren()) do
-		local soundGroup = Instance.new("SoundGroup")
-		soundGroup.Name = childFolder.Name
-		soundGroup.Parent = parent
-
-		soundGroups[childFolder.Name] = soundGroup
-	end
-
-	return soundGroups
-end
-
---[[
-	Converts a SoundConfig to a list of SoundIds that should be preloaded.
-
-	@param soundConfig Configuration -- The SoundConfig to convert.
-
-	@return { string } -- A list of SoundIds to preload.
-]]
-function Converters.SoundConfigToPreloadIds(soundConfig: Configuration): { string }
-	local preloadIds = {}
-
-	local preloadFolders = soundConfig:QueryDescendants("#_Preload")
-
-	local function setPreloadIds(childFolder: Instance)
-		for _, instance in pairs(childFolder:GetDescendants()) do
-			if not instance:IsA("Sound") then
-				continue
-			end
-
-			table.insert(preloadIds, instance.SoundId)
-		end
-	end
-
-	for _, preloadFolder in ipairs(preloadFolders) do
-		setPreloadIds(preloadFolder)
-	end
-
-	return preloadIds
-end
-
---[[
     Converts a Sound instance to a SoundDefinition.
 
     @param sound Sound -- The Sound instance to convert.
@@ -142,7 +90,7 @@ end
 ]]
 function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.SoundDefinitionInstanced
 	local sound = Instance.new("Sound")
-	sound:AddTag("VLUXY_SOUND_FACTORY_INSTANCE") --lets the system know what sound was created by VluxySF
+	sound:AddTag("_VLUXY_SOUND_FACTORY_INSTANCE") --lets the system know what sound was created by VluxySF
 
 	--properties
 	for property, value in pairs(definition.Properties) do

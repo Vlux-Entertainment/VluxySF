@@ -20,11 +20,11 @@
 export type SoundSchema = {
 	UnattachedSounds: Configuration,
 	SoundGroupContainer: Configuration,
-	SoundGroups: SoundGroups,
-	PreloadIds: { string },
 
+	SoundGroups: SoundGroups,
 	SoundDefinitions: SoundDefinitions,
-	DefinitionsGroupHash: Dictionary<Dictionary<string>>,
+
+	PreloadIds: { string },
 }
 
 ------------------------------------------------------------------------------------------------------------------------

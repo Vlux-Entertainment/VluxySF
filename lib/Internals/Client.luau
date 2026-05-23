@@ -32,7 +32,7 @@ local function getDataForClient(): Types.SoundSchema
 	if response then
 		return response
 	else
-		FormatMessage.Error("Server did not return sounds to local player, re-attempting!")
+		FormatMessage.Warn("Server did not return sounds to local player, re-attempting!")
 
 		task.wait(0.5)
 
