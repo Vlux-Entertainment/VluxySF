@@ -47,30 +47,52 @@ local settingsButton = toolbar:CreateButton(settingsText, settingsToolTip, getCu
 ]]
 local Toolbar = {}
 
---returns the current enable icon based on plugin state
+--[[
+	@return string -- The current plugin enable icon based on plugin enabled state.
+
+	Returns the current plugin enable icon based on plugin enabled state.
+]]
 function Toolbar.GetCurrentEnableIcon(): string
 	return getCurrentEnableIcon()
 end
 
---returns the current settings icon based on options panel state
+--[[
+	@return string -- The current settings icon based on options opened state.
+
+	Returns the current settings icon based on options opened state.
+]]
 function Toolbar.GetCurrentSettingsIcon(): string
 	return getCurrentSettingsIcon()
 end
 
+--[[
+	Updates the plugin enable button icon based on the current plugin enabled state.
+]]
 function Toolbar.UpdatePluginEnableIcon()
 	pluginEnableButton.Icon = getCurrentEnableIcon()
 end
 
+--[[
+	Updates the settings button icon based on the current options opened state.
+]]
 function Toolbar.UpdateSettingsIcon()
 	settingsButton.Icon = getCurrentSettingsIcon()
 end
 
---returns the plugin enable button so it can be manipulated by other modules
+--[[
+	@return PluginToolbarButton -- The plugin enable button.
+
+	Returns the plugin enable button so it can be manipulated by other modules.
+]]
 function Toolbar.GetPluginEnableButton(): PluginToolbarButton
 	return pluginEnableButton
 end
 
---returns the settings button so it can be manipulated by other modules
+--[[
+	@return PluginToolbarButton -- The settings button.
+
+	Returns the settings button so it can be manipulated by other modules.
+]]
 function Toolbar.GetSettingsButton(): PluginToolbarButton
 	return settingsButton
 end

@@ -5,6 +5,7 @@ local onPortChanged = Instance.new("BindableEvent")
 local onSoundsLocationChanged = Instance.new("BindableEvent")
 local onOptionsOpened = Instance.new("BindableEvent")
 local onAutoBakeChanged = Instance.new("BindableEvent")
+local onDiagnosticsEnabled = Instance.new("BindableEvent")
 
 local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
 
@@ -140,6 +141,38 @@ end
 --returns event that fires when port changes, passing new port as argument
 function Settings.ListenPortChanged(): RBXScriptSignal
 	return onPortChanged.Event
+end
+
+--[[
+	Diagnostics Enabled
+]]
+
+--checks port, if not set, sets to default (7842).
+function Settings.GetDiagnosticsEnabled(): boolean
+	if plugin:GetSetting("DiagnosticsEnabled") == nil then
+		plugin:SetSetting("DiagnosticsEnabled", false)
+	end
+
+	return plugin:GetSetting("DiagnosticsEnabled")
+end
+
+--sets port number
+function Settings.SetDiagnosticsEnabled(enabled: boolean)
+	plugin:SetSetting("DiagnosticsEnabled", enabled)
+
+	onDiagnosticsEnabled:Fire(enabled)
+end
+
+function Settings.ToggleDiagnosticsEnabled(): boolean
+	local currentState = Settings.GetDiagnosticsEnabled()
+	Settings.SetDiagnosticsEnabled(not currentState)
+
+	return not currentState
+end
+
+--returns event that fires when diagnostics enabled state changes, passing new state as argument
+function Settings.ListenDiagnosticsEnabled(): RBXScriptSignal
+	return onDiagnosticsEnabled.Event
 end
 
 --[[

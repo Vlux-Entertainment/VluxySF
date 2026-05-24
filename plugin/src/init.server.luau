@@ -105,14 +105,7 @@ SocketRequests.ListenSocketError():Connect(function()
 	Settings.SetPluginEnabled(false)
 end)
 
---port
-Settings.ListenPortChanged():Connect(function(_port: number)
-	if not Settings.GetPluginEnabled() then
-		return
-	end
-
-	SocketRequests.TogglePort(true)
-end)
+------------------------------------------------------------------------------------------------------------------------
 
 --options
 optionsWidget:GetPropertyChangedSignal("Enabled"):Connect(function()
@@ -125,24 +118,11 @@ Settings.ListenOptionsOpened():Connect(function(opened: boolean)
 	optionsWidget.Enabled = opened
 end)
 
-------------------------------------------------------------------------------------------------------------------------
---OPTIONS---------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------------------
-
-local _, portInput = OptionsPanel.GetPortOption()
-portInput.FocusLost:Connect(function(_enterPressed: boolean)
-	if portInput.Text == "" then
-		Settings.SetPort(Settings.GetDefaultPort())
+--port
+Settings.ListenPortChanged():Connect(function(_port: number)
+	if not Settings.GetPluginEnabled() then
 		return
 	end
 
-	local portNumber = tonumber(portInput.Text)
-	if not portNumber then
-		Settings.SetPort(Settings.GetDefaultPort())
-
-		portInput.Text = ""
-		return
-	end
-
-	Settings.SetPort(portNumber)
+	SocketRequests.TogglePort(true)
 end)
