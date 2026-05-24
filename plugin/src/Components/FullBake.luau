@@ -1,4 +1,6 @@
 --!strict
+--!native
+--!optimize 2
 
 local src = script.Parent.Parent
 
@@ -8,7 +10,22 @@ local Settings = require(src.Tools.Settings)
 local SoundsLocation = require(src.Tools.SoundsLocation)
 
 --[[
+	@param startTime number -- The time when the full bake process started.
+
+	Debugging and performance info.
+]]
+local function bakingDiagnostics(startTime: number)
+	debug.profileend()
+
+	if Settings.GetDiagnosticsEnabled() then
+		FormatMessage.TestPrint(`FullBake took ${os.clock() - startTime} to execute.`, script, 39)
+	end
+end
+
+--[[
     This module performs a full bake of the sounds folder, returning an array of all the sound names in the folder.
+
+	This has been optimized as much as possible as this is the most important function for the plugin.
 ]]
 local FullBake = {}
 
@@ -20,15 +37,24 @@ local FullBake = {}
 	This function performs a full bake of the sounds folder, returning an array of all the sound names in the folder.
 ]]
 function FullBake.Now(folder: Configuration?): { string }
-	local soundNames = {}
+	local t = os.clock()
+	debug.profilebegin(FormatMessage.NewMessage("FullBake"))
+
+	local contents: { Name: string, SoundNames: { string } } = { Name = "FullBakeResult", SoundNames = {} }
+	local soundNamesHash: { [string]: boolean } = {}
+	local soundNamesArray: { string } = {}
 
 	local soundsFolder: Configuration? = folder
 
 	if not folder then
-		local formatedLocation = Settings.GetSoundsLocation()
+		local formatedLocation: string? = Settings.GetSoundsLocation()
+
 		if not formatedLocation then
 			FormatMessage.Error("Could not fetch sounds folder location for full bake!")
-			return {}
+
+			bakingDiagnostics(t)
+
+			return contents
 		end
 
 		soundsFolder = SoundsLocation.GetSoundsFolderFromLocation(formatedLocation :: string)
@@ -36,25 +62,43 @@ function FullBake.Now(folder: Configuration?): { string }
 
 	if not soundsFolder then
 		FormatMessage.Error("Could not find sounds folder at the provided location for full bake!")
-		return {}
+
+		bakingDiagnostics(t)
+
+		return contents
 	end
 
-	--if folder is provided it starts to do stuff here
-	local sounds = soundsFolder:QueryDescendants("Sound")
-	if #sounds == 0 then
+	--if folder is provided it starts to do heavy stuff here
+	local sounds: { Sound } = soundsFolder:QueryDescendants("Sound")
+	local soundCount: number = #sounds
+
+	if soundCount == 0 then
 		FormatMessage.Warn("No sounds found in the specified sounds folder for full bake!")
-		return {}
+
+		bakingDiagnostics(t)
+
+		return contents
 	end
 
-	for _, sound in sounds do
-		if table.find(soundNames, sound.Name) then
-			continue
+	--this should be faster at building an array with unique values.
+	local soundNamesIndex: number = 0
+	for i = 1, soundCount do
+		local sound: Sound = sounds[i]
+		local name: string = sound.Name
+
+		if not soundNamesHash[name] then
+			soundNamesHash[name] = true
+			soundNamesIndex += 1
+
+			soundNamesArray[soundNamesIndex] = name
 		end
-
-		table.insert(soundNames, sound.Name)
 	end
 
-	return { Name = "FullBakeResult", SoundNames = soundNames }
+	contents.SoundNames = soundNamesArray
+
+	bakingDiagnostics(t)
+
+	return contents
 end
 
 return FullBake

@@ -1,4 +1,5 @@
 --!strict
+local TestService = game:GetService("TestService")
 
 --[[
     A utility module for formatting error and warning messages consistently across the Vluxy Sound Factory.
@@ -87,6 +88,32 @@ end
 function FormatMessage.PrintThunk(message: any): () -> ()
 	return function()
 		FormatMessage.Print(message)
+	end
+end
+
+--[[
+    @param message any -- The specific message to be printed in the test output.
+    @param context Instance? -- Optional parameter to specify the context for the test message.
+    @param line number? -- Optional parameter to specify the line number for the test message.
+
+    Prints a formatted message to the test output, which can be useful for debugging during development.
+]]
+function FormatMessage.TestPrint(message: any, context: Instance?, line: number?)
+	TestService:Message(message, context, line)
+end
+
+--[[
+    @param message any -- The specific message to be printed in the test output when the thunk is called.
+    @param context Instance? -- Optional parameter to specify the context for the test message.
+    @param line number? -- Optional parameter to specify the line number for the test message.
+
+    @return (Instance?, number?) -> () -- A function that, when called, will print a message to the test output with the formatted format.
+
+    Creates a thunk (a function that can be called later) for printing a formatted message to the test output.
+]]
+function FormatMessage.TestPrintThunk(message: any, context: Instance?, line: number?): (Instance?, number?) -> ()
+	return function(contextOverride: Instance?, lineOverride: number?)
+		FormatMessage.TestPrint(message, contextOverride or context, lineOverride or line)
 	end
 end
 
