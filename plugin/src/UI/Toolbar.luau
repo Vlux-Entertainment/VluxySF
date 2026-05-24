@@ -7,9 +7,15 @@ local ICONS = {
 	SETTINGS_CLOSED = "rbxassetid://131160231402316",
 }
 
-local Settings = require(script.Parent.Tools.Settings)
+------------------------------------------------------------------------------------------------------------------------
+
+local src = script.Parent.Parent
+
+local Settings = require(src.Tools.Settings)
 
 local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
+
+------------------------------------------------------------------------------------------------------------------------
 
 local function getCurrentEnableIcon(): string
 	return Settings.GetPluginEnabled() and ICONS.ENABLED or ICONS.DISABLED
@@ -19,9 +25,9 @@ local function getCurrentSettingsIcon(): string
 	return Settings.GetOptionsOpened() and ICONS.SETTINGS_OPEN or ICONS.SETTINGS_CLOSED
 end
 
---[[
-	Topbar plugin Interface.
-]]
+------------------------------------------------------------------------------------------------------------------------
+-- Create the toolbar and buttons
+
 local toolbar = plugin:CreateToolbar("Vluxy Sound Factory")
 
 --plugin enable button
@@ -34,7 +40,11 @@ local settingsText = "Settings"
 local settingsToolTip = "The available plugin settings for VLuxySF!"
 local settingsButton = toolbar:CreateButton(settingsText, settingsToolTip, getCurrentSettingsIcon())
 
--- This module handles the plugin's toolbar buttons and their interactions.
+------------------------------------------------------------------------------------------------------------------------
+
+--[[
+	A module for managing the plugin's toolbar, including the plugin enable button and settings button.
+]]
 local Toolbar = {}
 
 --returns the current enable icon based on plugin state

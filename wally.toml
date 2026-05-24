@@ -9,6 +9,7 @@ realm = "shared"
 include = ["lib", "default.project.json", "LICENSE"]
 
 exclude = [
+    "plugin",
     "assets",
     "docs",
     "build",

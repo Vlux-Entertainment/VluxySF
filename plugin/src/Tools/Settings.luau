@@ -8,10 +8,14 @@ local onAutoBakeChanged = Instance.new("BindableEvent")
 
 local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
 
--- This module handles the plugin's settings.
+--[[
+	A module for managing plugin settings and preferences, including plugin enable state, options panel state, socket settings, and sound file location.
+]]
 local Settings = {}
 
---[[enable plugin]]
+--[[
+	Enable Plugin
+]]
 
 --checks plugin enable state
 function Settings.GetPluginEnabled(): boolean
@@ -46,7 +50,9 @@ function Settings.TogglePluginEnabled(): boolean
 	return not currentState
 end
 
---[[Options toggle]]
+--[[
+	Options Toggle
+]]
 
 --checks options opened state
 function Settings.GetOptionsOpened(): boolean
@@ -79,7 +85,9 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
---[[Socket]]
+--[[
+	Socket
+]]
 
 --returns list of sound names for the full bake
 function Settings.GetAutoBakeEnabled(): boolean
@@ -104,7 +112,9 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
---[[port]]
+--[[
+	Port
+]]
 
 --returns default port number
 function Settings.GetDefaultPort(): number
@@ -132,7 +142,9 @@ function Settings.ListenPortChanged(): RBXScriptSignal
 	return onPortChanged.Event
 end
 
---[[Sound Location]]
+--[[
+	Sound Location
+]]
 
 --sound location
 function Settings.GetSoundsLocation(): string?

@@ -2,15 +2,21 @@
 
 local ServerStorage = game:GetService("ServerStorage")
 
---for now this works but an event version would be better in the future prob.
+local src = script.Parent.Parent
 
-local Settings = require(script.Parent.Tools.Settings)
-local SoundsLocation = require(script.Parent.Tools.SoundsLocation)
+local Settings = require(src.Tools.Settings)
+local SoundsLocation = require(src.Tools.SoundsLocation)
 
--- This module handles the auto searching for the sounds folder location and updating it in the plugin's settings.
+--[[
+	This module automatically searches for the sounds folder in ServerStorage and updates the settings with the location of the sounds folder.
+]]
 local AutoSearchLocation = {}
 
---
+--[[
+	@param location: Configuration? -- the new location of the sounds folder, or nil to search for the sounds folder automatically.
+
+	This function updates the settings with the location of the sounds folder. If a location is provided, it will use that location.
+]]
 function AutoSearchLocation.SetFolder(location: Configuration?)
 	local formatLocation = nil
 	if location then
@@ -23,7 +29,9 @@ function AutoSearchLocation.SetFolder(location: Configuration?)
 	Settings.SetSoundsLocation(formatLocation)
 end
 
---
+--[[
+	Starts searching for the SOUNDS folder location.
+]]
 function AutoSearchLocation.Start()
 	AutoSearchLocation.SetFolder(nil)
 

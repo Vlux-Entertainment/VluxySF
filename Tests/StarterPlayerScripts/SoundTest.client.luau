@@ -9,4 +9,4 @@ VluxySF.Startup.WaitForSchema()
 print(VluxySF.Schema.Get()) --test
 
 task.wait(4)
-VluxySF.FetchPlayOnce("DoorClose")
+VluxySF.Fetch("GunShot1")

@@ -4,9 +4,18 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 
+--[[
+	This module handles the location of the sounds folder within ServerStorage.
+]]
 local SoundsLocation = {}
 
--- This module handles the location of the sounds folder within ServerStorage. It provides functions to get the location of the sounds folder, retrieve the sounds folder instance from a given location, and automatically find the sounds folder if it exists.
+--[[
+	@param location Configuration -- The Configuration instance representing the sounds folder.
+
+	@return string -- The formatted location of the sounds folder.
+
+	Returns a formatted string representing the location of the sounds folder within ServerStorage, based on the hierarchy of instances leading to it.
+]]
 function SoundsLocation.GetLocationFromSoundsFolder(location: Configuration): string
 	local fullLocations = {}
 
@@ -35,7 +44,13 @@ function SoundsLocation.GetLocationFromSoundsFolder(location: Configuration): st
 	return formatedLocation
 end
 
--- Retrieves the sounds folder instance from a given formatted location string. The function checks if a Configuration exists at the specified location within ServerStorage and returns it. If the Configuration cannot be found, it throws an error with a formatted message indicating the issue.
+--[[
+	@param formatedLocation string -- The formatted location of the sounds folder.
+
+	@return Configuration? -- The Configuration instance representing the sounds folder, or nil if it cannot be found.
+
+	Returns the Configuration instance representing the sounds folder based on the provided formatted location string. The formatted location should be in the format "ServerStorage.Folder1.Folder2.SOUNDS".
+]]
 function SoundsLocation.GetSoundsFolderFromLocation(formatedLocation: string): Configuration?
 	local current: any = game
 
@@ -52,7 +67,14 @@ function SoundsLocation.GetSoundsFolderFromLocation(formatedLocation: string): C
 	return current
 end
 
--- Auto finds were the sounds folder should be location and returns a formatted location.
+------------------------------------------------------------------------------------------------------------------------
+
+--[[
+	@return Configuration? -- The Configuration instance representing the sounds folder, or nil if it cannot be found.
+	@return string -- The formatted location of the sounds folder, or "error" if the sounds folder cannot be found.
+
+	Automatically finds the sounds folder within ServerStorage by searching for a Configuration named "SOUNDS".
+]]
 function SoundsLocation.AutoFindFormatLocation(): (Configuration?, string)
 	local soundsFolders = ServerStorage:QueryDescendants("Configuration #SOUNDS")
 	local soundsFolder = soundsFolders[1]
