@@ -1,11 +1,12 @@
 --!strict
 
-local ServerStorage = game:GetService("ServerStorage")
+local src = script.Parent.Parent
 
-local EnableOption = require(ServerStorage.VluxySFPlugin.RawUI.EnableOption)
-local Settings = require(ServerStorage.VluxySFPlugin.Tools.Settings)
-local SettingsUI = require(ServerStorage.VluxySFPlugin.RawUI.SettingsUI)
-local TextBoxOption = require(ServerStorage.VluxySFPlugin.RawUI.TextBoxOption)
+local Settings = require(src.Tools.Settings)
+
+local EnableOption = require(src.RawUI.EnableOption)
+local SettingsUI = require(src.RawUI.SettingsUI)
+local TextBoxOption = require(src.RawUI.TextBoxOption)
 
 local plugin = plugin or script:FindFirstAncestorWhichIsA("Plugin") :: Plugin
 
@@ -19,13 +20,21 @@ local optionsWidget = plugin:CreateDockWidgetPluginGuiAsync("OptionsPanel", opti
 local optionsPanel = SettingsUI.New(optionsWidget)
 
 --port option
-local startingPortValue = Settings.GetPort() ~= Settings.GetDefaultPort() and tostring(Settings.GetPort()) or nil
+local startingPortValue = Settings.IsDefaultPort() and "" or tostring(Settings.GetPort())
 local portOption, portInput = TextBoxOption.New(1, "Port", startingPortValue, "Default: " .. Settings.GetDefaultPort())
 portOption.Parent = optionsPanel
 
 TextBoxOption.ForceOnlyNumbers(portInput)
 
-portInput.InputEnded:Connect(function()
+local previousPortValue = portInput.Text
+portInput.FocusLost:Connect(function()
+	if portInput.Text == previousPortValue then
+		return
+	end
+	previousPortValue = portInput.Text
+
+	--from here it should only run when new information is added.
+
 	if portInput.Text == "" then
 		Settings.SetPort(Settings.GetDefaultPort())
 		return
@@ -49,7 +58,7 @@ local diagnosticsOption, diagnosticsButton, diagnosticsSetState, diagnosticsGetS
 	EnableOption.New(2, "Diagnostics", Settings.GetDiagnosticsEnabled())
 diagnosticsOption.Parent = optionsPanel
 
-diagnosticsButton.InputEnded:Connect(function()
+diagnosticsButton.MouseButton1Down:Connect(function()
 	Settings.ToggleDiagnosticsEnabled()
 
 	diagnosticsSetState(Settings.GetDiagnosticsEnabled())

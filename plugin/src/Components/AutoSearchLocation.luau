@@ -4,6 +4,8 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local src = script.Parent.Parent
 
+local Trove = require(src.Utility.Trove)
+
 local Settings = require(src.Tools.Settings)
 local SoundsLocation = require(src.Tools.SoundsLocation)
 
@@ -32,10 +34,10 @@ end
 --[[
 	Starts searching for the SOUNDS folder location.
 ]]
-function AutoSearchLocation.Start()
+function AutoSearchLocation.Start(pluginCleaner: Trove.Trove)
 	AutoSearchLocation.SetFolder(nil)
 
-	ServerStorage.DescendantAdded:Connect(function(descendant: Instance)
+	pluginCleaner:Connect(ServerStorage.DescendantAdded, function(descendant: Instance)
 		if not descendant:IsA("Configuration") or descendant.Name ~= "SOUNDS" then
 			return
 		end
@@ -43,7 +45,7 @@ function AutoSearchLocation.Start()
 		AutoSearchLocation.SetFolder(descendant)
 	end)
 
-	ServerStorage.DescendantRemoving:Connect(function(descendant: Instance)
+	pluginCleaner:Connect(ServerStorage.DescendantRemoving, function(descendant: Instance)
 		if not descendant:IsA("Configuration") or descendant.Name ~= "SOUNDS" then
 			return
 		end

@@ -122,6 +122,15 @@ function Settings.GetDefaultPort(): number
 	return 7842
 end
 
+--checks if the port is currently default
+function Settings.IsDefaultPort(): boolean
+	if Settings.GetPort() == nil then
+		return true
+	end
+
+	return Settings.GetPort() == Settings.GetDefaultPort()
+end
+
 --checks port, if not set, sets to default (7842).
 function Settings.GetPort(): number
 	if plugin:GetSetting("Port") == nil then

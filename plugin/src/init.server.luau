@@ -6,6 +6,7 @@ local RunService = game:GetService("RunService")
 local src = script
 
 local FormatMessage = require(src.Utility.FormatMessage)
+local Trove = require(src.Utility.Trove)
 
 ------------------------------------------------------------------------------------------------------------------------
 --INIT------------------------------------------------------------------------------------------------------------------
@@ -37,6 +38,8 @@ local optionsWidget = OptionsPanel.GetOptionsWidget()
 
 local currentWebSocket: WebStreamClient? = nil
 
+local pluginCleaner = Trove.new()
+
 ------------------------------------------------------------------------------------------------------------------------
 
 --fixes issue were options widget doesnt open on first click.
@@ -49,14 +52,21 @@ end)
 --STARTUP---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
+Settings.SetPluginEnabled(false)
+Settings.SetOptionsOpened(false)
+
 --This finds the location of the sounds folder for websocket and auto baking to work.
-AutoSearchLocation.Start()
+AutoSearchLocation.Start(pluginCleaner)
 
 --This is for direct requests from the extension.
 SocketRequests.SetFullBake(FullBake.Now)
 
 --This only for autoBaking.
-AutoMonitorSounds.Init(function(folder)
+AutoMonitorSounds.Init(pluginCleaner, function(folder)
+	if not Settings.GetPluginEnabled() then
+		return
+	end
+
 	local result = FullBake.Now(folder)
 
 	if currentWebSocket then
@@ -71,7 +81,7 @@ end)
 ------------------------------------------------------------------------------------------------------------------------
 
 local lastUserPluginEnablePress = 0
-pluginEnableButton.Click:Connect(function()
+pluginCleaner:Connect(pluginEnableButton.Click, function()
 	if os.time() - lastUserPluginEnablePress < 0.2 then
 		return
 	end
@@ -81,7 +91,7 @@ pluginEnableButton.Click:Connect(function()
 end)
 
 --settings button
-settingsButton.Click:Connect(function()
+pluginCleaner:Connect(settingsButton.Click, function()
 	Settings.ToggleOptionsOpened()
 end)
 
@@ -90,39 +100,50 @@ end)
 ------------------------------------------------------------------------------------------------------------------------
 
 --plugin enable
+Toolbar.UpdatePluginEnableIcon()
 if Settings.GetPluginEnabled() then
-	SocketRequests.SetSocket(Settings.GetPort())
+	SocketRequests.SetSocket(pluginCleaner, Settings.GetPort())
 end
 
-Settings.ListenPluginEnabled():Connect(function(enabled: boolean)
+pluginCleaner:Connect(Settings.ListenPluginEnabled(), function(enabled: boolean)
 	Toolbar.UpdatePluginEnableIcon()
 
-	SocketRequests.TogglePort(enabled)
+	SocketRequests.TogglePort(pluginCleaner, enabled)
 end)
 
 --socket
-SocketRequests.ListenSocketError():Connect(function()
+pluginCleaner:Connect(SocketRequests.ListenSocketError(), function()
 	Settings.SetPluginEnabled(false)
 end)
 
 ------------------------------------------------------------------------------------------------------------------------
 
 --options
-optionsWidget:GetPropertyChangedSignal("Enabled"):Connect(function()
+pluginCleaner:Connect(optionsWidget:GetPropertyChangedSignal("Enabled"), function()
 	Settings.SetOptionsOpened(optionsWidget.Enabled)
 end)
 
-Settings.ListenOptionsOpened():Connect(function(opened: boolean)
+pluginCleaner:Connect(Settings.ListenOptionsOpened(), function(opened: boolean)
 	Toolbar.UpdateSettingsIcon()
 
 	optionsWidget.Enabled = opened
 end)
 
 --port
-Settings.ListenPortChanged():Connect(function(_port: number)
+pluginCleaner:Connect(Settings.ListenPortChanged(), function(_port: number)
 	if not Settings.GetPluginEnabled() then
 		return
 	end
 
-	SocketRequests.TogglePort(true)
+	SocketRequests.TogglePort(pluginCleaner, true)
 end)
+
+--cleanup
+plugin.Unloading:Connect(function()
+	Settings.SetPluginEnabled(false)
+	Settings.SetOptionsOpened(false)
+
+	pluginCleaner:Destroy()
+end)
+
+FormatMessage.Print("The plugin is now running!")

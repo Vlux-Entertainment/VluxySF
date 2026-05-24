@@ -32,7 +32,7 @@ local SocketRequests = {}
 ]]
 function SocketRequests.CleanSocket()
 	if socketCleaner then
-		socketCleaner:Clean()
+		socketCleaner:Destroy()
 	end
 end
 
@@ -41,17 +41,21 @@ end
 
 	this initializes the auto bake functionality, which listens for changes in the sounds folder and sends updates to the client when changes are made if auto bake is enabled.
 ]]
-function SocketRequests.SetSocket(port: number)
+function SocketRequests.SetSocket(pluginCleaner: Trove.Trove, port: number)
 	SocketRequests.CleanSocket()
-	socketCleaner = Trove.new()
+	socketCleaner = pluginCleaner:Extend()
 
 	local webSocket = HttpService:CreateWebStreamClient(Enum.WebStreamClientType.WebSocket, {
 		Url = "ws://127.0.0.1:" .. port,
 		Method = "GET",
 	})
 
+	socketCleaner:Add(function()
+		webSocket:Close()
+	end)
+
 	socketCleaner:Connect(webSocket.MessageReceived, function(message)
-		FormatMessage.Print(`Extension Request of {message} Recived!`)
+		--FormatMessage.Print(`Extension Request of {message} Recived!`)
 
 		local recievedData = HttpService:JSONDecode(message)
 
@@ -83,7 +87,7 @@ end
 
 	This toggles the port connection on or off depending on the enabled parameter.
 ]]
-function SocketRequests.TogglePort(enabled: boolean)
+function SocketRequests.TogglePort(pluginCleaner: Trove.Trove, enabled: boolean)
 	if Settings.GetSoundsLocation() == nil then
 		SocketRequests.CleanSocket()
 
@@ -92,7 +96,7 @@ function SocketRequests.TogglePort(enabled: boolean)
 	end
 
 	if enabled then
-		SocketRequests.SetSocket(Settings.GetPort())
+		SocketRequests.SetSocket(pluginCleaner, Settings.GetPort())
 
 		Sound.PlayConnect()
 	else

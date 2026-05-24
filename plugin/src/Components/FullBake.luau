@@ -5,22 +5,10 @@
 local src = script.Parent.Parent
 
 local FormatMessage = require(src.Utility.FormatMessage)
+local Profiler = require(src.Utility.Profiler)
 
 local Settings = require(src.Tools.Settings)
 local SoundsLocation = require(src.Tools.SoundsLocation)
-
---[[
-	@param startTime number -- The time when the full bake process started.
-
-	Debugging and performance info.
-]]
-local function bakingDiagnostics(startTime: number)
-	debug.profileend()
-
-	if Settings.GetDiagnosticsEnabled() then
-		FormatMessage.TestPrint(`FullBake took ${os.clock() - startTime} to execute.`, script, 39)
-	end
-end
 
 --[[
     This module performs a full bake of the sounds folder, returning an array of all the sound names in the folder.
@@ -37,8 +25,15 @@ local FullBake = {}
 	This function performs a full bake of the sounds folder, returning an array of all the sound names in the folder.
 ]]
 function FullBake.Now(folder: Configuration?): { string }
-	local t = os.clock()
-	debug.profilebegin(FormatMessage.NewMessage("FullBake"))
+	local bakingDiagnostics = Profiler.NewDiagnostic(Settings.GetDiagnosticsEnabled, "FullBake")
+	local bakingDebugProfile = Profiler.NewDebugProfile("FullBake")
+
+	local function endProfile()
+		bakingDiagnostics(nil, script, 28)
+		bakingDebugProfile()
+	end
+
+	--
 
 	local contents: { Name: string, SoundNames: { string } } = { Name = "FullBakeResult", SoundNames = {} }
 	local soundNamesHash: { [string]: boolean } = {}
@@ -52,7 +47,7 @@ function FullBake.Now(folder: Configuration?): { string }
 		if not formatedLocation then
 			FormatMessage.Error("Could not fetch sounds folder location for full bake!")
 
-			bakingDiagnostics(t)
+			endProfile()
 
 			return contents
 		end
@@ -63,7 +58,7 @@ function FullBake.Now(folder: Configuration?): { string }
 	if not soundsFolder then
 		FormatMessage.Error("Could not find sounds folder at the provided location for full bake!")
 
-		bakingDiagnostics(t)
+		endProfile()
 
 		return contents
 	end
@@ -75,7 +70,7 @@ function FullBake.Now(folder: Configuration?): { string }
 	if soundCount == 0 then
 		FormatMessage.Warn("No sounds found in the specified sounds folder for full bake!")
 
-		bakingDiagnostics(t)
+		endProfile()
 
 		return contents
 	end
@@ -96,7 +91,7 @@ function FullBake.Now(folder: Configuration?): { string }
 
 	contents.SoundNames = soundNamesArray
 
-	bakingDiagnostics(t)
+	endProfile()
 
 	return contents
 end

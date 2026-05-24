@@ -2,7 +2,9 @@
 
 local ServerStorage = game:GetService("ServerStorage")
 
-local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local src = script.Parent.Parent
+
+local FormatMessage = require(src.Utility.FormatMessage)
 
 --[[
 	This module handles the location of the sounds folder within ServerStorage.

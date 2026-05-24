@@ -112,9 +112,6 @@ function EnableOption.New(
 	optionHolder.Parent = holder
 
 	optionsCheckMark.Visible = startingValue
-	optionInput.InputEnded:Connect(function()
-		optionsCheckMark.Visible = not optionsCheckMark.Visible
-	end)
 
 	local function setState(state: boolean)
 		optionsCheckMark.Visible = state
