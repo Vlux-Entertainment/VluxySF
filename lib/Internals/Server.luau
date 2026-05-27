@@ -1,9 +1,9 @@
 --!strict
 --!native
+--!optimize 2
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 
@@ -37,121 +37,89 @@ local soundSchema: Types.SoundSchema = {
 	PreloadIds = {},
 }
 
+local preloadIdIndex: number = 0
+local preloadIdHash: { [string]: boolean } = {}
+
 ------------------------------------------------------------------------------------------------------------------------
 
---[[
-    Sets grouped sounds from a folder into the sound definitions.
+local function setPreloadId(soundId: string): nil
+	if preloadIdHash[soundId] then
+		return nil
+	end
+	preloadIdHash[soundId] = true
 
-    @param soundDefinitions SoundDefinitions -- The sound definitions dictionary to add the sounds to.
-    @param childFolder Instance -- The folder containing the sounds to add.
-]]
-local function setGroupedSounds(soundDefinitions: Types.SoundDefinitions, childFolder: Instance)
-	local sounds = childFolder:QueryDescendants("Sound")
+	preloadIdIndex += 1
 
-	for _, sound in ipairs(sounds) do
-		if soundDefinitions[sound.Name] then
-			FormatMessage.Error(`Duplicate sound with name "{sound.Name}" located at: {sound:GetFullName()}`)
-		end
+	soundSchema.PreloadIds[preloadIdIndex] = soundId
 
-		local success, result = pcall(function()
-			local newDefinition = Converters.SoundToDefinition(sound)
-			newDefinition.Properties.SoundGroup = childFolder.Name --add to sound group
+	return nil
+end
 
-			return newDefinition
-		end)
+------------------------------------------------------------------------------------------------------------------------
 
-		if success then
-			soundDefinitions[sound.Name] = result
-		else
-			FormatMessage.Warn(result)
-		end
+local function setNewSound(groupFolder: Configuration, sound: Sound): nil
+	local soundDefinitions: Types.SoundDefinitions = soundSchema.SoundDefinitions
+	local soundName: string = sound.Name
+	local soundId: string = sound.SoundId
+
+	if soundDefinitions[soundName] then
+		FormatMessage.Warn(`Duplicate sound with name "{soundName}" located at: {sound:GetFullName()}`)
+		return nil
+	end
+
+	local newDefinition: Types.SoundDefinition = Converters.SoundToDefinition(sound)
+	newDefinition.Properties.SoundGroup = groupFolder.Name --add to sound group
+
+	soundDefinitions[soundName] = newDefinition
+
+	--preload ids
+	if not sound:HasTag("VluxySF_Preload") then
+		return nil
+	end
+
+	setPreloadId(soundId)
+
+	return nil
+end
+
+local function setGroupedSoundsToDefinitions(groupFolder: Configuration)
+	local sounds: { Sound } = groupFolder:QueryDescendants("Sound")
+
+	local soundsCount: number = #sounds
+
+	for i = 1, soundsCount do
+		local sound: Sound = sounds[i]
+
+		setNewSound(groupFolder, sound)
 	end
 end
 
---[[
-    Creates sound definitions for all sounds in the given folder and organizes them by group.
+------------------------------------------------------------------------------------------------------------------------
 
-    @param soundFolder Configuration -- The folder containing sound group folders and unattached sounds.
+local function compile(soundsFolder: Configuration)
+	local soundGroups: { Instance } = soundsFolder:GetChildren()
 
-    @return SoundDefinitions -- The created sound definitions dictionary.
-]]
-local function createSoundDefinitions(soundFolder: Configuration): Types.SoundDefinitions
-	local soundDefinitions: Types.SoundDefinitions = {}
+	local soundGroupCount: number = #soundGroups
 
-	for _, childFolder in pairs(soundFolder:GetChildren()) do
-		setGroupedSounds(soundDefinitions, childFolder)
-	end
+	for i = 1, soundGroupCount do
+		local childFolder: Instance = soundGroups[i]
 
-	return soundDefinitions
-end
-
---[[
-	Converts a SoundConfig to a list of SoundGroups.
-
-	@param soundConfig Configuration -- The SoundConfig to convert.
-	@param parent Instance -- The parent instance to create the SoundGroups under.
-
-	@return SoundGroups -- A table of SoundGroups created from the SoundConfig.
-]]
-function soundConfigToSoundGroups(soundConfig: Configuration, parent: Instance): Types.SoundGroups
-	local soundGroups: Types.SoundGroups = {}
-
-	--first set of children defines sound groups
-	for _, childFolder in pairs(soundConfig:GetChildren()) do
 		if not childFolder:IsA("Configuration") then
 			FormatMessage.Error(`The defined SoundGroup named {childFolder.Name} should be a Configuration Instance!`)
 
 			continue
 		end
 
+		--new SoundGroup
 		local soundGroup = Instance.new("SoundGroup")
 		soundGroup.Name = childFolder.Name
-		soundGroup.Parent = parent
+		soundGroup.Parent = soundSchema.SoundGroupContainer
 
-		soundGroups[childFolder.Name] = soundGroup
+		soundSchema.SoundGroups[childFolder.Name] = soundGroup
+
+		--set sounds for the group
+		setGroupedSoundsToDefinitions(childFolder)
 	end
-
-	return soundGroups
-end
-
---[[
-	Converts a SoundConfig to a list of SoundIds that should be preloaded.
-
-	@param soundConfig Configuration -- The SoundConfig to convert.
-
-	@return { string } -- A list of SoundIds to preload.
-]]
-function soundConfigToPreloadIds(soundConfig: Configuration): { string }
-	local preloadIds = {}
-
-	local function getIdsFromParent(folder: Instance)
-		local sounds = folder:QueryDescendants("Sound")
-
-		for _, sound in ipairs(sounds) do
-			table.insert(preloadIds, sound.SoundId)
-		end
-	end
-
-	local preloadFolders = CollectionService:GetTagged("_VluxySF_Preload")
-	for _, folder in ipairs(preloadFolders) do
-		if not folder:IsDescendantOf(soundConfig) then
-			FormatMessage.Warn(`Preload was tagged outside of the SOUNDS folder! : {folder:GetFullName()}`)
-			continue
-		end
-
-		if not folder:IsA("Folder") and not folder:IsA("Configuration") and not folder:IsA("Sound") then
-			FormatMessage.Warn(`Preload was tagged on an invalid Instance Class! : {folder:GetFullName()}`)
-			continue
-		end
-
-		if folder:IsA("Sound") then
-			table.insert(preloadIds, folder.SoundId)
-		else
-			getIdsFromParent(folder)
-		end
-	end
-
-	return preloadIds
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -163,17 +131,14 @@ end
 
 	@param soundFolder Configuration -- The folder containing sound group folders and unattached sounds.
 ]]
-local function initializeServerSoundSystem(soundFolder: Configuration)
-	--set groups
-	soundSchema.SoundGroups = soundConfigToSoundGroups(soundFolder, soundSchema.SoundGroupContainer)
+local function initializeServerSoundSystem(soundsFolder: Configuration)
+	local t = os.clock()
 
-	--convert Sounds
-	soundSchema.SoundDefinitions = createSoundDefinitions(soundFolder)
+	compile(soundsFolder)
 
-	--set preload
-	soundSchema.PreloadIds = soundConfigToPreloadIds(soundFolder)
+	FormatMessage.Print(`Server Compilation took {os.clock() - t} seconds!`)
 
-	soundFolder:Destroy() --destroy folder after converting sounds to definitions to save memory
+	soundsFolder:Destroy() --destroy folder after converting sounds to definitions to save memory
 
 	--send conversion to client
 	local soundRequestLimit = Ratelimit(5, 5)

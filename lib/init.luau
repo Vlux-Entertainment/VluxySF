@@ -1,7 +1,5 @@
 --!strict
 
-local Debris = game:GetService("Debris")
-
 local tools = script.Tools
 local utility = script.Utility
 local internals = script.Internals
@@ -72,7 +70,7 @@ local schemaFailCheck = function()
 		return
 	end
 
-	FormatMessage.Error("Sound schema is not initialized yet! You need to wait before you can use this function!")
+	FormatMessage.Error("Sound schema is not initialized yet! You need to wait before you can use this function!", 3)
 end
 
 ----------------------------------------------------------------------------------------------------------------
@@ -347,7 +345,7 @@ function Sounds.Fetch(
 	local definition = soundSchema.SoundDefinitions[name]
 	if not definition then
 		FormatMessage.Warn(`Sound with name '{name}' was not found in schema!`)
-		return nil
+		return nil --may be better for fetch to always return a sound.
 	end
 
 	local sound = Converters.DefinitionToSound(definition)

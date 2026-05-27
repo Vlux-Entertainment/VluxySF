@@ -1,7 +1,12 @@
 [package]
 name = "greenviper126/vluxysf"
-description = "Sound fetching system with a focus on simplicity and saving memory!"
-version = "0.8.8"
+
+description = """
+Sound fetching system with a focus on simplicity and saving memory! 
+
+Source: https://github.com/Vlux-Entertainment/VluxySF
+"""
+version = "0.9.1"
 license = "MIT"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
