@@ -99,6 +99,21 @@ end
 
 ------------------------------------------------------------------------------------------------------------
 
+--[[
+    @within SoundGroups
+
+    @param mainVolume number -- The desired main volume level to set for the "SOUNDS" group.
+
+    Sets the main volume level for the "SOUNDS" group, which can be used as a master volume control for all sounds in that group.
+]]
+function Groups.SetMainVolume(mainVolume: number)
+	local soundsGroup = soundSchema.SoundGroupContainer
+
+	if soundsGroup then
+		soundsGroup.Volume = mainVolume
+	end
+end
+
 --[=[
 	@within SoundGroups
 
@@ -106,8 +121,12 @@ end
 
 	Sets the volume levels for multiple sound groups at once based on the provided dictionary of group names and volume values.
 ]=]
-function Groups.SetVolumes(volumes: { [string]: number })
+function Groups.SetVolumes(mainVolume: number?, volumes: { [string]: number })
 	schemaFailCheck()
+
+	if mainVolume then
+		Groups.SetMainVolume(mainVolume)
+	end
 
 	for groupName, volume in pairs(volumes) do
 		local group = Groups.GetByName(groupName)

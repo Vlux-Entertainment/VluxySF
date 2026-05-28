@@ -9,19 +9,20 @@
 	@within Schema
 
 	.UnattachedSounds Configuration -- A folder for storing unattached sounds.
-	.SoundGroupContainer Configuration -- A folder for storing sound groups.
+	.SoundGroupContainer SoundGroup -- A folder for storing sound groups.
 	.SoundGroups SoundGroups -- A dictionary of sound group instances, organized by name.
 	.SoundDefinitions SoundDefinitions -- A dictionary of sound definitions, organized by sound name.
-	.DefinitionsGroupHash Dictionary<Dictionary<string>> -- Set of hashmaps for fast searching.
+	
 	.PreloadIds { string } -- A list of sound asset IDs to preload.
 
 	Defines the overall schema for the sound system, containing all necessary data for sound creation and management.
 ]=]
 export type SoundSchema = {
-	UnattachedSounds: Configuration,
-	SoundGroupContainer: Configuration,
-
+	SoundGroupContainer: SoundGroup,
 	SoundGroups: SoundGroups,
+
+	UnattachedSounds: Configuration,
+
 	SoundDefinitions: SoundDefinitions,
 
 	PreloadIds: { string },
@@ -109,12 +110,14 @@ export type SoundDefinitions = Dictionary<SoundDefinition>
 
 	.Properties SoundSerialized -- The properties of the sound itself, such as SoundId, Volume, etc.
 	.Effects SoundChildrenSerialized -- The sound effects of the sound, organized by class name.
+	.EffectsCount number -- The number of sound effects attached to the sound.
 
 	Defines the properties and sound effects of a sound.
 ]=]
 export type SoundDefinition = {
 	Properties: SoundSerialized,
 	Effects: SoundChildrenSerialized,
+	EffectsCount: number,
 }
 
 ------------------------------------------------------------------------------------------------------------------------

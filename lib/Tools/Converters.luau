@@ -20,14 +20,12 @@ local ALLOWED_SOUND_CHILDREN = {
 	TremoloSoundEffect = true,
 }
 
-local function addEffect(sound: Sound, effectName: string, effectProperties: { [string]: any })
-	local effect = Instance.new(effectName)
+local function fastSetProperties(instance: Instance, properties: { [string]: any })
+	local soundInst = instance :: any --fix type error
 
-	for property, value in effectProperties do
-		Properties.ApplyPropertyValueToInstance(effect, property, value)
+	for property, value in next, properties do
+		soundInst[property] = value
 	end
-
-	effect.Parent = sound
 end
 
 --[[
@@ -42,17 +40,25 @@ local Converters = {}
 
 	Converts a Sound instance to a SoundDefinition.
 ]]
-function Converters.SoundToDefinition(sound: Sound): Types.SoundDefinition
+function Converters.SoundToDefinition(sound: Sound, soundGroup: SoundGroup?): Types.SoundDefinition
 	local definition = {
 		Properties = {},
 		Effects = {},
+		EffectsCount = 0,
 	} :: Types.SoundDefinition
 
 	--[[
 		properties
 	]]
 	local properties: { [string]: any } = Properties.InstanceToProperties(sound)
+
 	Properties.RemoveDefaultProperties(properties)
+	properties.AudioContent = nil
+	properties.Parent = nil
+
+	if soundGroup then
+		properties.SoundGroup = soundGroup
+	end
 
 	definition.Properties = properties
 
@@ -98,6 +104,8 @@ function Converters.SoundToDefinition(sound: Sound): Types.SoundDefinition
 		Properties.RemoveDefaultProperties(effectProperties)
 
 		effectsDefinition[effectClassName] = effectProperties
+
+		definition.EffectsCount += 1
 	end
 
 	return definition
@@ -115,16 +123,18 @@ function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.
 	sound:AddTag("_VLUXY_SOUND_FACTORY_INSTANCE") --lets the system know what sound was created by VluxySF
 
 	--properties
-	for property, value in pairs(definition.Properties) do
-		Properties.ApplyPropertyValueToInstance(sound, property, value)
+	pcall(fastSetProperties, sound, definition.Properties)
+
+	if definition.EffectsCount == 0 then
+		return sound :: Types.SoundDefinitionInstanced
 	end
 
-	for effectName, effectProperties in pairs(definition.Effects) do
-		if not effectProperties then
-			continue
-		end
+	for effectName, effectProperties in next, definition.Effects do
+		local effect = Instance.new(effectName)
 
-		addEffect(sound, effectName, effectProperties)
+		pcall(fastSetProperties, effect, effectProperties)
+
+		effect.Parent = sound
 	end
 
 	return sound :: Types.SoundDefinitionInstanced

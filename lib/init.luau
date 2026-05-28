@@ -57,7 +57,7 @@ export type TremoloSoundEffectSerialized = Types.TremoloSoundEffectSerialized
 
 ----------------------------------------------------------------------------------------------------------------
 
-local soundSchema: Types.SoundSchema
+local soundSchema: Types.SoundSchema = nil
 
 local blankSoundSchema = {
 	Properties = {
@@ -72,10 +72,6 @@ end
 
 ----------------------------------------------------------------------------------------------------------------
 
-Startup._waitForInternalSchema(function(schema: Types.SoundSchema)
-	soundSchema = schema
-end)
-
 local schemaFailCheck = function()
 	if Startup.Startup.IsInitialized() then
 		return
@@ -84,11 +80,17 @@ local schemaFailCheck = function()
 	FormatMessage.Error("Sound schema is not initialized yet! You need to wait before you can use this function!", 3)
 end
 
-Schema._injectSchemaFailCheck(schemaFailCheck)
-Schema._injectSoundSchema(soundSchema)
+----------------------------------------------------------------------------------------------------------------
 
-Groups._injectSchemaFailCheck(schemaFailCheck)
-Groups._injectSoundSchema(soundSchema)
+Startup._injectSubModules(function(schema: Types.SoundSchema)
+	Schema._injectSchemaFailCheck(schemaFailCheck)
+	Schema._injectSoundSchema(schema)
+
+	Groups._injectSchemaFailCheck(schemaFailCheck)
+	Groups._injectSoundSchema(schema)
+
+	soundSchema = schema
+end)
 
 ----------------------------------------------------------------------------------------------------------------
 
@@ -115,7 +117,7 @@ local Sounds = {}
 
 	@return Sound -- The fetched sound instance.
 	
-	Finds the specified `SoundDefinition` and gives back a playable `Sound`. If it doesnt exist a blank sound is returned.
+	Finds the specified `SoundDefinition` and gives back a playable Sound. If it doesnt exist a blank sound is returned.
 ]=]
 function Sounds.Fetch(name: GeneratedSoundNames, parent: Instance?, preset: (Sound) -> ()?): SoundDefinitionInstanced
 	schemaFailCheck()
@@ -143,7 +145,7 @@ function Sounds.Fetch(name: GeneratedSoundNames, parent: Instance?, preset: (Sou
 	return sound
 end
 
---[[
+--[=[
 	@within VluxySF
 
 	@param name string -- The name of the `SoundDefinition`.
@@ -152,8 +154,8 @@ end
 
 	@return Sound? -- The fetched sound instance if found, otherwise nil.
 
-	Just like `Sounds.Fetch` but will only give back a sound if it can find it.
-]]
+	Just like `VluxySF.Fetch` but will only give back a sound if it can find it.
+]=]
 function Sounds.FetchStrict(
 	name: GeneratedSoundNames,
 	parent: Instance?,

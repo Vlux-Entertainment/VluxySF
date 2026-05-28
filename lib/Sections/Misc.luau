@@ -19,11 +19,11 @@ local Misc = {}
 --[=[
 	@within Misc
 
-	@param ... string | Sound | SoundDefinition -- A variable number of sound identifiers, which can be sound locations, Sound instances, or SoundDefinitions.
+	@param ... number | string | Sound | SoundDefinition -- A variable number of sound identifiers, which can be sound locations, Sound instances, or SoundDefinitions.
 
 	Preloads through ContentProvider.
 ]=]
-function Misc.PreloadSelected(...: string | Sound | Types.SoundDefinition)
+function Misc.PreloadSelected(...: number | string | Sound | Types.SoundDefinition)
 	return Preload.Selected(...)
 end
 

@@ -42,9 +42,6 @@ function Class.RemoveDefaultProperties(properties: { [string]: any })
 
 		properties[property] = nil
 	end
-
-	properties["AudioContent"] = nil
-	properties["Parent"] = nil
 end
 
 --[[

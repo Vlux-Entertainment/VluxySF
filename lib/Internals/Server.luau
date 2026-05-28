@@ -24,13 +24,14 @@ local unattachedSoundsFolder = Instance.new("Configuration")
 unattachedSoundsFolder.Name = "UnattachedSounds"
 unattachedSoundsFolder.Parent = SoundService
 
-local soundGroupContainerFolder = Instance.new("Configuration")
-soundGroupContainerFolder.Name = "SoundGroups"
-soundGroupContainerFolder.Parent = SoundService
+local soundGroupContainer = Instance.new("SoundGroup")
+soundGroupContainer.Name = "SOUNDS"
+soundGroupContainer.Volume = 1
+soundGroupContainer.Parent = SoundService
 
 local soundSchema: Types.SoundSchema = {
 	UnattachedSounds = unattachedSoundsFolder,
-	SoundGroupContainer = soundGroupContainerFolder,
+	SoundGroupContainer = soundGroupContainer,
 
 	SoundGroups = {},
 	SoundDefinitions = {},
@@ -58,7 +59,7 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local function setNewSound(groupFolder: Configuration, sound: Sound): nil
+local function setNewSound(groupFolder: Configuration, soundGroup: SoundGroup, sound: Sound): nil
 	local soundDefinitions: Types.SoundDefinitions = soundSchema.SoundDefinitions
 	local soundName: string = sound.Name
 	local soundId: string = sound.SoundId
@@ -68,8 +69,7 @@ local function setNewSound(groupFolder: Configuration, sound: Sound): nil
 		return nil
 	end
 
-	local newDefinition: Types.SoundDefinition = Converters.SoundToDefinition(sound)
-	newDefinition.Properties.SoundGroup = groupFolder.Name --add to sound group
+	local newDefinition: Types.SoundDefinition = Converters.SoundToDefinition(sound, soundGroup)
 
 	soundDefinitions[soundName] = newDefinition
 
@@ -83,7 +83,7 @@ local function setNewSound(groupFolder: Configuration, sound: Sound): nil
 	return nil
 end
 
-local function setGroupedSoundsToDefinitions(groupFolder: Configuration)
+local function setGroupedSoundsToDefinitions(groupFolder: Configuration, soundGroup: SoundGroup)
 	local sounds: { Sound } = groupFolder:QueryDescendants("Sound")
 
 	local soundsCount: number = #sounds
@@ -91,7 +91,7 @@ local function setGroupedSoundsToDefinitions(groupFolder: Configuration)
 	for i = 1, soundsCount do
 		local sound: Sound = sounds[i]
 
-		setNewSound(groupFolder, sound)
+		setNewSound(groupFolder, soundGroup, sound)
 	end
 end
 
@@ -114,12 +114,13 @@ local function compile(soundsFolder: Configuration)
 		--new SoundGroup
 		local soundGroup = Instance.new("SoundGroup")
 		soundGroup.Name = childFolder.Name
+		soundGroup.Volume = 1
 		soundGroup.Parent = soundSchema.SoundGroupContainer
 
 		soundSchema.SoundGroups[childFolder.Name] = soundGroup
 
 		--set sounds for the group
-		setGroupedSoundsToDefinitions(childFolder)
+		setGroupedSoundsToDefinitions(childFolder, soundGroup)
 	end
 end
 

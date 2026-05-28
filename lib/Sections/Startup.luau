@@ -13,10 +13,14 @@ local Types = require(library.Types)
 ------------------------------------------------------------------------------------------------------------
 
 local initializedEvent = Instance.new("BindableEvent")
+initializedEvent.Name = "Initialized"
+initializedEvent.Parent = script
 
 local isInitialized = false
 
 local soundSchema: Types.SoundSchema = nil
+
+local subStartup: (Types.SoundSchema) -> () = nil
 
 ------------------------------------------------------------------------------------------------------------
 
@@ -26,21 +30,12 @@ local soundSchema: Types.SoundSchema = nil
 local Core = {}
 
 --[[
-    @yields
+	@param func (SoundSchema) -> () -- The function to be injected as the schema fail check.
 
-    @param onRetrived (SoundSchema) -> () -- function to call when schema is available.
-
-    Injects the sound schema for use in the Startup section.
+	Injects a function to be used as a check for when the schhema exists.
 ]]
-function Core._waitForInternalSchema(onRetrived: (Types.SoundSchema) -> ())
-	if isInitialized then
-		onRetrived(soundSchema)
-		return
-	end
-
-	initializedEvent.Event:Wait()
-
-	onRetrived(soundSchema)
+function Core._injectSubModules(schema: (Types.SoundSchema) -> ())
+	subStartup = schema
 end
 
 ------------------------------------------------------------------------------------------------------------
@@ -71,6 +66,8 @@ function Startup.InitServer(soundFolder: Configuration | Folder)
 	soundSchema = Server.GetSoundSchema()
 	Tables.DeepFreeze(soundSchema)
 
+	subStartup(soundSchema)
+
 	isInitialized = true
 	initializedEvent:Fire()
 end
@@ -95,6 +92,8 @@ function Startup.InitClient(timeout: number?)
 	--fetch
 	soundSchema = Client.GetSoundSchema()
 	Tables.DeepFreeze(soundSchema)
+
+	subStartup(soundSchema)
 
 	isInitialized = true
 	initializedEvent:Fire()

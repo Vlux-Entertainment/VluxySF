@@ -8,139 +8,151 @@ sidebar_position: 5
 
 Explore practical usage patterns for VluxySF. These examples cover basic playback, group volume control, preloading, and advanced sound entity manipulation.
 
-THIS PAGE IS OUTDATED!
-
 ---
 ---
 
-## Basic Playback (Client/Server)
+## Basic Fetch
 
-Fetch and play a sound instance by name. This works on both client and server.
+This is the main function of this library! It reconstructs your sound on request.
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 
 VluxySF.WaitForSchema() -- Wait until schema is loaded
 
-local sound = VluxySF.ConstructSoundFromName("MUSIC/LoFi/beat1") -- waits until sound is loaded
-if sound then
-    sound:Play()
-end
+local sound = VluxySF.Fetch("LoFiBeat1") -- <-- Always returns a Sound Instance.
+
+--Do stuff here / adjust properties.
+
+sound:Play()
 ```
 
-*"Music/LoFi/Beat1" is just an example path in your SOUNDS folder.*
+> **Note:** `"LoFiBeat1"` is just an example `Sound` name in your `SOUNDS Configuration`.
+>
+> **Note:** If it fails to find your `Sound` a `Blank Sound Instance` is returned Instead.
 
+## Basic OneShot
+
+There is an alternative function for directly playing a sound if you just need to `OneShot`.
+
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
+
+VluxySF.WaitForSchema() -- Wait until schema is loaded.
+
+VluxySF.FetchPlayOnce("LoFiBeat1")
+```
 
 ---
+
+## Alternative Fetch
+
+There is an alternative `Fetch Function` if you dont want a `Blank Sound Instance` on fail.
+
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
+
+VluxySF.WaitForSchema() -- Wait until schema is loaded.
+
+local sound = VluxySF.FetchStrict("LoFiBeat1") -- <-- Can return nil.
+if sound then
+    --Do stuff here / adjust properties.
+
+    sound:Play()
+end
+
+```
+
 ---
 
-## Manipulating SoundGroup Volumes
+## Presets
+
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
+
+VluxySF.WaitForSchema() --Wait until schema is loaded.
+
+local presets = VluxySF.Presets --Quicker way to use presets.
+
+--A combined preset as shown below lets you combine multiple presets together.
+local myPrest = presets.Combine(
+    function(name: string) -- <-- you can also make your own presets.
+        return function(sound: Sound)
+            sound.Name = name .. math.random()
+        end
+    end
+
+    presets.NaturalVolumeJitter(0.8, 0.12),
+    presets.NaturalPlaybackJitter(0.7, 0.09),
+    presets.Parent(workspace),
+)
+
+VluxySF.FetchPlayOnce("RandomSound1", nil, nil, myPreset)
+task.delay(0.1, function()
+    VluxySF.FetchPlayOnce("RandomSound1", nil, nil, myPreset)
+end)
+
+--Want this sound to have a similar preset but the parent is diffrent.
+local sound = VluxySF.Fetch("RandomSound1", nil, myPreset)
+sound.parent = workspace.CurrentCamera
+
+--This sound is diffrent but i want it to play similarly.
+local sound = VluxySF.Fetch("OtherRandomSound1", nil, myPreset)
+```
+>**Tip:** You can make your own module of presets and use them just like shown here.
+>
+>**Note:** Combine presets get applied in order from first variable argument to last.
+>
+>**Note:** It is recommended that you only use presets to set properties and perform similar one time operations
+
+---
+
+## SoundGroups
 
 Set the SoundGroup volumes at the start of a session. This can be done on server or client (client is recommended for user settings).
 
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 
 VluxySF.WaitForSchema()
 
-local masterVolume = 0.8
+local mainVolume = 0.8
 local subVolumes = {
     ["GAME"] = 0.7,
     ["MUSIC"] = 0.55,
     ["SFX"] = 0.64,
+    ...
 }
 
-local function UpdateSoundGroupVolumes()
-    for _, soundGroup in ipairs(VluxySF.GetSoundGroups()) do
-        local rawVolume = subVolumes[soundGroup.Name] or 0.5
-        local realVolume = rawVolume * masterVolume
-        soundGroup.Volume = realVolume
-    end
+local function onUpdate()
+    --Do stuff here if you want, maybe clamp your values if you dont want it to be from 0, 10
+
+    VluxySF.Groups.SetVolumes(mainVolume, subVolumes)
 end
 
-UpdateSoundGroupVolumes()
-```
+--im too lazy to connect this to an event
+task.spawn(function()
+    while true do
+        onUpdate()
 
-*Tip: You can call this function whenever a slider or setting changes to update volumes live.*
-
-
----
----
-
-## Using the SoundEntity
-
----
-
-### Simple Use
-
-Create and play a looping sound using the SoundEntity API:
-
-
-```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VluxySF = require(ReplicatedStorage.VluxySF)
-
-VluxySF.WaitForSchema()
-
-local endingMusic = VluxySF.Create("MUSIC/LoFi/beat1"):SetLooped(true):Play()
-```
-
----
-
-### _Preload Startup Example
-
-Sometimes you need a sound to be loaded on startup or the first time it’s played. There is no difference in fetching the sound besides the extra child location.
-
-
-```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VluxySF = require(ReplicatedStorage.VluxySF)
-
-VluxySF.WaitForSchema()
-
-local endingMusic = VluxySF.Create("SFX/Guns/_Preload/shotgunFired1"):PlayOnce()
-```
-
----
-
-### _Preload SoundEntity Example
-
-Sometimes you don’t know if something needs to be preloaded until the game starts. In that case, you can preload your fetched sound manually:
-
-```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VluxySF = require(ReplicatedStorage.VluxySF)
-
-VluxySF.WaitForSchema()
-
--- Preload as soon as possible
-local endingMusic = VluxySF.Create("MUSIC/LoFi/beat1"):Preload() -- yields
-
--- do stuff here
-
-endingMusic:Play() -- this sound plays first try
-```
-
----
-
-### Yielding on a Separate Thread
-
-If you want to deal with sounds on a separate thread, you can use `Fork`. To clean up any forks, use `RemoveForks`.
-
-```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VluxySF = require(ReplicatedStorage.VluxySF)
-
-VluxySF.WaitForSchema()
-
-local endingMusic = VluxySF.Create("MUSIC/LoFi/beat1"):Fork(function(self)
-    self:Sleep(10):Play() -- sleep method waits for 10 seconds
+        task.wait(0.5)
+    end
 end)
 ```
 
-*This waits for 10 seconds and then plays the sound on a separate thread.*
-
----
+> **Tip:** You can call this function whenever a slider or setting changes to update volumes live.
+>
+> **Note:** inputing the `mainVolume` is optional. So are the elements in the `subVolumes` table.
+>
+> **Note:** There is other functions you can use for manipulating your `SoundGroups`.

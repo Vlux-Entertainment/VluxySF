@@ -11,13 +11,17 @@ To start using VluxySF, you must initialize the package on both the server and t
 
 ## 1. Setting Up the Sound Folder
 
-First, create a Configuration (commonly named `SOUNDS`) containing all your sound instances. For details on organizing this folder, see [Folder Setup](/docs/FolderSetup).
+First, create a `Configuration` named `SOUNDS` and put it in `ServerStorage`. This should containing all your sound instances that you want to use for this library. For details on organizing this folder, see [Folder Setup](/docs/FolderSetup).
+
+
+
+*It is required that you do this or unexpected behavior may occur!*
 
 ---
 
 ## 2. Server Initialization
 
-On the server, inject the folder or configuration containing your instanced sounds. This folder should be located in a service like `ServerStorage`.
+On the server, inject the `Configuration` containing your instanced sounds:
 
 ```lua
 local ServerStorage = game:GetService("ServerStorage")
@@ -38,7 +42,7 @@ VluxySF.Startup.InitServer(soundFolder)
 
 ## 3. Client Initialization
 
-On the client, simply call the initialization function:
+On the client its a very similar setup:
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -50,10 +54,11 @@ VluxySF.Startup.InitClient()
 
 -- <--schema can be used here
 ```
+*For initializing the client you can also provide a timeout for any sounds you tagged for preloading*
 
 ## 4. Basic Use
 
-When using this library in another module from where it was initialized from you need to wait for the schema
+In order to fully use this library in other modules you need to wait for the schema:
 
 ```lua
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -65,12 +70,14 @@ When using this library in another module from where it was initialized from you
 
     -- <--schema can be used here
 ```
+*If you know with 100% certaintly that the schema is loaded you do not need to use the wait function.*
 
 ## 4. Advanced Use
 
-You can also use this library in a more Unity styled way.
+You can also use this library in a more [Unity](https://unity.com/) styled way.
 
-This method doesnt need `WaitForSchema()` to function as long as all Inits fully run before all Starts run.
+This method doesnt need `WaitForSchema()` to function.
+
 *You will have to make your own system to achieve this, this is commonly done through a module loader!*
 
 *server init module*
@@ -129,5 +136,7 @@ This method doesnt need `WaitForSchema()` to function as long as all Inits fully
 
     return Orchestrator
 ```
+
+*You can also use the Schema in sub modules instead of directly calling them from an `Orchestrator` if they run on `Start` or after.*
 
 ---

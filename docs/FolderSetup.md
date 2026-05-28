@@ -7,7 +7,7 @@ sidebar_position: 4
 
 # Folder Setup
 
-VluxySF makes it easy to manage all your game’s sounds with a simple, powerful folder structure. This guide will walk you through best practices for organizing, grouping, and preloading your audio assets—no manual registration required!
+VluxySF makes it easy to manage all your game’s sounds. This guide will walk you through best practices for organizing, grouping, and preloading your audio assets.
 
 ---
 ---
@@ -15,17 +15,8 @@ VluxySF makes it easy to manage all your game’s sounds with a simple, powerful
 ## The Basics: Folder Structure
 
 VluxySF uses your folder structure to automatically group and identify sounds.  
-**You do not need to manually assign SoundGroups or create them.**
 
-
-### Why Structure Matters
-
-A well-organized sound folder means:
-
-- Instantly accessible sounds by string
-- Automatic grouping for volume/effect control
-- Easy preloading for lag-free playback
-- Cleaner, more maintainable projects
+**You do not need to manually assign SoundGroups or create them!**
 
 ---
 
@@ -39,11 +30,10 @@ A well-organized sound folder means:
 
 **Naming Conventions:**
 
-- `UPPER_CASE` for SoundGroups
-- `PascalCase` for Folders
-- `camelCase` for Sounds
-- Avoid spaces and special characters for best compatibility.
-- Sound locations are used as keys for programmatic access (e.g., `Sounds.Create("MUSIC/Explosions/explosion1")`).
+- *`UPPER_CASE`* for `SoundGroups`
+- *`PascalCase`* for ` Folders` is recommended but most naming convention will work
+- *`PascalCase`* or *`camelCase`* for `Sounds` is recommended but most naming convention will work
+- `Sound` names are used as keys for programmatic access (e.g., `VluxySF.Fetch("explosion1")`).
 
 ---
 
@@ -60,9 +50,7 @@ SOUNDS⚙️               ← Base file
 *Music and SFX become `SoundGroups`, and their children are grouped accordingly.*
 
 
-> **Tip:** Once `SoundGroupConfigurations` are defined (MUSIC, SFX, etc.), organization within them is your choice.
-> 
-> **Tip:** It is recommended that you only use Folders and Sound Instances while organizing within a defined `SoundGroupConfigurations`. The only exception is `_Preload` (which should be a Configuration) and adding `SoundEffects` to a Sound Instance.
+> **Tip:** Once `SoundGroup Configurations` are defined (MUSIC, SFX, etc.), organization within them is your choice.
 
 ---
 
@@ -70,8 +58,7 @@ SOUNDS⚙️               ← Base file
 
 ### Organizing with Subfolders
 
-You can use additional folders (📁) inside SoundGroups to keep your sounds organized.  
-Doing so will effect the location of the sound when fetching.
+You can use additional folders (📁) inside SoundGroups to keep your sounds organized.
 
 **Example:**
 ```
@@ -84,54 +71,45 @@ SOUNDS⚙️
 ```
 
 
-> **Tip:** Plan your folder organization early. Changing a sound’s location means you must update its path in code too.
+> **Tip:** Organize your folders however you want! The heiarchy does not effect the library.
 >
-> **Tip:** You can have the same Sound Instance in different locations. But if they are both direct children of a folder, they must have different names or only one will exist in the `SoundDefinitions`.
+> **Note:** All `Sounds` need to have unique names. A warning will appear at runtime if you go against this.
 
 ---
 ---
 
 ## Preloading Sounds Automatically
 
-Want certain sounds to be ready instantly?  
-Any folder named `_Preload` (with the underscore) will have all its sounds (and subfolders) preloaded automatically on the client.
+Want certain sounds to be ready instantly? You can tag any Folder or Sound with `VluxySF_Preload` and it will automaticly preload once the client is started.
 
 **How to use:**
 ```
 SOUNDS⚙️
   ├─ MUSIC⚙️
   │    ├─ mainTheme🔊
-  │    └─ battle🔊
-          └─ _Preload⚙️            <-- all children will be preloaded
-            ├─ importantSound1🔊
-            └─ importantSound2🔊
+  │    └─ battles📁 <-- you can tag with "VluxySF_Preload" to preload sounds within this folder
+          ├─ importantSound1🔊
+          └─ importantSound2🔊
   └─ SFX⚙️
         ├─ click🔊
-        ├─ explosion🔊
-        └─ _Preload⚙️               <-- all children will be preloaded
-        │    ├─ importantSound1🔊
-        │    └─ importantSound2🔊
-        └─ Explosions📁
-            ├─ unimportantSound1🔊
-            └─ unimportantSound2🔊
-            └─ _Preload⚙️            <-- all children will be preloaded
-                ├─ importantSound1🔊
-                └─ importantSound2🔊
+        ├─ explosions📁
+          ├─ CommonExplosionSound🔊 <-- You can tag with "VluxySF_Preload" to preload this sound
+          └─ UncommonLongExplosionSound🔊
 ```
-
-> **Note:** You can have multiple `_Preload` folders in different SoundGroups if needed.
->
-> **Note:** This works similarly to [Unity's](https://docs.unity3d.com/Manual/LoadingResourcesatRuntime.html) Resources Folder.
-
 
 ### Preload Timeout
 You can set an optional timeout (in seconds) for preloading. If preloading takes too long, it will continue in the background. Default is 5 seconds.
 
 ```lua
+--!strict
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
+
 local preloadTimeout = 10
 VluxySF._initClient(preloadTimeout)
+
+-- <-- reaches this line once sounds are preloaded or timeout is reached
 ```
 
 ---
@@ -139,13 +117,14 @@ VluxySF._initClient(preloadTimeout)
 
 ## Configuring Sound Instances
 
-Each Sound instance can be customized with any Roblox sound properties and child sound effects:
+Each Sound instance can be customized with any Roblox sound properties and child sound effects except for the Parent:
 
-- **Properties:** Set properties like `SoundId`, `Volume`, `PlaybackSpeed`, etc., directly on the Sound instance.
-- **Effects:** Add child instances such as `EqualizerSoundEffect`, `ReverbSoundEffect`, etc, to the Sound for automatic serialization and reconstruction.
+- **Properties:** Set properties like `SoundId`, `Volume`, `PlaybackSpeed`, etc, directly on the Sound instance.
+- **Effects:** Add child instances such as `EqualizerSoundEffect`, `ReverbSoundEffect`, etc, to the Sound Instance.
 
-
-*Adding any children that are not Roblox SoundEffects to a Sound in the SOUNDS config will not be serialized.*
+>**Note:** Any Instances parented to a `Sound` thats not a `SoundEffect` will not be serialized.
+>
+>**Note:** Only 1 of each `Class` will be serialized.
 
 ---
 ---
@@ -153,9 +132,10 @@ Each Sound instance can be customized with any Roblox sound properties and child
 ## End Result
 
 
-A SOUNDS Config should look something like this when you’re done in Roblox Studio:
+A `SOUNDS Configuration` should look something like this when you’re done in Roblox Studio:
 
-![Folder Structure Example](/SoundsConfigExample.png)
+![Folder Structure Example](/SoundsConfigExample1.png)
+> **Note:** This should be inside `ServerStorage`. It is recommended to make it a direct child of that service.
 
 
 ---
