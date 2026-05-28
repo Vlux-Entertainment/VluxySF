@@ -4,6 +4,14 @@
 
 ------------------------------------------------------------------------------------------------------------------------
 
+--[[
+	@param Limit number -- The maximum number of allowed calls within the specified interval.
+	@param Interval number -- The time interval (in seconds) for which the rate limit applies.
+
+	@return (T?) -> boolean - rate limit check function.
+
+	Red RateLimit for networking and similar cases.
+]]
 return function<T>(Limit: number, Interval: number)
 	assert(Limit > 0, "Limit must be greater than 0")
 

@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 
 local ReflectionService = game:GetService("ReflectionService")
@@ -9,19 +8,51 @@ local allCapabilities = SecurityCapabilities.new(table.unpack(Enum.SecurityCapab
 
 ------------------------------------------------------------------------------------------------------------------------
 
+local savedDefaultClassProperties: { [string]: { [string]: any } } = {}
 local savedClassProperties: { [string]: { [string]: boolean } } = {}
 
 --[[
-	For setting and fetching Instance properties by table and attributes
+	For setting and fetching Instance properties by table and attributes.
 ]]
 local Class = {}
 
 --[[
-	Reads an Instance and converts its properties to a table
+	@param properties { [string]: any } -- The properties table to remove default values from.
 
-	@param instance Instance -- The instance to pull its properties from
+	Removes properties from a properties table that are the same as the default value for that class.
+]]
+function Class.RemoveDefaultProperties(properties: { [string]: any })
+	local className: string = properties.ClassName
 
-	@return { [string]: any } -- Table of all pulled properties
+	local defaultProperties = savedDefaultClassProperties[className]
+
+	if not defaultProperties then
+		local defaultInstance = Instance.new(className)
+
+		defaultProperties = Class.InstanceToProperties(defaultInstance)
+		savedDefaultClassProperties[className] = defaultProperties
+
+		defaultInstance:Destroy()
+	end
+
+	for property, value in defaultProperties do
+		if properties[property] ~= value then
+			continue
+		end
+
+		properties[property] = nil
+	end
+
+	properties["AudioContent"] = nil
+	properties["Parent"] = nil
+end
+
+--[[
+	@param instance Instance -- The instance to pull its properties from.
+
+	@return { [string]: any } -- Table of all pulled properties.
+
+	Reads an Instance and converts its properties to a table.
 ]]
 function Class.InstanceToProperties(instance: Instance): { [string]: any }
 	local className: string = instance.ClassName
@@ -57,30 +88,31 @@ function Class.InstanceToProperties(instance: Instance): { [string]: any }
 			properties[property] = inst[property]
 		end)
 	end
+	properties["ClassName"] = className
 
 	return properties
 end
 
 --[[
-	Reads attributes from an instance and converts it to a table
-	
-	@param instance Instance -- The instance to pull its attributes from
+	@param instance Instance -- The instance to pull its attributes from.
 
-	@return { [string]: any } -- Table of all pulled attributes
+	@return { [string]: any } -- Table of all pulled attributes.
+
+	Reads attributes from an instance and converts it to a table.
 ]]
 function Class.AttributesToProperties(instance: Instance): { [string]: any }
 	return instance:GetAttributes()
 end
 
 --[[
-	Applies a value to a property of the instance if one exists
-	
-	@param instance Instance -- The instance to pull its properties from
-	@param property string -- The name of the property you want to change
-	@param value any -- The value you want to change the property too
+	@param instance Instance -- The instance to pull its properties from.
+	@param property string -- The name of the property you want to change.
+	@param value any -- The value you want to change the property too.
 
-	@return boolean -- was applying successful
-	@return any -- error message
+	@return boolean -- was applying successful.
+	@return any -- error message.
+
+	Applies a value to a property of the instance if one exists.
 ]]
 function Class.ApplyPropertyValueToInstance(instance: Instance, property: string, value: any): (boolean, any)
 	return pcall(function()
@@ -90,12 +122,12 @@ function Class.ApplyPropertyValueToInstance(instance: Instance, property: string
 end
 
 --[[
-	Fetches a value from a property of the instance if one exists
+	@param instance Instance -- The instance to pull its properties from.
+	@param property string -- The name of the property you want to fetch.
 
-	@param instance Instance -- The instance to pull its properties from
-	@param property string -- The name of the property you want to fetch
+	@return any -- value of the property, nil if it doesn't exist.
 
-	@return any -- value of the property, nil if it doesn't exist
+	Fetches a value from a property of the instance if one exists.
 ]]
 function Class.GetPropertyValueFromInstance(instance: Instance, property: string): any?
 	local _, result = pcall(function()

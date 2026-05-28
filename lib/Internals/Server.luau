@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -18,6 +17,8 @@ local Converters = require(library.Tools.Converters)
 local Types = require(library.Types)
 
 ------------------------------------------------------------------------------------------------------------------------
+
+local soundRequest = RemoteFunction.new("SoundRequest")
 
 local unattachedSoundsFolder = Instance.new("Configuration")
 unattachedSoundsFolder.Name = "UnattachedSounds"
@@ -125,18 +126,12 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[[
-	Initializes the server sound system.
-
-	Creates unattached sound folder and converts all sounds into sound definitions organized by group, then sets up a RemoteFunction for clients to request the sound schema.
-
 	@param soundFolder Configuration -- The folder containing sound group folders and unattached sounds.
+
+	Initializes the server sound system.
 ]]
 local function initializeServerSoundSystem(soundsFolder: Configuration)
-	local t = os.clock()
-
 	compile(soundsFolder)
-
-	FormatMessage.Print(`Server Compilation took {os.clock() - t} seconds!`)
 
 	soundsFolder:Destroy() --destroy folder after converting sounds to definitions to save memory
 
@@ -144,7 +139,7 @@ local function initializeServerSoundSystem(soundsFolder: Configuration)
 	local soundRequestLimit = Ratelimit(5, 5)
 	local dataLimitThunk = FormatMessage.WarnThunk("Sound data was requested too many times by a client!")
 
-	RemoteFunction.new("SoundRequest", function(player: Player)
+	soundRequest.Event = function(player: Player)
 		if not soundRequestLimit(player) then
 			dataLimitThunk()
 
@@ -152,7 +147,7 @@ local function initializeServerSoundSystem(soundsFolder: Configuration)
 		end
 
 		return soundSchema
-	end)
+	end
 end
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -163,12 +158,10 @@ end
 local ServerData = {}
 
 --[[
-    Initializes the server sound system.
-
-	soundFolder should be on the server side.
-	
 	@param soundFolder Configuration -- The folder containing sound group folders and unattached sounds.
-	@param strictNaming boolean -- Optional parameter to enforce strict naming of sounds within groups, default is true. If true, duplicate sound names within the same group will trigger a warning.
+	@param strictNaming boolean -- Optional parameter to enforce strict naming of sounds within groups, default is true.
+
+    Initializes the server sound system.
 ]]
 function ServerData._initServer(soundFolder: Configuration | Folder)
 	if not RunService:IsServer() then
@@ -182,9 +175,9 @@ function ServerData._initServer(soundFolder: Configuration | Folder)
 end
 
 --[[
-	Retrieves the SoundSchema.
-
 	@return Types.SoundSchema - The sound schema containing unattached sounds, sound groups, and sound definitions.
+
+	Retrieves the SoundSchema.
 ]]
 function ServerData.GetSoundSchema(): Types.SoundSchema
 	return soundSchema

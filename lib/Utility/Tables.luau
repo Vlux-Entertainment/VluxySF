@@ -3,7 +3,7 @@
 local Tables = {}
 
 --[[
-    @param tbl { [any]: any } -- The table to deep freeze
+    @param tbl { [any]: any } -- The table to deep freeze.
 
     Deep freezes a table and all of its nested tables, making them immutable.
 ]]

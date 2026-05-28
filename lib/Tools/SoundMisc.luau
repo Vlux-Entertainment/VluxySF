@@ -10,11 +10,11 @@ local Types = require(libarary.Types)
 local SoundMisc = {}
 
 --[[
-    Estimates the remaining play length of a sound, accounting for playback speed and current time position. Adds a small padding to ensure the sound has finished playing.
-
     @param sound Sound | SoundDefinition -- The Sound instance or SoundDefinition to estimate play length for.
 
     @return number -- The estimated remaining play length in seconds.
+
+	Estimates the remaining play length of a sound, accounting for playback speed and current time position.
 ]]
 function SoundMisc.GetEstimatedPlayLength(sound: Sound | Types.SoundDefinition): number
 	local padding = 0.05

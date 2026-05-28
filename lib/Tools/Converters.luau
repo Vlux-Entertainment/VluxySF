@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 
 local libarary = script.Parent.Parent
@@ -21,17 +20,27 @@ local ALLOWED_SOUND_CHILDREN = {
 	TremoloSoundEffect = true,
 }
 
+local function addEffect(sound: Sound, effectName: string, effectProperties: { [string]: any })
+	local effect = Instance.new(effectName)
+
+	for property, value in effectProperties do
+		Properties.ApplyPropertyValueToInstance(effect, property, value)
+	end
+
+	effect.Parent = sound
+end
+
 --[[
     Module responsible for converting Sound instances to SoundDefinitions and vice versa.
 ]]
 local Converters = {}
 
 --[[
-    Converts a Sound instance to a SoundDefinition.
-
     @param sound Sound -- The Sound instance to convert.
 
     @return SoundDefinition -- The created Definition
+
+	Converts a Sound instance to a SoundDefinition.
 ]]
 function Converters.SoundToDefinition(sound: Sound): Types.SoundDefinition
 	local definition = {
@@ -43,6 +52,7 @@ function Converters.SoundToDefinition(sound: Sound): Types.SoundDefinition
 		properties
 	]]
 	local properties: { [string]: any } = Properties.InstanceToProperties(sound)
+	Properties.RemoveDefaultProperties(properties)
 
 	definition.Properties = properties
 
@@ -85,6 +95,7 @@ function Converters.SoundToDefinition(sound: Sound): Types.SoundDefinition
 
 		--set effect
 		local effectProperties: { [string]: any } = Properties.InstanceToProperties(effect)
+		Properties.RemoveDefaultProperties(effectProperties)
 
 		effectsDefinition[effectClassName] = effectProperties
 	end
@@ -93,11 +104,11 @@ function Converters.SoundToDefinition(sound: Sound): Types.SoundDefinition
 end
 
 --[[
-    Converts a SoundDefinition to a Sound instance.
-
     @param SoundDefinition -- The SoundDefinition to convert.
 
     @return Sound -- The created Sound
+
+	Converts a SoundDefinition to a Sound instance.
 ]]
 function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.SoundDefinitionInstanced
 	local sound = Instance.new("Sound")
@@ -108,23 +119,12 @@ function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.
 		Properties.ApplyPropertyValueToInstance(sound, property, value)
 	end
 
-	--effects
-	local function addEffect(effectName: string, effectProperties: { [string]: any })
-		local effect = Instance.new(effectName)
-
-		for property, value in pairs(effectProperties) do
-			Properties.ApplyPropertyValueToInstance(effect, property, value)
-		end
-
-		effect.Parent = sound
-	end
-
 	for effectName, effectProperties in pairs(definition.Effects) do
 		if not effectProperties then
 			continue
 		end
 
-		addEffect(effectName, effectProperties)
+		addEffect(sound, effectName, effectProperties)
 	end
 
 	return sound :: Types.SoundDefinitionInstanced
