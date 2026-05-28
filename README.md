@@ -2,7 +2,7 @@
 	<img src=".moonwave/static/VluxIcon.png" alt="Cmdr" height="150" />
 	<br/>
 	<a href="https://discord.gg/Ebbp9UgBUD"><img src="https://img.shields.io/discord/757104089984270346.svg?label=discord" /></a>
-	<p><a href="https://greenviper126.github.io/VluxySF/">View Docs</a></p>
+	<p><a href="https://Vlux-Entertainment.github.io/VluxySF/">View Docs</a></p>
 </div>
 
 <!--moonwave-hide-before-this-line-->
