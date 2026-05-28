@@ -6,7 +6,7 @@ Sound fetching system with a focus on simplicity and saving memory!
 
 Source: https://github.com/Vlux-Entertainment/VluxySF
 """
-version = "0.9.1"
+version = "0.9.5"
 license = "MIT"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
