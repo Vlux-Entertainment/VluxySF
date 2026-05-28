@@ -1,5 +1,5 @@
 title = "VluxySF"
-gitRepoUrl = "https://github.com/greenviper126/VluxySF"
+gitRepoUrl = "https://github.com/Vlux-Entertainment/VluxySF"
 
 changelog = true
 gitSourceBranch = "master"
@@ -23,7 +23,7 @@ projectName = "VluxySF"
 deploymentBranch = "gh-pages"
 tagline = "Sound fetching system with a focus on simplicity and saving memory!"
 
-url = "https://greenviper126.github.io"
+url = "https://Vlux-Entertainment.github.io"
 baseUrl = "/VluxySF/"
 
 [home]
