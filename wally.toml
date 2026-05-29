@@ -2,11 +2,11 @@
 name = "greenviper126/vluxysf"
 
 description = """
-Sound fetching system with a focus on simplicity and saving memory! 
+Sound fetching system with a focus on simplicity! 
 
 Source: https://github.com/Vlux-Entertainment/VluxySF
 """
-version = "0.9.5"
+version = "0.9.7"
 license = "MIT"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"

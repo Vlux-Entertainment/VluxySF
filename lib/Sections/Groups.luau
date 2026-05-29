@@ -4,6 +4,7 @@
 local library = script.Parent.Parent
 
 local FormatMessage = require(library.Utility.FormatMessage)
+
 local Types = require(library.Types)
 
 ------------------------------------------------------------------------------------------------------------
@@ -117,6 +118,7 @@ end
 --[=[
 	@within SoundGroups
 
+	@param mainVolume number? -- An optional main volume level to set.
 	@param volumes { [string]: number } -- A dictionary mapping sound group names to their desired volume levels.
 
 	Sets the volume levels for multiple sound groups at once based on the provided dictionary of group names and volume values.

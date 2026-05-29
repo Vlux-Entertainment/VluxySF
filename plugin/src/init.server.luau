@@ -1,12 +1,10 @@
 --!strict
 
-local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 
 local src = script
 
 local FormatMessage = require(src.Utility.FormatMessage)
-local Trove = require(src.Utility.Trove)
 
 ------------------------------------------------------------------------------------------------------------------------
 --INIT------------------------------------------------------------------------------------------------------------------
@@ -18,6 +16,10 @@ if RunService:IsRunning() then
 end
 
 ------------------------------------------------------------------------------------------------------------------------
+
+local HttpService = game:GetService("HttpService")
+
+local Trove = require(src.Utility.Trove)
 
 local Settings = require(src.Tools.Settings)
 
