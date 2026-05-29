@@ -44,67 +44,50 @@ local preloadIdHash: { [string]: boolean } = {}
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local function setPreloadId(soundId: string): nil
-	if preloadIdHash[soundId] then
-		return nil
-	end
-	preloadIdHash[soundId] = true
-
-	preloadIdIndex += 1
-
-	soundSchema.PreloadIds[preloadIdIndex] = soundId
-
-	return nil
-end
-
 ------------------------------------------------------------------------------------------------------------------------
 
-local function setNewSound(groupFolder: Configuration, soundGroup: SoundGroup, sound: Sound): nil
-	local soundDefinitions: Types.SoundDefinitions = soundSchema.SoundDefinitions
-	local soundName: string = sound.Name
-	local soundId: string = sound.SoundId
-
-	if soundDefinitions[soundName] then
-		FormatMessage.Warn(`Duplicate sound with name "{soundName}" located at: {sound:GetFullName()}`)
-		return nil
-	end
-
-	local newDefinition: Types.SoundDefinition = Converters.SoundToDefinition(sound, soundGroup)
-
-	soundDefinitions[soundName] = newDefinition
-
-	--preload ids
-	if not sound:HasTag("VluxySF_Preload") then
-		return nil
-	end
-
-	setPreloadId(soundId)
-
-	return nil
-end
-
 local function setGroupedSoundsToDefinitions(groupFolder: Configuration, soundGroup: SoundGroup)
+	local soundDefinitions: Types.SoundDefinitions = soundSchema.SoundDefinitions
+	local preloadIds: { [number]: string } = soundSchema.PreloadIds
 	local sounds: { Sound } = groupFolder:QueryDescendants("Sound")
 
-	local soundsCount: number = #sounds
+	--sounds of group
+	for _, sound in ipairs(sounds) do
+		local soundName: string = sound.Name
+		local soundId: string = sound.SoundId
 
-	for i = 1, soundsCount do
-		local sound: Sound = sounds[i]
+		if soundDefinitions[soundName] then
+			FormatMessage.Warn(`Duplicate sound with name "{soundName}" located at: {sound:GetFullName()}`)
+			return nil
+		end
 
-		setNewSound(groupFolder, soundGroup, sound)
+		soundDefinitions[soundName] = Converters.SoundToDefinition(sound, soundGroup)
+
+		--preload ids
+		if not sound:HasTag("VluxySF_Preload") then
+			return nil
+		end
+
+		if preloadIdHash[soundId] then
+			return nil
+		end
+		preloadIdHash[soundId] = true
+
+		preloadIdIndex += 1
+
+		preloadIds[preloadIdIndex] = soundId
 	end
+
+	return nil
 end
 
 ------------------------------------------------------------------------------------------------------------------------
 
 local function compile(soundsFolder: Configuration)
+	local schemaSoundGroups: { [string]: SoundGroup } = soundSchema.SoundGroups
 	local soundGroups: { Instance } = soundsFolder:GetChildren()
 
-	local soundGroupCount: number = #soundGroups
-
-	for i = 1, soundGroupCount do
-		local childFolder: Instance = soundGroups[i]
-
+	for _, childFolder in ipairs(soundGroups) do
 		if not childFolder:IsA("Configuration") then
 			FormatMessage.Error(`The defined SoundGroup named {childFolder.Name} should be a Configuration Instance!`)
 
@@ -117,7 +100,7 @@ local function compile(soundsFolder: Configuration)
 		soundGroup.Volume = 1
 		soundGroup.Parent = soundSchema.SoundGroupContainer
 
-		soundSchema.SoundGroups[childFolder.Name] = soundGroup
+		schemaSoundGroups[childFolder.Name] = soundGroup
 
 		--set sounds for the group
 		setGroupedSoundsToDefinitions(childFolder, soundGroup)

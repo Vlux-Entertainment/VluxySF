@@ -35,7 +35,7 @@ function Class.RemoveDefaultProperties(properties: { [string]: any })
 		defaultInstance:Destroy()
 	end
 
-	for property, value in defaultProperties do
+	for property, value in pairs(defaultProperties) do
 		if properties[property] ~= value then
 			continue
 		end
@@ -59,12 +59,10 @@ function Class.InstanceToProperties(instance: Instance): { [string]: any }
 
 	if not hashedProperties then
 		local newProperties = ReflectionService:GetPropertiesOfClass(className, { Security = allCapabilities })
-		local newPropertiesCount: number = #newProperties
 
 		local tblProperties: { [string]: boolean } = {}
 
-		for i = 1, newPropertiesCount do
-			local v: { [string]: any } = newProperties[i]
+		for _, v in ipairs(newProperties) do
 			local name: string = v.Name
 
 			if not v.Permits.Write or not v.Permits.Read then
@@ -80,7 +78,7 @@ function Class.InstanceToProperties(instance: Instance): { [string]: any }
 
 	--we know we can trust this since the data is comming from reflection service.
 	local inst = instance :: any --fix type error
-	for property, _ in hashedProperties do
+	for property, _ in pairs(hashedProperties) do
 		pcall(function()
 			properties[property] = inst[property]
 		end)

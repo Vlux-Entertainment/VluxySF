@@ -23,7 +23,7 @@ local ALLOWED_SOUND_CHILDREN = {
 local function fastSetProperties(instance: Instance, properties: { [string]: any })
 	local soundInst = instance :: any --fix type error
 
-	for property, value in next, properties do
+	for property, value in pairs(properties) do
 		soundInst[property] = value
 	end
 end
@@ -75,8 +75,7 @@ function Converters.SoundToDefinition(sound: Sound, soundGroup: SoundGroup?): Ty
 	local effectsHash: { [string]: boolean } = {}
 	local effectsDefinition = definition.Effects :: { [string]: { [string]: any } }
 
-	for i = 1, childEffectCount do
-		local effect: Instance = effects[i]
+	for _, effect in ipairs(effects) do
 		local effectClassName: string = effect.ClassName
 
 		--check for allowed children
@@ -129,7 +128,7 @@ function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.
 		return sound :: Types.SoundDefinitionInstanced
 	end
 
-	for effectName, effectProperties in next, definition.Effects do
+	for effectName, effectProperties in pairs(definition.Effects) do
 		local effect = Instance.new(effectName)
 
 		pcall(fastSetProperties, effect, effectProperties)

@@ -45,8 +45,6 @@ local Preload = {}
 ]]
 function Preload.Selected(...: AllowedPreloadTypes)
 	local selected: { AllowedPreloadTypes } = { ... }
-
-	local preloadIndex: number = 0
 	local selectedCount: number = #selected
 
 	if selectedCount == 0 then
@@ -54,11 +52,11 @@ function Preload.Selected(...: AllowedPreloadTypes)
 	end
 
 	local preloadHash: { [string]: boolean } = {}
+
+	local preloadIndex: number = 0
 	local soundsToPreload: { Sound } = {}
 
-	for i = 1, selectedCount do
-		local preloadObject: AllowedPreloadTypes = selected[i]
-
+	for _, preloadObject in ipairs(selected) do
 		local soundId: string? = getPreloadId(preloadObject)
 		if not soundId then
 			continue
@@ -66,7 +64,6 @@ function Preload.Selected(...: AllowedPreloadTypes)
 
 		if not preloadHash[soundId] then
 			preloadHash[soundId] = true
-
 			preloadIndex += 1
 
 			local newSound = Instance.new("Sound")

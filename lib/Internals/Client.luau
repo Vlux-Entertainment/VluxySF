@@ -57,7 +57,7 @@ local function setPreloadSounds(timeout: number?)
 	complete.Name = "PreloadComplete"
 	complete.Parent = script
 
-	task.spawn(function()
+	local preloadThread = task.spawn(function()
 		Preload.Selected(table.unpack(soundSchema.PreloadIds))
 
 		if not complete then
@@ -67,7 +67,7 @@ local function setPreloadSounds(timeout: number?)
 		complete:Fire()
 	end)
 
-	task.delay(realTimeout, function()
+	local timeoutThread = task.delay(realTimeout, function()
 		if not complete then
 			return
 		end
@@ -78,6 +78,14 @@ local function setPreloadSounds(timeout: number?)
 	end)
 
 	complete.Event:Wait()
+
+	--cleanup
+	if preloadThread then
+		task.cancel(preloadThread)
+	end
+	if timeoutThread then
+		task.cancel(timeoutThread)
+	end
 
 	complete:Destroy()
 	complete = nil :: any
