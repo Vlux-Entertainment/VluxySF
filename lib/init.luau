@@ -181,6 +181,18 @@ local Sounds = {}
 	:::warning
 	If the sound is not preloaded or warmed it may take a moment to fetch and load as it needs to be created first.
 	:::
+
+	```lua
+	local mySound = VluxySF.Fetch("MySound")
+	mySound.Volume = 0.3
+
+	local echoEffect = mySound.EchoSoundEffect
+	if echoEffect then
+		echoEffect.WetLevel = 1.3
+	end
+
+	mySound:Play()
+	```
 ]=]
 function Sounds.Fetch(name: GeneratedSoundNames, parent: Instance?, preset: (Sound) -> ()?): SoundDefinitionInstanced
 	schemaFailCheck()
@@ -214,6 +226,21 @@ end
 	@return Sound? -- The fetched `Sound` instance if success.
 
 	Similar to `VluxySF.Fetch` but will not return a `Blank Sound` on fail.
+	
+	```lua
+	local mySound = VluxySF.Fetch("MySound")
+	
+	if mySound then
+		mySound.Volume = 0.3
+
+		local echoEffect = mySound.EchoSoundEffect
+		if echoEffect then
+			echoEffect.WetLevel = 1.3
+		end
+
+		mySound:Play()
+	end
+	```
 ]=]
 function Sounds.FetchStrict(
 	name: GeneratedSoundNames,
@@ -258,6 +285,10 @@ end
 	@return () -> () -- Cleanup function.
 
 	Plays a `OneShot` `Sound` and cleans up after playing.
+
+	```lua
+	VluxySF.FetchPlayOnce("MySound")
+	```
 ]=]
 function Sounds.FetchPlayOnce(
 	name: GeneratedSoundNames,
@@ -301,7 +332,7 @@ end
 ----------------------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------------------
---SCHEMA_STARTUP------------------------------------------------------------------------------------------------
+--STARTUP-------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------
 
 --[=[
@@ -332,6 +363,17 @@ Sounds.Startup = {}
 	:::danger
 	This should only run once!
 	:::
+
+	```lua
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local ServerStorage = game:GetService("ServerStorage")
+
+	local VluxySF = require(ReplicatedStorage.VluxySF)
+
+	local soundConfig = ServerStorage:FindFirstChild("SOUNDS")
+
+	VluxySF.Startup.InitServer(soundConfig)
+	```
 ]=]
 function Sounds.Startup.InitServer(soundFolder: Configuration)
 	local Server = require(internals.Server)
@@ -359,6 +401,16 @@ end
 	:::danger
 	This should only run once!
 	:::
+
+	```lua
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+	local VluxySF = require(ReplicatedStorage.VluxySF)
+
+	local timeout = 4
+
+	VluxySF.Startup.InitClient(timeout)
+	```
 ]=]
 function Sounds.Startup.InitClient(timeout: number?)
 	local Client = require(internals.Client)
@@ -380,6 +432,10 @@ end
 	@return boolean -- Is initialized?
 
 	Checks if the sound schema has been initialized.
+
+	```lua
+	print(VluxySF.Startup.IsInitialized())
+	```
 ]=]
 function Sounds.Startup.IsInitialized(): boolean
 	return isInitialized
@@ -395,6 +451,16 @@ end
 	:::info
 	If you know that your code will execute after the `Schema` is loaded then this is not needed.
 	:::
+
+	```lua
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+	local VluxySF = require(ReplicatedStorage.VluxySF)
+
+	VluxySF.Startup.WaitForSchema() --yields
+
+	VluxySF.FetchPlayOnce("MySound")
+	```
 ]=]
 function Sounds.Startup.WaitForSchema()
 	if isInitialized then
@@ -412,6 +478,18 @@ end
 	@return () -> () -- Cleanup function.
 
 	Alternative to `Startup.WaitForSchema` if you do not want to pause the current block.
+
+	```lua
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+	local VluxySF = require(ReplicatedStorage.VluxySF)
+
+	VluxySF.Startup.ConnectForSchema(function()
+		VluxySF.FetchPlayOnce("MySound")
+	end)
+
+	--doesn't yield down here!
+	```
 ]=]
 function Sounds.Startup.ConnectForSchema(finished: () -> ()): () -> ()
 	if isInitialized then
@@ -434,11 +512,7 @@ end
 ----------------------------------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------
-----------------------------------------------------------------------------------------------------------------
-
-----------------------------------------------------------------------------------------------------------------
---SOUND_DEFINITIONS---------------------------------------------------------------------------------------------
+--DEFINITIONS---------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------
 
 --[=[
@@ -455,7 +529,11 @@ Sounds.Schema = {}
 
 	@return SoundSchema -- The internal sound schema used by the system.
 
-	Provides access to the internal sound schema.
+	The full `Schema` used internally by the library.
+
+	```lua
+	print(VluxySF.Schema.Get())
+	```
 ]=]
 function Sounds.Schema.Get(): Types.SoundSchema
 	schemaFailCheck()
@@ -468,7 +546,11 @@ end
 
 	@return SoundDefinitions -- All converted sound data
 
-	Returns all serialized sound data.
+	Returns all `SoundDefinitions` in the `Schema`.
+
+	```lua
+	print(VluxySF.Schema.GetDefinitions())
+	```
 ]=]
 function Sounds.Schema.GetDefinitions(): Types.SoundDefinitions
 	schemaFailCheck()
@@ -483,7 +565,11 @@ end
 
 	@return SoundDefinition? -- The SoundDefinition associated with the provided name.
 
-	Retrieves a SoundDefinition from the schema based on its name.
+	Retrieves a `SoundDefinition` from the `Schema` based on its name.
+
+	```lua
+	print(VluxySF.Schema.GetDefinition("MySound"))
+	```
 ]=]
 function Sounds.Schema.GetDefinition(definitionName: string): Types.SoundDefinition?
 	schemaFailCheck()
@@ -499,9 +585,13 @@ end
 --[=[
 	@within Schema
 
-	@return { string } -- All registered sound locations
+	@return { string } -- All registered sound names
 
-	Returns all sound locations.
+	Returns all sound names in the library.
+
+	```lua
+	print(VluxySF.Schema.GetLocations())
+	```
 ]=]
 function Sounds.Schema.GetLocations(): { string }
 	schemaFailCheck()
@@ -653,6 +743,7 @@ Sounds.Preload = {}
 ]=]
 function Sounds.Preload.Get(): { [string]: Sound }
 	schemaFailCheck()
+	clientFailCheck()
 
 	return Preloading.GetNames()
 end
@@ -666,6 +757,7 @@ end
 ]=]
 function Sounds.Preload.Selected(...: string | Sound | Types.SoundDefinition)
 	schemaFailCheck()
+	clientFailCheck()
 
 	local sounds: { Sound } = {}
 
@@ -720,9 +812,14 @@ Sounds.Cache = {}
 	@return { [string]: Sound } -- The current sounds being Warmed.
 
 	Returns a hash of the current sounds that are warmed.
+
+	```lua
+	print(VluxySF.Cache.Get())
+	```
 ]=]
 function Sounds.Cache.Get(): { [string]: Sound }
 	schemaFailCheck()
+	clientFailCheck()
 
 	return WarmCache.GetSounds()
 end
@@ -735,9 +832,14 @@ end
 	@return boolean -- Is that sound warmed?
 
 	Tells you if a sound from its name is currently warmed.
+
+	```lua
+	print(VluxySF.Cache.IsWarmed("MySound"))
+	```
 ]=]
 function Sounds.Cache.IsWarmed(soundName: string): boolean
 	schemaFailCheck()
+	clientFailCheck()
 
 	return WarmCache.IsWarmed(soundName)
 end
@@ -752,9 +854,27 @@ end
 	:::warning
 	You should only warm if you need a sound to play without a delay or to play without fail but dont plan to constantly use it.
 	:::
+
+	:::tip
+	You can Warm at the top of a script or a seperate script if the sound you play is in a connection or function that gets called later.
+		Some examples include loading a map and its sounds in. Maybe warming the sounds when first loading the map is a good idea!?
+	:::
+
+	```lua
+	VluxySF.Cache.Warm("MySound") --now if its used later on it should be ready to play.
+
+	--do stuff
+
+	task.wait(5)
+
+	--do stuff
+
+	VluxySF.FetchplayOnce("MySound") --should play without delay now
+	```
 ]=]
 function Sounds.Cache.Warm(soundName: GeneratedSoundNames)
 	schemaFailCheck()
+	clientFailCheck()
 
 	local definition = Sounds.Schema.GetDefinition(soundName)
 	if not definition then
@@ -777,9 +897,32 @@ end
 	Removing a sound from the cache does not garentee that it will be unloaded. 
 	If you still have Sounds with the same Id it will still be in memmory.
 	:::
+
+	```lua
+
+	VluxySF.Cache.Warm("MySound")
+
+	local onPlay = Instance.new("BindableEvent")
+	local myWarmedSound = ...
+
+	local function playSound()
+		myWarmedSound:Play() --plays without delay
+	end
+	OnPlay.Event:Connect(playSound)
+
+	OnPlay.Destroying:Connect(function()
+		myWarmedSound:Destroy() --clean up our sound
+		VluxySF.Cache.Chill("MySound") -- now the sound isn't warmed
+	end)
+
+
+	--Now if OnPlay is destroyed it wont be warmed anymore.
+	--So, if the soundId isnt used anywhere else it will be removed from memmory.
+	```
 ]=]
 function Sounds.Cache.Chill(soundName: GeneratedSoundNames)
 	schemaFailCheck()
+	clientFailCheck()
 
 	WarmCache.RemoveSound(soundName)
 end
@@ -807,6 +950,14 @@ Sounds.Conversions = {}
 	@return SoundDefinition -- The resulting `SoundDefinition`.
 
 	Converts a `Sound` into a `SoundDefinition`.
+
+	```lua
+	local mySound = ...
+
+	local soundDefinition = VluxySF.Conversions.ToDefinition(mySound)
+
+	print(soundDefinition)
+	```
 ]=]
 function Sounds.Conversions.ToDefinition(sound: Sound): Types.SoundDefinition
 	return Converters.SoundToDefinition(sound)
@@ -820,6 +971,23 @@ end
 	@return Sound -- The resulting `Sound`.
 
 	Converts a `SoundDefinition` into a `Sound`.
+
+	```lua
+	local soundDefinition = {
+		Properties = {
+			Name = "MySound",
+			SoundId = "rbxassetid://123456789",
+			Volume = 0.5,
+			SoundGroup = "GAME",
+		},
+		Effects = {},
+		EffectCount = 0
+	}
+
+	local mySound = VluxySF.Conversions.FromDefinition(soundDefinition)
+
+	mySound:Play()
+	```
 ]=]
 function Sounds.Conversions.FromDefinition(definition: Types.SoundDefinition): Types.SoundDefinitionInstanced
 	return Converters.DefinitionToSound(definition)

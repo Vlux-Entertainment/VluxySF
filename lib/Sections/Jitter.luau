@@ -26,6 +26,16 @@ local Jitter = {}
 	@return () -> number -- Generates the jitter value when called.
 
 	Standard Jitter function that randomly varies from the center value +- the spread.
+
+	```lua
+	local myJitter = Jitter.Default(1, 0.15)
+	
+	local sound1 = ...
+	sound1.PlaybackSpeed = myJitter() -- Sets a random value.
+
+	local sound2 = ...
+	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
+	```
 ]=]
 function Jitter.Default(center: number, spread: number): () -> number
 	return function()
@@ -44,6 +54,16 @@ end
 	@return () -> number -- Generates the jitter value when called.
 
 	Essentially just a random number that requires a specified range.
+
+	```lua
+	local myJitter = Jitter.Range(0.85, 1.15)
+	
+	local sound1 = ...
+	sound1.PlaybackSpeed = myJitter() -- Sets a random value.
+
+	local sound2 = ...
+	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
+	```
 ]=]
 function Jitter.Range(min: number, max: number): () -> number
 	return function()
@@ -61,6 +81,16 @@ end
 	@return () -> number -- Generates the jitter value when called.
 
 	Very similar to `Jitter.Default` but the center value is 1.
+
+	```lua
+	local myJitter = Jitter.Scale(0.15)
+	
+	local sound1 = ...
+	sound1.PlaybackSpeed = myJitter() -- Sets a random value.
+
+	local sound2 = ...
+	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
+	```
 ]=]
 function Jitter.Scale(spread: number): () -> number
 	return function()
@@ -79,6 +109,16 @@ end
 	@return () -> number -- Generates the jitter value when called.
 
 	Produces jitter values with a shaped distribution that favors the center value.
+
+	```lua
+	local myJitter = Jitter.UnitLog(1, 0.15)
+	
+	local sound1 = ...
+	sound1.PlaybackSpeed = myJitter() -- Sets a random shaped value.
+
+	local sound2 = ...
+	sound2.PlaybackSpeed = myJitter() -- Sets another random shaped value.
+	```
 
 	:::tip
 		This can be used to make more natural repetitious sounds like footsteps.

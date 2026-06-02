@@ -8,14 +8,18 @@
 	@interface SoundSchema
 	@within Schema
 
-	.UnattachedSounds Configuration -- A folder for storing unattached sounds.
-	.SoundGroupContainer SoundGroup -- A folder for storing sound groups.
-	.SoundGroups SoundGroups -- A dictionary of sound group instances, organized by name.
-	.SoundDefinitions SoundDefinitions -- A dictionary of sound definitions, organized by sound name.
-	
-	.PreloadIds { string } -- A list of sound asset IDs to preload.
+	.SoundGroupContainer SoundGroup -- Main `SoundGroup` for all other `SoundGroups`.
+	.SoundGroups SoundGroups -- Dictionary of `SoundGroups` under the Main `SoundGroup`.
 
-	Defines the overall schema for the sound system, containing all necessary data for sound creation and management.
+	.UnattachedSounds Configuration -- `Configuration` for Un-Parented `Sounds`.
+	.WarmedSounds Configuration -- `Configuration` for `Warmed` `Sounds`.
+	.PreloadedSounds Configuration -- `Configuration` for `Preloaded` `Sounds`.
+
+	.SoundDefinitions SoundDefinitions -- Dictionary of `SoundDefinitions`.
+	
+	.PreloadIds { string } -- List of sound names to `Preload`.
+
+	The `Schema` for the library that is shared on client and server.
 ]=]
 export type SoundSchema = {
 	SoundGroupContainer: SoundGroup,

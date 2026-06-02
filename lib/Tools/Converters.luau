@@ -103,6 +103,7 @@ function Converters.SoundToDefinition(sound: Sound, soundGroup: SoundGroup?): Ty
 		--set effect
 		local effectProperties: { [string]: any } = Properties.InstanceToProperties(effect)
 		Properties.RemoveDefaultProperties(effectProperties)
+		effectProperties.Name = effectClassName --effects should have class as name to make fetching easier.
 
 		effectsDefinition[effectClassName] = effectProperties
 
