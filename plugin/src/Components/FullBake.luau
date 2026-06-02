@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 
 local src = script.Parent.Parent
@@ -37,7 +36,6 @@ function FullBake.Now(folder: Configuration?): { string }
 
 	local contents: { Name: string, SoundNames: { string } } = { Name = "FullBakeResult", SoundNames = {} }
 	local soundNamesHash: { [string]: boolean } = {}
-	local soundNamesArray: { string } = {}
 
 	local soundsFolder: Configuration? = folder
 
@@ -75,21 +73,19 @@ function FullBake.Now(folder: Configuration?): { string }
 		return contents
 	end
 
-	--this should be faster at building an array with unique values.
 	local soundNamesIndex: number = 0
-	for i = 1, soundCount do
-		local sound: Sound = sounds[i]
+	local soundNames = contents.SoundNames
+
+	for _, sound in ipairs(sounds) do
 		local name: string = sound.Name
 
 		if not soundNamesHash[name] then
 			soundNamesHash[name] = true
 			soundNamesIndex += 1
 
-			soundNamesArray[soundNamesIndex] = name
+			soundNames[soundNamesIndex] = name
 		end
 	end
-
-	contents.SoundNames = soundNamesArray
 
 	endProfile()
 

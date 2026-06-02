@@ -5,7 +5,6 @@ local HttpService = game:GetService("HttpService")
 local src = script.Parent.Parent
 
 local FormatMessage = require(src.Utility.FormatMessage)
-local Sound = require(src.Utility.Sound)
 local Trove = require(src.Utility.Trove)
 
 local Settings = require(src.Tools.Settings)
@@ -16,7 +15,7 @@ local socketCleaner: Trove.Trove
 
 local onSocketError = Instance.new("BindableEvent")
 
-local fullBakeFunction: () -> { any } = nil
+local fullBakeFunction: (Configuration?) -> { any } = nil
 
 --[[
 	this module handles the WebSocket connection between the plugin and the extension, allowing for real-time communication and updates between the two.
@@ -37,13 +36,29 @@ function SocketRequests.CleanSocket()
 end
 
 --[[
+	Fully Bakes the types and sends them to the Extension.
+]]
+function SocketRequests.SendFullBake(folder: Configuration?)
+	if not fullBakeFunction then
+		FormatMessage.Warn("Full bake function not set, cannot perform full bake!")
+		return
+	end
+	if not currentWebSocket then
+		FormatMessage.Warn("No active WebSocket connection, cannot send full bake!")
+		return
+	end
+
+	currentWebSocket:Send(HttpService:JSONEncode(fullBakeFunction(folder)))
+end
+
+--[[
 	@param port number -- the port number to connect the WebSocket to.
 
-	this initializes the auto bake functionality, which listens for changes in the sounds folder and sends updates to the client when changes are made if auto bake is enabled.
+	Main socket for listening to the extension.
 ]]
-function SocketRequests.SetSocket(pluginCleaner: Trove.Trove, port: number)
+function SocketRequests.SetSocket(port: number): Trove.Trove
 	SocketRequests.CleanSocket()
-	socketCleaner = pluginCleaner:Extend()
+	socketCleaner = Trove.new()
 
 	local webSocket = HttpService:CreateWebStreamClient(Enum.WebStreamClientType.WebSocket, {
 		Url = "ws://127.0.0.1:" .. port,
@@ -60,12 +75,7 @@ function SocketRequests.SetSocket(pluginCleaner: Trove.Trove, port: number)
 		local recievedData = HttpService:JSONDecode(message)
 
 		if recievedData.Name == "GetFullBake" then
-			if not fullBakeFunction then
-				FormatMessage.Warn("Full bake function not set, cannot perform full bake!")
-				return
-			end
-
-			webSocket:Send(HttpService:JSONEncode(fullBakeFunction()))
+			SocketRequests.SendFullBake()
 		elseif recievedData.Name == "SetExtensionSettings" then --this doesnt work atm
 			Settings.SetAutoBake(recievedData.AutoBake)
 		else
@@ -80,30 +90,8 @@ function SocketRequests.SetSocket(pluginCleaner: Trove.Trove, port: number)
 	end)
 
 	currentWebSocket = webSocket
-end
 
---[[
-	@param enabled boolean -- whether the port should be enabled or not, which is determined by whether the plugin is enabled or not.
-
-	This toggles the port connection on or off depending on the enabled parameter.
-]]
-function SocketRequests.TogglePort(pluginCleaner: Trove.Trove, enabled: boolean)
-	if Settings.GetSoundsLocation() == nil then
-		SocketRequests.CleanSocket()
-
-		FormatMessage.Warn("Could not locate a Configuration named SOUNDS!")
-		return
-	end
-
-	if enabled then
-		SocketRequests.SetSocket(pluginCleaner, Settings.GetPort())
-
-		Sound.PlayConnect()
-	else
-		SocketRequests.CleanSocket()
-
-		Sound.PlayDisconnect()
-	end
+	return socketCleaner
 end
 
 ------------------------------------------------------------------------------------------------------------------------

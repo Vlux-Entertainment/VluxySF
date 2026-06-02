@@ -28,18 +28,18 @@ end
 
     Creates a new monitor for the sounds folder, which will automatically send updates to the client when changes are made to the sounds folder if auto bake is enabled.
 ]]
-function AutoMonitorSounds.NewMonitor(pluginCleaner: Trove.Trove, onChange: (Configuration) -> ())
+function AutoMonitorSounds.NewMonitor(onChange: (Configuration) -> ()): Trove.Trove
 	AutoMonitorSounds.Clear()
-	autoMonitorCleaner = pluginCleaner:Extend()
+	autoMonitorCleaner = Trove.new()
 
 	local formatedLocation = Settings.GetSoundsLocation()
 	if not formatedLocation then
-		return
+		return autoMonitorCleaner
 	end
 
 	local folderInstance = SoundsLocation.GetSoundsFolderFromLocation(formatedLocation)
 	if not folderInstance then
-		return
+		return autoMonitorCleaner
 	end
 
 	local function bakeAndSend()
@@ -89,19 +89,8 @@ function AutoMonitorSounds.NewMonitor(pluginCleaner: Trove.Trove, onChange: (Con
 
 		bakeAndSend()
 	end)
-end
 
---[[
-	@param onChange: (Configuration) -> () -- The function to call when a change is detected in the sounds folder.
-
-    Initializes the auto monitor for sounds.
-]]
-function AutoMonitorSounds.Init(pluginCleaner: Trove.Trove, onChange: (Configuration) -> ())
-	AutoMonitorSounds.NewMonitor(pluginCleaner, onChange)
-
-	pluginCleaner:Connect(Settings.ListenSoundsLocationChanged(), function(_location: string)
-		AutoMonitorSounds.NewMonitor(pluginCleaner, onChange)
-	end)
+	return autoMonitorCleaner
 end
 
 return AutoMonitorSounds

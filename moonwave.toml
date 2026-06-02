@@ -11,10 +11,11 @@ classOrder = [
     "Startup",
     "Schema",
     "SoundGroups",
+    "Preload",
+    "Cache",
     "Conversions",
     "SoundPresets",
     "Jitter",
-    "Misc",
 ]
 
 [docusaurus]

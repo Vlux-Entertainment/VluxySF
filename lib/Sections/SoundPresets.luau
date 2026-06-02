@@ -9,7 +9,32 @@ local Jitter = require(library.Sections.Jitter)
 --[=[
 	@class SoundPresets
 	
-	A collection of preset functions for applying common sound effects, such as jitter, to Sound instances. These presets can be easily applied to sounds to achieve dynamic and natural variations in sound playback.
+	Presets are functions that you can apply to your sounds to quickly change reoccuring property values.
+
+	:::info
+	- Presets are closures that get passed to your fetching functions.
+	- You can create your own presets and combine them with the built in ones.
+	- When a preset runs everything should be cleaned up before exiting the function block.
+	:::
+
+	:::tip
+	You can also make your own presets and store them in a module for easy access.
+	```lua
+		local CustomPresets = {}
+
+		function CustomPrests.DoSomthing(doTheThing: boolean): (Sound) -> ()
+			return function(sound: Sound)
+				if doTheThing then
+					sound.Volume = 0.5
+				else
+					sound.Volume = 1
+				end
+			end
+		end
+
+		return CustomPresets
+	```
+	:::
 ]=]
 local SoundPresets = {}
 
@@ -18,11 +43,22 @@ local SoundPresets = {}
 --[=[
 	@within SoundPresets
 
-	@param ... (Sound) -> () -- A variable number of preset functions to combine.
+	@param ... (Sound) -> () -- Your Preset Closures to combine.
 
-	@return (Sound) -> () -- A new preset function that applies all the provided presets in sequence.
+	@return (Sound) -> () -- Closure of the combined presets.
 
-	Combines multiple sound presets into a single preset function, allowing for modular and reusable sound configurations.
+	Combines presets together into 1 reusable preset.
+
+	:::info
+	Presets are applied in sequence from first to last.
+	:::
+
+	```lua
+	local myCombinedPreset = SoundPresets.Combine(
+		SoundPresets.NaturalPlaybackJitter(0.8, 0.1),
+		SoundPresets.NaturalVolumeJitter(0.7, 0.15)
+	)
+	```
 ]=]
 function SoundPresets.Combine(...: (Sound) -> ()): (Sound) -> ()
 	local presets: { (Sound) -> () } = { ... }
@@ -40,11 +76,11 @@ end
 --[=[
 	@within SoundPresets
 
-	@param parent Instance -- The parent instance to which the sound will be attached.
+	@param parent Instance -- The parent to set the sound too.
 
-	@return (Sound) -> () -- A preset function that sets the parent of a sound to the specified instance.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A simple preset that assigns a parent to a sound, useful for organizing sounds within the game hierarchy.
+	Sets the parent of a sound.
 ]=]
 function SoundPresets.Parent(parent: Instance): (Sound) -> ()
 	return function(sound: Sound)
@@ -55,11 +91,11 @@ end
 --[=[
 	@within SoundPresets
 
-	@param volume number -- The volume level to set for the sound (0 to 10).
+	@param volume number -- The volume to set the sound too.
 
-	@return (Sound) -> () -- A preset function that sets the volume of a sound to the specified level.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A preset for setting a specific volume level on a sound.
+	Sets the volume of a sound.
 ]=]
 function SoundPresets.Volume(volume: number): (Sound) -> ()
 	return function(sound: Sound)
@@ -70,11 +106,11 @@ end
 --[=[
 	@within SoundPresets
 
-	@param speed number -- The playback speed to set for the sound (0.5 to 2, where 1 is normal speed).
+	@param speed number -- The playback speed to set for the sound too.
 
-	@return (Sound) -> () -- A preset function that sets the playback speed of a sound to the specified value.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A preset for setting a specific playback speed on a sound.
+	Sets the playback speed of a sound.
 ]=]
 function SoundPresets.PlaybackSpeed(speed: number): (Sound) -> ()
 	return function(sound: Sound)
@@ -87,12 +123,12 @@ end
 --[=[
 	@within SoundPresets
 
-	@param center number? -- The central volume level around which the jitter will occur (default: 0.5).
-	@param spread number? -- The maximum deviation from the center volume level (default: 0.1).
+	@param center number? -- The central value of the jitter.
+	@param spread number? -- The spread of the jitter.
 
-	@return (Sound) -> () -- A preset function that applies random jitter to a sound's volume, creating more dynamic and less repetitive audio effects.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A preset that applies random jitter to a sound's volume, creating more dynamic and less repetitive audio effects.
+	Uses `Jitter.UnitLog` to apply a natural jitter to the volume of the sound.
 ]=]
 function SoundPresets.NaturalVolumeJitter(center: number?, spread: number?): (Sound) -> ()
 	local jitter = Jitter.UnitLog(center or 0.5, spread or 0.1)
@@ -105,12 +141,12 @@ end
 --[=[
 	@within SoundPresets
 
-	@param center number? -- The central playback speed around which the jitter will occur (default: 1).
-	@param spread number? -- The maximum deviation from the center playback speed (default: 0.1).
+	@param center number? -- The central value of the jitter.
+	@param spread number? -- The spread of the jitter.
 
-	@return (Sound) -> () -- A preset function that applies random jitter to a sound's playback speed, creating more dynamic and less repetitive audio effects.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A preset that applies random jitter to a sound's playback speed, creating more dynamic and less repetitive audio effects.
+	Uses `Jitter.UnitLog` to apply a natural jitter to the playback speed of the sound.
 ]=]
 function SoundPresets.NaturalPlaybackJitter(center: number?, spread: number?): (Sound) -> ()
 	local jitter = Jitter.UnitLog(center or 1, spread or 0.1)
@@ -125,12 +161,12 @@ end
 --[=[
 	@within SoundPresets
 
-	@param center number? -- The central volume level around which the jitter will occur (default: 0.5).
-	@param spread number? -- The maximum deviation from the center volume level (default: 0.1).
+	@param center number? -- The central value of the jitter.
+	@param spread number? -- The spread of the jitter.
 
-	@return (Sound) -> () -- A preset function that applies random jitter to a sound's volume, creating more dynamic and less repetitive audio effects.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A preset that applies random jitter to a sound's volume, creating more dynamic and less repetitive audio effects.
+	Uses `Jitter.Default` to apply a random jitter to the volume of the sound.
 ]=]
 function SoundPresets.RandomVolumeJitter(center: number?, spread: number?): (Sound) -> ()
 	local jitter = Jitter.Default(center or 0.5, spread or 0.1)
@@ -143,12 +179,12 @@ end
 --[=[
 	@within SoundPresets
 
-	@param center number? -- The central playback speed around which the jitter will occur (default: 1).
-	@param spread number? -- The maximum deviation from the center playback speed (default: 0.1).
+	@param center number? -- The central value of the jitter.
+	@param spread number? -- The spread of the jitter.
 
-	@return (Sound) -> () -- A preset function that applies random jitter to a sound's playback speed, creating more dynamic and less repetitive audio effects.
+	@return (Sound) -> () -- Closure of the preset.
 
-	A preset that applies random jitter to a sound's playback speed, creating more dynamic and less repetitive audio effects.
+	Uses `Jitter.Default` to apply a random jitter to the playback speed of the sound.
 ]=]
 function SoundPresets.RandomPlaybackJitter(center: number?, spread: number?): (Sound) -> ()
 	local jitter = Jitter.Default(center or 1, spread or 0.1)

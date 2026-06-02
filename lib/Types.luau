@@ -21,11 +21,13 @@ export type SoundSchema = {
 	SoundGroupContainer: SoundGroup,
 	SoundGroups: SoundGroups,
 
+	PreloadedSounds: Configuration,
+	WarmedSounds: Configuration,
 	UnattachedSounds: Configuration,
 
 	SoundDefinitions: SoundDefinitions,
 
-	PreloadIds: { string },
+	PreloadNames: { string },
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -153,7 +155,45 @@ export type SoundChildrenSerialized = {
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@type SoundSerialized {[string]: any}
+	@interface SoundSerialized
+	.AcousticSimulationEnabled boolean
+	.AudioContent string
+	.EmitterSize number
+	.IsLoaded boolean
+	.IsPaused boolean
+	.IsPlaying boolean
+	.isPlaying boolean
+	.Looped boolean
+	.LoopRegion NumberRange
+	.MaxDistance number
+	.MinDistance number
+	.Pitch number
+	.PlaybackLoudness number
+	.PlaybackRegion NumberRange
+	.PlaybackRegionsEnabled boolean
+	.PlaybackSpeed number
+	.Playing boolean
+	.PlayOnRemove boolean
+	.RollOffMaxDistance number
+	.RollOffMinDistance number
+	.RollOffMode Enum.RollOffMode
+	.SoundGroup string
+	.SoundId string
+	.TimeLength number
+	.TimePosition number
+	.Volume number
+
+	.Archivable boolean
+	.archivable boolean
+	.Capabilities SecurityCapabilities
+	.Name string
+	.Parent Instance
+	.PredictionMode Enum.PredictionMode
+	.RobloxLocked boolean
+	.Sandboxed boolean
+
+	.ClassName string
+
 	@within SerializedTypes
 
 	Defines the properties of a sound as a dictionary of property names and values.

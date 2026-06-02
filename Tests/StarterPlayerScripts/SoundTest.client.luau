@@ -5,5 +5,3 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
 VluxySF.Startup.WaitForSchema()
-
-VluxySF.FetchPlayOnce("The Call (Intro)")

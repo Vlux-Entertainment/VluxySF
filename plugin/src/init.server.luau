@@ -17,8 +17,7 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local HttpService = game:GetService("HttpService")
-
+local Sound = require(src.Utility.Sound)
 local Trove = require(src.Utility.Trove)
 
 local Settings = require(src.Tools.Settings)
@@ -38,8 +37,6 @@ local pluginEnableButton = Toolbar.GetPluginEnableButton()
 
 local optionsWidget = OptionsPanel.GetOptionsWidget()
 
-local currentWebSocket: WebStreamClient? = nil
-
 local pluginCleaner = Trove.new()
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -56,27 +53,13 @@ end)
 
 Settings.SetPluginEnabled(false)
 Settings.SetOptionsOpened(false)
-
---This finds the location of the sounds folder for websocket and auto baking to work.
-AutoSearchLocation.Start(pluginCleaner)
+pluginCleaner:Add(function()
+	Settings.SetPluginEnabled(false)
+	Settings.SetOptionsOpened(false)
+end)
 
 --This is for direct requests from the extension.
 SocketRequests.SetFullBake(FullBake.Now)
-
---This only for autoBaking.
-AutoMonitorSounds.Init(pluginCleaner, function(folder)
-	if not Settings.GetPluginEnabled() then
-		return
-	end
-
-	local result = FullBake.Now(folder)
-
-	if currentWebSocket then
-		currentWebSocket:Send(HttpService:JSONEncode(result))
-	else
-		FormatMessage.Warn("No active WebSocket connection to send auto bake results!")
-	end
-end)
 
 ------------------------------------------------------------------------------------------------------------------------
 --TOOLBAR_BUTTONS-------------------------------------------------------------------------------------------------------
@@ -98,29 +81,75 @@ pluginCleaner:Connect(settingsButton.Click, function()
 end)
 
 ------------------------------------------------------------------------------------------------------------------------
---CONNECTIONS-----------------------------------------------------------------------------------------------------------
+--BOOT------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
+local startCleaner: Trove.Trove = nil
+
 --plugin enable
+local function clearStart(playSound: boolean)
+	if startCleaner then
+		startCleaner:Destroy()
+	end
+
+	if playSound then
+		Sound.PlayDisconnect()
+	end
+
+	Toolbar.UpdatePluginEnableIcon()
+end
+
+local function startPlugin()
+	Sound.PlayConnect()
+	Toolbar.UpdatePluginEnableIcon()
+
+	clearStart(false)
+	startCleaner = pluginCleaner:Extend()
+
+	--get SOUNDS folder
+	AutoSearchLocation.SetFolder()
+
+	--network
+	startCleaner:Add(SocketRequests.SetSocket(Settings.GetPort()))
+
+	--auto baking
+	startCleaner:Add(AutoMonitorSounds.NewMonitor(function(folder)
+		if not Settings.GetPluginEnabled() then
+			return
+		end
+
+		SocketRequests.SendFullBake(folder)
+	end))
+end
+
+------------------------------------------------------------------------------------------------------------------------
+--MAIN------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+--enable/disable plugin
 Toolbar.UpdatePluginEnableIcon()
 if Settings.GetPluginEnabled() then
-	SocketRequests.SetSocket(pluginCleaner, Settings.GetPort())
+	startPlugin()
 end
 
 pluginCleaner:Connect(Settings.ListenPluginEnabled(), function(enabled: boolean)
-	Toolbar.UpdatePluginEnableIcon()
-
-	SocketRequests.TogglePort(pluginCleaner, enabled)
+	if enabled then
+		startPlugin()
+	else
+		clearStart(true)
+	end
 end)
 
---socket
+--socket error
 pluginCleaner:Connect(SocketRequests.ListenSocketError(), function()
 	Settings.SetPluginEnabled(false)
 end)
 
 ------------------------------------------------------------------------------------------------------------------------
+--SETTINGS--------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
 
---options
+--options panel
 pluginCleaner:Connect(optionsWidget:GetPropertyChangedSignal("Enabled"), function()
 	Settings.SetOptionsOpened(optionsWidget.Enabled)
 end)
@@ -137,14 +166,25 @@ pluginCleaner:Connect(Settings.ListenPortChanged(), function(_port: number)
 		return
 	end
 
-	SocketRequests.TogglePort(pluginCleaner, true)
+	--restarts plugin if port has changed
+	Settings.SetPluginEnabled(true)
 end)
 
---cleanup
-plugin.Unloading:Connect(function()
-	Settings.SetPluginEnabled(false)
-	Settings.SetOptionsOpened(false)
+--diognostics
+pluginCleaner:Connect(Settings.ListenDiagnosticsEnabled(), function(_enabled: number)
+	if not Settings.GetPluginEnabled() then
+		return
+	end
 
+	--restarts plugin if diognostics updated
+	Settings.SetPluginEnabled(true)
+end)
+
+------------------------------------------------------------------------------------------------------------------------
+--CLEANUP---------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+plugin.Unloading:Connect(function()
 	pluginCleaner:Destroy()
 end)
 

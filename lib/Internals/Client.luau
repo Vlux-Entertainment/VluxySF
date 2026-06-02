@@ -3,14 +3,16 @@
 
 ------------------------------------------------------------------------------------------------------------------------
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local library = script.Parent.Parent
 
+local Converters = require(ReplicatedStorage.VluxySF.Tools.Converters)
 local FormatMessage = require(library.Utility.FormatMessage)
 local RemoteFunction = require(library.Utility.RemoteFunction)
 
-local Preload = require(library.Tools.Preload)
+local Preloading = require(library.Tools.Preloading)
 
 local Types = require(library.Types)
 
@@ -48,7 +50,7 @@ end
 
 	@param timeout number? -- Optional timeout for preloading sounds, default is 5 seconds.
 
-	Extracts preload sound ids from the schema and preloads them.
+	Extracts preload sound names from the schema and preloads them.
 ]]
 local function setPreloadSounds(timeout: number?)
 	local realTimeout = timeout or 5
@@ -58,7 +60,16 @@ local function setPreloadSounds(timeout: number?)
 	complete.Parent = script
 
 	local preloadThread = task.spawn(function()
-		Preload.Selected(table.unpack(soundSchema.PreloadIds))
+		local preloadSounds: { Sound } = {}
+
+		for _, preloadName in ipairs(soundSchema.PreloadNames) do
+			local soundDefinition = soundSchema.SoundDefinitions[preloadName]
+			local sound = Converters.DefinitionToSound(soundDefinition)
+
+			table.insert(preloadSounds, sound)
+		end
+
+		Preloading.Selected(soundSchema.PreloadedSounds, table.unpack(preloadSounds))
 
 		if not complete then
 			return

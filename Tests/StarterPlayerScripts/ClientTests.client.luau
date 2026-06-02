@@ -6,7 +6,7 @@ local VluxySF = require(ReplicatedStorage.VluxySF)
 
 VluxySF.Startup.InitClient()
 
-task.wait(5)
+task.wait(9999)
 
 local iterations = {}
 local function Test()

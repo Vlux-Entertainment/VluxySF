@@ -20,6 +20,14 @@ local Types = require(library.Types)
 
 local soundRequest = RemoteFunction.new("SoundRequest")
 
+local preloadSoundsFolder = Instance.new("Configuration")
+preloadSoundsFolder.Name = "PreloadSounds"
+preloadSoundsFolder.Parent = SoundService
+
+local warmedSoundsFolder = Instance.new("Configuration")
+warmedSoundsFolder.Name = "WarmedSounds"
+warmedSoundsFolder.Parent = SoundService
+
 local unattachedSoundsFolder = Instance.new("Configuration")
 unattachedSoundsFolder.Name = "UnattachedSounds"
 unattachedSoundsFolder.Parent = SoundService
@@ -30,13 +38,16 @@ soundGroupContainer.Volume = 1
 soundGroupContainer.Parent = SoundService
 
 local soundSchema: Types.SoundSchema = {
+	PreloadedSounds = preloadSoundsFolder,
+	WarmedSounds = warmedSoundsFolder,
 	UnattachedSounds = unattachedSoundsFolder,
-	SoundGroupContainer = soundGroupContainer,
 
+	SoundGroupContainer = soundGroupContainer,
 	SoundGroups = {},
+
 	SoundDefinitions = {},
 
-	PreloadIds = {},
+	PreloadNames = {},
 }
 
 local preloadIdIndex: number = 0
@@ -46,36 +57,81 @@ local preloadIdHash: { [string]: boolean } = {}
 
 ------------------------------------------------------------------------------------------------------------------------
 
+--[[
+	@param definitinon SoundDefinition -- The SoundDefinition to warm.
+
+	Creates a Sound instance from a SoundDefinition and adds it to the warmed sounds cache.
+]]
+local function setPreloadGroup(groupFolder: Configuration)
+	local preloadNames: { [number]: string } = soundSchema.PreloadNames
+
+	local selector = ".VluxySF_Preload Sound, .VluxySF_Preload Folder, .VluxySF_Preload Configuration"
+	local taggedInstances: { Instance } = groupFolder:QueryDescendants(selector)
+
+	--fetch all preload sound instances
+	local sounds: { Sound } = {}
+	for _, instance in ipairs(taggedInstances) do
+		if instance:IsA("Folder") or instance:IsA("Configuration") then
+			local storedSounds = groupFolder:QueryDescendants("Sound")
+
+			for _, sound in ipairs(storedSounds) do
+				table.insert(sounds, sound)
+			end
+		else
+			table.insert(sounds, instance :: Sound)
+		end
+	end
+
+	--set to array
+	for _, sound in ipairs(sounds) do
+		local soundName: string = sound.Name
+
+		if preloadIdHash[soundName] then
+			continue
+		end
+		preloadIdHash[soundName] = true
+
+		preloadIdIndex += 1
+
+		preloadNames[preloadIdIndex] = soundName
+	end
+end
+
+--[[
+	@param groupFolder Configuration -- The Configuration folder representing the SoundGroup.
+	@param soundGroup SoundGroup -- The SoundGroup instance to associate with the sounds in the group.
+
+	Converts Sound instances within a SoundGroup folder to SoundDefinitions and associates them with the SoundGroup. Also handles preloading of sounds based on tags.
+]]
 local function setGroupedSoundsToDefinitions(groupFolder: Configuration, soundGroup: SoundGroup)
 	local soundDefinitions: Types.SoundDefinitions = soundSchema.SoundDefinitions
-	local preloadIds: { [number]: string } = soundSchema.PreloadIds
+	local preloadNames: { [number]: string } = soundSchema.PreloadNames
 	local sounds: { Sound } = groupFolder:QueryDescendants("Sound")
 
 	--sounds of group
 	for _, sound in ipairs(sounds) do
 		local soundName: string = sound.Name
-		local soundId: string = sound.SoundId
 
 		if soundDefinitions[soundName] then
 			FormatMessage.Warn(`Duplicate sound with name "{soundName}" located at: {sound:GetFullName()}`)
-			return nil
+			continue
 		end
 
 		soundDefinitions[soundName] = Converters.SoundToDefinition(sound, soundGroup)
 
 		--preload ids
 		if not sound:HasTag("VluxySF_Preload") then
-			return nil
+			continue
 		end
 
-		if preloadIdHash[soundId] then
-			return nil
+		if preloadIdHash[soundName] then
+			continue
 		end
-		preloadIdHash[soundId] = true
+		preloadIdHash[soundName] = true
 
 		preloadIdIndex += 1
 
-		preloadIds[preloadIdIndex] = soundId
+		preloadNames[preloadIdIndex] = soundName
 	end
 
 	return nil
@@ -83,6 +139,11 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
+--[[
+	@param soundsFolder Configuration -- The Configuration folder containing sound group folders and unattached sounds.
+
+	Compiles sound data from the provided folder into the sound schema, converting Sound instances to SoundDefinitions and organizing them into groups. Also handles preloading of sounds based on tags.
+]]
 local function compile(soundsFolder: Configuration)
 	local schemaSoundGroups: { [string]: SoundGroup } = soundSchema.SoundGroups
 	local soundGroups: { Instance } = soundsFolder:GetChildren()
@@ -104,6 +165,7 @@ local function compile(soundsFolder: Configuration)
 
 		--set sounds for the group
 		setGroupedSoundsToDefinitions(childFolder, soundGroup)
+		setPreloadGroup(childFolder)
 	end
 end
 
