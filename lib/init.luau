@@ -590,19 +590,19 @@ end
 	Returns all sound names in the library.
 
 	```lua
-	print(VluxySF.Schema.GetLocations())
+	print(VluxySF.Schema.GetNames())
 	```
 ]=]
-function Sounds.Schema.GetLocations(): { string }
+function Sounds.Schema.GetNames(): { string }
 	schemaFailCheck()
 
-	local locations = {}
+	local names = {}
 
-	for location, _ in pairs(soundSchema.SoundDefinitions) do
-		table.insert(locations, location)
+	for name, _ in pairs(soundSchema.SoundDefinitions) do
+		table.insert(names, name)
 	end
 
-	return locations
+	return names
 end
 
 ----------------------------------------------------------------------------------------------------------------
