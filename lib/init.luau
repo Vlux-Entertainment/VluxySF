@@ -1,4 +1,5 @@
 --!strict
+local RunService = game:GetService("RunService")
 
 local tools = script.Tools
 local utility = script.Utility
@@ -17,6 +18,8 @@ local SoundPresets = require(sections.SoundPresets)
 
 local GeneratedSoundNames = require(script._vluxysf_sound_name_types)
 local Types = require(script.Types)
+
+----------------------------------------------------------------------------------------------------------------
 
 export type GeneratedSoundNames = GeneratedSoundNames.GeneratedSoundNames
 
@@ -93,6 +96,14 @@ local schemaFailCheck = function()
 	FormatMessage.Error("Sound schema is not initialized yet! You need to wait before you can use this function!", 3)
 end
 
+local clientFailCheck = function()
+	if RunService:IsClient() then
+		return
+	end
+
+	FormatMessage.Error("Attempted to run a client-only function on the server!", 3)
+end
+
 ----------------------------------------------------------------------------------------------------------------
 
 local function grabPremadeSound(soundName: string): Sound?
@@ -139,7 +150,9 @@ end
 	@client
 	@server
 
-	VluxySoundFactory is a sound management system designed to simplify the process of creating, organizing, and playing sounds in Roblox.
+	`VluxySoundFactory` is a sound management system designed to simplify the process of dealing with sounds as a scripter.
+	It primarily tries to make fetching your sounds as easy as possible and comes with some memory saving features.
+	It also comes with some extra features like jittering and presets.
 ]=]
 local Sounds = {}
 
@@ -152,13 +165,22 @@ local Sounds = {}
 
 	@tag RequiresSchema
 
-	@param name string -- The name of the `SoundDefinition`.
-	@param parent Instance? -- Optional parent for the fetched sound.
-	@param preset (Sound) -> ()? -- Function to preconfigure the sound.
+	@param name string -- The name of the `Sound`.
+	@param parent Instance? -- Parent of the sound.
+	@param preset (Sound) -> ()? -- `Preset` to apply.
 
 	@return Sound -- The fetched sound instance.
 	
-	Finds the specified `SoundDefinition` and gives back a playable Sound. If it doesnt exist a blank sound is returned.
+	Finds the specified `SoundDefinition` and gives back a `Sound`. If somthing goes wrong a `Blank Sound` is returned instead.
+
+	:::info
+	- If a sound is `Preloaded` it is instead `Cloned` from the preloadFolder
+	- If a sound is `Warmed` it is instead `Cloned` from the warmed cache.
+	:::
+
+	:::warning
+	If the sound is not preloaded or warmed it may take a moment to fetch and load as it needs to be created first.
+	:::
 ]=]
 function Sounds.Fetch(name: GeneratedSoundNames, parent: Instance?, preset: (Sound) -> ()?): SoundDefinitionInstanced
 	schemaFailCheck()
@@ -185,13 +207,13 @@ end
 
 	@tag RequiresSchema
 
-	@param name string -- The name of the `SoundDefinition`.
-	@param parent Instance? -- Optional parent for the fetched sound.
-	@param preset (Sound) -> ()? -- Function to preconfigure the sound.
+	@param name string -- The name of the `Sound`.
+	@param parent Instance? -- Parent of the `Sound`.
+	@param preset (Sound) -> ()? -- `Preset` to apply.
 
-	@return Sound? -- The fetched sound instance if found, otherwise nil.
+	@return Sound? -- The fetched `Sound` instance if success.
 
-	Just like `VluxySF.Fetch` but will only give back a sound if it can find it.
+	Similar to `VluxySF.Fetch` but will not return a `Blank Sound` on fail.
 ]=]
 function Sounds.FetchStrict(
 	name: GeneratedSoundNames,
@@ -228,14 +250,14 @@ end
 
 	@tag RequiresSchema
 
-	@param name string -- The name of the sound definition to fetch.
-	@param parent Instance? -- Optional parent for the fetched sound.
-	@param preset (Sound) -> ()? -- A callback function to execute before the sound plays.
-	@param waitOnLoad boolean? -- Whether to wait for the sound to load before playing. Always runs on a separate thread.
+	@param name string -- The name of the `Sound`.
+	@param parent Instance? -- Parent of the `Sound`.
+	@param preset (Sound) -> ()? -- `Preset` to apply.
+	@param waitOnLoad boolean? -- Wait for the `Sound` to load? Always separate thread.
 
-	@return Sound? -- The fetched sound instance if found, otherwise nil.
+	@return () -> () -- Cleanup function.
 
-	Fetches a sound, sets it up for one-time playback. The sound will be automatically cleaned up after it finishes playing.
+	Plays a `OneShot` `Sound` and cleans up after playing.
 ]=]
 function Sounds.FetchPlayOnce(
 	name: GeneratedSoundNames,
@@ -285,7 +307,11 @@ end
 --[=[
 	@class Startup
 
-	Functions for checking the initialization status of the sound schema and waiting for it to be ready.
+	Functions for initializing the library and making sure its safe to use the `Schema`.
+
+	:::warning
+	Some functions in this library cannot run until you wait for the schema to be initialized.
+	:::
 ]=]
 Sounds.Startup = {}
 
@@ -294,13 +320,20 @@ Sounds.Startup = {}
 
 	@server
 
-	@param soundFolder Configuration | Folder -- Folder containing all sound data
+	@param soundFolder Configuration -- The `SOUNDS Configurartion`.
 
-	Injects the source folder used to build sound data and sets up server-side structures.
+	Injects the `SOUNDS Configuration` into the library and creates the `Schema`.
 
+	:::info
+	- It compiles all the information into `Folders`, `Configurations`,  `Sounds`, `SoundGroups`, and sounds names to `Preload`.
+	- The schema is locked once `Start.InitServer` runs. Meaning you cannot add new `Sounds`, `SoundGroups`, etc... to the library.
+	:::
+
+	:::danger
 	This should only run once!
+	:::
 ]=]
-function Sounds.Startup.InitServer(soundFolder: Configuration | Folder)
+function Sounds.Startup.InitServer(soundFolder: Configuration)
 	local Server = require(internals.Server)
 	Server._initServer(soundFolder)
 
@@ -319,11 +352,13 @@ end
 
 	@yields
 
-	@param timeout number? -- optional timeout for preloading sounds, default is 5 seconds
+	@param timeout number? -- Timeout for waiting on sounds to preload.
 
-	Sets up client-side structures and retrieves sound data from the server.
+	Fetches the `Schema` from the server and preloads all sounds that require it.
 
+	:::danger
 	This should only run once!
+	:::
 ]=]
 function Sounds.Startup.InitClient(timeout: number?)
 	local Client = require(internals.Client)
@@ -342,7 +377,7 @@ end
 --[=[
 	@within Startup
 
-	@return boolean -- Whether the sound schema has been initialized.
+	@return boolean -- Is initialized?
 
 	Checks if the sound schema has been initialized.
 ]=]
@@ -355,11 +390,11 @@ end
 
 	@yields
 
-	@return boolean -- Whether the sound schema is ready for use.
-
 	Waits until the sound schema is initialized and ready for use.
 
-	If you know that your code will execute after the schema is loaded then this is not needed.
+	:::info
+	If you know that your code will execute after the `Schema` is loaded then this is not needed.
+	:::
 ]=]
 function Sounds.Startup.WaitForSchema()
 	if isInitialized then
@@ -367,6 +402,31 @@ function Sounds.Startup.WaitForSchema()
 	end
 
 	initializedEvent.Event:Wait()
+end
+
+--[=[
+	@within Startup
+
+	@param finished () -> () -- Callback function to execute when the schema is created.
+
+	@return () -> () -- Cleanup function.
+
+	Alternative to `Startup.WaitForSchema` if you do not want to pause the current block.
+]=]
+function Sounds.Startup.ConnectForSchema(finished: () -> ()): () -> ()
+	if isInitialized then
+		local thread = task.spawn(finished)
+
+		return function()
+			task.cancel(thread)
+		end
+	end
+
+	local connection = initializedEvent.Event:Once(finished)
+
+	return function()
+		connection:Disconnect()
+	end
 end
 
 ----------------------------------------------------------------------------------------------------------------

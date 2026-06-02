@@ -37,7 +37,7 @@ export type SoundSchema = {
 --[=[
 	@class InstancedTypes
 	
-	A base type for serialized instances and effects, containing common properties and structure for serialization.
+	Types used for `Instances` in the `Schema` and `Conversions`.
 ]=]
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ export type SoundSchema = {
 	@type SoundGroups {[string]: SoundGroup}
 	@within InstancedTypes
 
-	Defines the type of a sound group instance.
+	Dictionary of `SoundGroups` from the `Schema`.
 ]=]
 export type SoundGroups = Dictionary<SoundGroup>
 
@@ -55,7 +55,7 @@ export type SoundGroups = Dictionary<SoundGroup>
 	@type SoundDefinitionInstanced Sound & SoundChildrenInstanced
 	@within InstancedTypes
 
-	Defines a sound group, which is a collection of sounds that can be managed together, allowing for collective volume control and organization.
+	A `Sound` with `SoundEffects` parented.
 ]=]
 export type SoundDefinitionInstanced = Sound & SoundChildrenInstanced
 
@@ -73,7 +73,7 @@ export type SoundDefinitionInstanced = Sound & SoundChildrenInstanced
 	.CompressorSoundEffect CompressorSoundEffect?
 	.ChorusSoundEffect ChorusSoundEffect?
 	
-	Defines the possible child sound effects that can be attached to a sound instance, allowing for enhanced audio manipulation and variation.
+	All possible `SoundEffects` to find within a `Sound`.
 ]=]
 export type SoundChildrenInstanced = {
 	ChorusSoundEffect: ChorusSoundEffect?,
@@ -94,7 +94,13 @@ export type SoundChildrenInstanced = {
 --[=[
 	@class SerializedTypes
 	
-	Types for serialized instances and effects, containing common properties and structure for serialization.
+	Types used to `Serialize` sounds into the `Schema`.
+
+	:::info
+	- The library uses `ReflectionService` internally to apply and get properties so types may not be 100% accurate.
+	- To save space and increase performance `SoundDefinitions` have default properties shaved off.
+	- `SoundGroup` is applied directly on startup.
+	:::
 ]=]
 ------------------------------------------------------------------------------------------------------------------------
 
@@ -102,7 +108,7 @@ export type SoundChildrenInstanced = {
 	@type SoundDefinitions {[string]: SoundDefinition}
 	@within SerializedTypes
 
-	Defines the sound definitions of the system as a dictionary of sound names to their corresponding sound data.
+	A dictionary of sound names for fetching `SoundDefinitions`.
 ]=]
 export type SoundDefinitions = Dictionary<SoundDefinition>
 
@@ -110,11 +116,11 @@ export type SoundDefinitions = Dictionary<SoundDefinition>
 	@interface SoundDefinition
 	@within SerializedTypes
 
-	.Properties SoundSerialized -- The properties of the sound itself, such as SoundId, Volume, etc.
-	.Effects SoundChildrenSerialized -- The sound effects of the sound, organized by class name.
-	.EffectsCount number -- The number of sound effects attached to the sound.
+	.Properties SoundSerialized -- `Properties` of the sound.
+	.Effects SoundChildrenSerialized -- Individual `SoundEffects` and their `Properties`.
+	.EffectsCount number -- Amount of `SoundEffects` in the `SoundDefinition`.
 
-	Defines the properties and sound effects of a sound.
+	Fully Serialized `Sound`.
 ]=]
 export type SoundDefinition = {
 	Properties: SoundSerialized,
@@ -138,7 +144,7 @@ export type SoundDefinition = {
 	.ReverbSoundEffect ReverbSoundEffectSerialized?
 	.TremoloSoundEffect TremoloSoundEffectSerialized?
 
-	Defines the sound effects of a sound as a dictionary of class names to their corresponding properties.
+	Table of serialized `SoundEffects` for the `SoundDefinition`.
 ]=]
 export type SoundChildrenSerialized = {
 	ChorusSoundEffect: ChorusSoundEffectSerialized?,
@@ -156,6 +162,8 @@ export type SoundChildrenSerialized = {
 
 --[=[
 	@interface SoundSerialized
+	@within SerializedTypes
+
 	.AcousticSimulationEnabled boolean
 	.AudioContent string
 	.EmitterSize number
@@ -184,93 +192,204 @@ export type SoundChildrenSerialized = {
 	.Volume number
 
 	.Archivable boolean
-	.archivable boolean
-	.Capabilities SecurityCapabilities
 	.Name string
 	.Parent Instance
-	.PredictionMode Enum.PredictionMode
-	.RobloxLocked boolean
-	.Sandboxed boolean
 
 	.ClassName string
 
-	@within SerializedTypes
-
-	Defines the properties of a sound as a dictionary of property names and values.
+	Serialized `Sound` Instance.
 ]=]
 export type SoundSerialized = BaseInstance & SoundProperties
 
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@type ChorusSoundEffectSerialized {[string]: any}
+	@interface ChorusSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of a ChorusSoundEffect as a dictionary of property names and values.
+	.Depth number
+	.Mix number
+	.Rate number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `ChorusSoundEffect` Instance.
 ]=]
 export type ChorusSoundEffectSerialized = BaseEffect & ChorusSoundEffectProperties
 
 --[=[
-	@type CompressorSoundEffectSerialized {[string]: any}
+	@interface CompressorSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of a CompressorSoundEffect as a dictionary of property names and values.
+	.Attack number
+	.GainMakeup number
+	.Ratio number
+	.Release number
+	.Threshold number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `CompressorSoundEffect` Instance.
 ]=]
 export type CompressorSoundEffectSerialized = BaseEffect & CompressorSoundEffectProperties
 
 --[=[
-	@type DistortionSoundEffectSerialized {[string]: any}
+	@interface DistortionSoundEffectSerialized
 	@within SerializedTypes
-	
-	Defines the properties of a DistortionSoundEffect as a dictionary of property names and values.
+
+	.Level number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `DistortionSoundEffect` Instance.
 ]=]
 export type DistortionSoundEffectSerialized = BaseEffect & DistortionSoundEffectProperties
 
 --[=[
-	@type EchoSoundEffectSerialized {[string]: any}
+	@interface EchoSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of an EchoSoundEffect as a dictionary of property names and values.
+	.Delay number
+	.Feedback number
+	.WetLevel number
+	.DryLevel number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `EchoSoundEffect` Instance.
 ]=]
 export type EchoSoundEffectSerialized = BaseEffect & EchoSoundEffectProperties
 
 --[=[
-	@type EqualizerSoundEffectSerialized {[string]: any}
+	@interface EqualizerSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of an EqualizerSoundEffect as a dictionary of property names and values.
+	.HighGain number
+	.LowGain number
+	.MidGain number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `EqualizerSoundEffect` Instance.
 ]=]
 export type EqualizerSoundEffectSerialized = BaseEffect & EqualizerSoundEffectProperties
 
 --[=[
-	@type FlangeSoundEffectSerialized {[string]: any}
+	@interface FlangeSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of a FlangeSoundEffect as a dictionary of property names and values.
+	.Depth number
+	.Mix number
+	.Rate number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `FlangeSoundEffect` Instance.
 ]=]
 export type FlangeSoundEffectSerialized = BaseEffect & FlangeSoundEffectProperties
 
 --[=[
-	@type PitchShiftSoundEffectSerialized {[string]: any}
+	@interface PitchShiftSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of a PitchShiftSoundEffect as a dictionary of property names and values.
+	.Octave number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `PitchShiftSoundEffect` Instance.
 ]=]
 export type PitchShiftSoundEffectSerialized = BaseEffect & PitchShiftSoundEffectProperties
 
 --[=[
-	@type ReverbSoundEffectSerialized {[string]: any}
+	@interface ReverbSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of a ReverbSoundEffect as a dictionary of property names and values.
+	.DecayTime number
+	.Density number
+	.Diffusion number
+	.DryLevel number
+	.WetLevel number
+
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `ReverbSoundEffect` Instance.
 ]=]
 export type ReverbSoundEffectSerialized = BaseEffect & ReverbSoundEffectProperties
 
 --[=[
-	@type TremoloSoundEffectSerialized {[string]: any}
+	@interface TremoloSoundEffectSerialized
 	@within SerializedTypes
 
-	Defines the properties of a TremoloSoundEffect as a dictionary of property names and values.
+	.Depth number
+	.Duty number
+	.Frequency number
+	
+	.Enabled boolean
+	.Priority number
+
+	.Archivable boolean
+	.Name string
+	.Parent Instance
+
+	.ClassName string
+
+	Serialized `TremoloSoundEffect` Instance.
 ]=]
 export type TremoloSoundEffectSerialized = BaseEffect & TremoloSoundEffectProperties
 
@@ -323,7 +442,6 @@ type ChorusSoundEffectProperties = {
 	Depth: number,
 	Mix: number,
 	Rate: number,
-	Priority: number,
 }
 
 type CompressorSoundEffectProperties = {
@@ -332,12 +450,10 @@ type CompressorSoundEffectProperties = {
 	Ratio: number,
 	Release: number,
 	Threshold: number,
-	Priority: number,
 }
 
 type DistortionSoundEffectProperties = {
 	Level: number,
-	Priority: number,
 }
 
 type EchoSoundEffectProperties = {
@@ -345,26 +461,22 @@ type EchoSoundEffectProperties = {
 	Feedback: number,
 	WetLevel: number,
 	DryLevel: number,
-	Priority: number,
 }
 
 type EqualizerSoundEffectProperties = {
 	HighGain: number,
 	LowGain: number,
 	MidGain: number,
-	Priority: number,
 }
 
 type FlangeSoundEffectProperties = {
 	Depth: number,
 	Mix: number,
 	Rate: number,
-	Priority: number,
 }
 
 type PitchShiftSoundEffectProperties = {
 	Octave: number,
-	Priority: number,
 }
 
 type ReverbSoundEffectProperties = {
@@ -373,14 +485,12 @@ type ReverbSoundEffectProperties = {
 	Diffusion: number,
 	DryLevel: number,
 	WetLevel: number,
-	Priority: number,
 }
 
 type TremoloSoundEffectProperties = {
 	Depth: number,
 	Duty: number,
 	Frequency: number,
-	Priority: number,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -393,13 +503,8 @@ type SoundEffectProperties = {
 
 type InstanceProperties = {
 	Archivable: boolean,
-	archivable: boolean,
-	Capabilities: SecurityCapabilities,
 	Name: string,
 	Parent: Instance,
-	PredictionMode: Enum.PredictionMode,
-	RobloxLocked: boolean,
-	Sandboxed: boolean,
 }
 
 type ObjectProperties = {
