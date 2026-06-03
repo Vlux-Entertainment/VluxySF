@@ -2,11 +2,10 @@
 --!optimize 2
 
 local ContentProvider = game:GetService("ContentProvider")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local libarary = script.Parent.Parent
 
-local FormatMessage = require(ReplicatedStorage.VluxySF.Utility.FormatMessage)
+local FormatMessage = require(libarary.Utility.FormatMessage)
 local Types = require(libarary.Types)
 
 export type AllowedPreloadTypes = string | Sound | Types.SoundDefinition

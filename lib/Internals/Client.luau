@@ -3,12 +3,11 @@
 
 ------------------------------------------------------------------------------------------------------------------------
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local library = script.Parent.Parent
 
-local Converters = require(ReplicatedStorage.VluxySF.Tools.Converters)
+local Converters = require(library.Tools.Converters)
 local FormatMessage = require(library.Utility.FormatMessage)
 local RemoteFunction = require(library.Utility.RemoteFunction)
 
