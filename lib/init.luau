@@ -618,16 +618,20 @@ end
 
 	@tag RequiresSchema
 
-	Functions for getting and setting the created sound groups.
+	Functions for adjusting `SoundGroups` in the schema.
 ]=]
 Sounds.Groups = {}
 
 --[=[
 	@within SoundGroups
 
-	@return SoundGroups -- All sound groups defined in the schema.
+	@return SoundGroups -- Dictionary of `SoundGroups`.
 
-	Returns all sound groups defined in the schema.
+	Returns the `SoundGroups` registerd in the `Schema`.
+
+	```lua
+	print(VluxySF.Groups.Get())
+	```
 ]=]
 function Sounds.Groups.Get(): Types.SoundGroups
 	schemaFailCheck()
@@ -638,11 +642,19 @@ end
 --[=[
 	@within SoundGroups
 
-	@param name string -- The name of the sound group to retrieve.
+	@param name string -- Name of the `SoundGroup`.
 
-	@return SoundGroup? -- The sound group instance if found, otherwise nil.
+	@return SoundGroup? -- `SoundGroup` if it exists.
 
-	Retrieves a sound group instance by its name.
+	Finds a `SoundGroup` by name.
+
+	```lua
+	local gameSoundGroup = VluxySF.Groups.GetByName("GAME")
+
+	if gameSoundGroup then
+		gameSoundGroup.Volume = 0.3
+	end
+	```
 ]=]
 function Sounds.Groups.GetByName(name: string): SoundGroup?
 	schemaFailCheck()
@@ -653,9 +665,13 @@ end
 --[=[
 	@within SoundGroups
 
-	@return { string } -- A list of all sound group names defined in the schema.
+	@return { string } -- Array of `SoundGroup` names.
 
-	Returns a list of all sound group names defined in the schema.
+	Gets an arrray of all `SoundGroup` names within the main group.
+
+	```lua
+	print(VluxySF.Groups.GetNames())
+	```
 ]=]
 function Sounds.Groups.GetNames(): { string }
 	schemaFailCheck()
@@ -672,11 +688,15 @@ end
 ----------------------------------------------------------------------------------------------------------------
 
 --[=[
-    @within SoundGroups
+	@within SoundGroups
 
-    @param mainVolume number -- The desired main volume level to set for the "SOUNDS" group.
+	@param mainVolume number -- Volume level to set.
 
-    Sets the main volume level for the "SOUNDS" group, which can be used as a master volume control for all sounds in that group.
+	Sets the volume of the main `SoundGroup` that all other groups derive from.
+
+	```lua
+	VluxySF.Groups.SetMainVolume(0.3)
+	```
 ]=]
 function Sounds.Groups.SetMainVolume(mainVolume: number)
 	schemaFailCheck()
@@ -691,10 +711,24 @@ end
 --[=[
 	@within SoundGroups
 
-	@param mainVolume number? -- An optional main volume level to set.
-	@param volumes { [string]: number } -- A dictionary mapping sound group names to their desired volume levels.
+	@param mainVolume number? --  -- Main volume level to set.
+	@param volumes { [string]: number } -- Dictionary of the volumes to adjust.
 
-	Sets the volume levels for multiple sound groups at once based on the provided dictionary of group names and volume values.
+	Sets Volumes to the provided levels.
+
+	:::tip
+	MainVolume and the individual volume elements are optional when using `SoundGroups.SetVolumes`.
+	:::
+
+	```lua
+	local mainVolume = 1
+	local volumes = {
+		["GAME"] = 0.7,
+		["UI"] = 0.5,
+	}
+	
+	VluxySF.Groups.SetVolumes(mainVolume, volumes)
+	```
 ]=]
 function Sounds.Groups.SetVolumes(mainVolume: number?, volumes: { [string]: number })
 	schemaFailCheck()
@@ -730,16 +764,20 @@ end
 
 	@client
 
-	Functions for preloading sounds based on various identifiers such as sound locations.
+	Functions for `Preloading` your `Sounds`.
 ]=]
 Sounds.Preload = {}
 
 --[=[
 	@within Preload
 
-	@return { [string]: Sound } -- A table mapping sound names to their corresponding preloaded Sound instances.
+	@return { [string]: Sound } -- Dictionary of all `Preloaded` `Sounds`.
 
-	Returns a table of preloaded Sound instances. This is currently not implemented and will return an empty table.
+	Gets a dictionary of all `Preloaded` `Sounds` including entries added after startup.
+
+	```lua
+	print(VluxySF.Preload.Get())
+	```
 ]=]
 function Sounds.Preload.Get(): { [string]: Sound }
 	schemaFailCheck()
@@ -751,9 +789,37 @@ end
 --[=[
 	@within Preload
 
-	@param ... string | Sound | Types.SoundDefinition -- Allowed types to preload.
+	@param ... string | Sound | Types.SoundDefinition -- Varargs to `Preload`.
 
-	Preloads the specified sounds, if they were already preloaded the instance is destroyed.
+	Preloads the provided variables and stores them internally.
+
+	:::info
+	- If a `Sound` is `Preloaded` `Warming` it will have no effect.
+	- Provided `Sounds` in Varargs are `Cloned` and used internally.
+	:::
+
+	```lua
+
+	local sound1 = ...
+	local sound2 = ...
+	local sound3 = ...
+
+	local soundDefinition1 = ...
+	local soundDefinition2 = ...
+
+	local soundName1 = "MySound1"
+	local soundName2 = "MySound2"
+
+	Preload.Selected(
+		sound1,
+		sound2,
+		sound3,
+		soundDefinition1,
+		soundDefinition2,
+		soundName1,
+		soundName2
+	)
+	```
 ]=]
 function Sounds.Preload.Selected(...: string | Sound | Types.SoundDefinition)
 	schemaFailCheck()
@@ -765,7 +831,7 @@ function Sounds.Preload.Selected(...: string | Sound | Types.SoundDefinition)
 		local sound: Sound? = nil
 
 		if typeof(soundType) == "Instance" and soundType:IsA("Sound") then
-			sound = soundType
+			sound = soundType:Clone()
 		elseif typeof(soundType) == "table" then
 			sound = Converters.DefinitionToSound(soundType :: Types.SoundDefinition)
 		elseif typeof(soundType) == "string" then
