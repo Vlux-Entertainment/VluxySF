@@ -140,6 +140,26 @@ local function createSound(soundName: string): Sound?
 	return sound
 end
 
+local function createSoundsFromName(getDefinition: (string) -> SoundDefinition?, ...: GeneratedSoundNames)
+	local sounds: { Sound } = {}
+
+	for _, soundName in ipairs({ ... }) do
+		local definition = getDefinition(soundName)
+		if not definition then
+			continue
+		end
+
+		local sound = Converters.DefinitionToSound(definition)
+		if not sound then
+			continue
+		end
+
+		table.insert(sounds, sound)
+	end
+
+	return sounds
+end
+
 ----------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------------------------
@@ -793,7 +813,6 @@ end
 
 	:::info
 	- If a `Sound` is `Preloaded` `Warming` it will have no effect.
-	- Provided `Sounds` in Varargs are `Cloned` and used internally.
 	:::
 
 	```lua
@@ -819,37 +838,13 @@ end
 	)
 	```
 
-	@param ... string | Sound | Types.SoundDefinition -- Varargs to `Preload`.
+	@param ... string -- Names to `Preload`.
 ]=]
-function Sounds.Preload.Selected(...: string | Sound | Types.SoundDefinition)
+function Sounds.Preload.Selected(...: GeneratedSoundNames)
 	schemaFailCheck()
 	clientFailCheck()
 
-	local sounds: { Sound } = {}
-
-	for _, soundType in ipairs({ ... }) do
-		local sound: Sound? = nil
-
-		if typeof(soundType) == "Instance" and soundType:IsA("Sound") then
-			sound = soundType:Clone()
-		elseif typeof(soundType) == "table" then
-			sound = Converters.DefinitionToSound(soundType :: Types.SoundDefinition)
-		elseif typeof(soundType) == "string" then
-			local definition = Sounds.Schema.GetDefinition(soundType)
-			if not definition then
-				continue
-			end
-
-			sound = Converters.DefinitionToSound(definition)
-		end
-
-		if not sound then
-			continue
-		end
-
-		table.insert(sounds, sound)
-	end
-
+	local sounds = createSoundsFromName(Sounds.Schema.GetDefinition, ...)
 	Preloading.Selected(soundSchema.PreloadedSounds, table.unpack(sounds))
 end
 
@@ -936,20 +931,16 @@ end
 	VluxySF.FetchplayOnce("MySound") --should play without delay now
 	```
 
-	@param soundName string -- The name of the `Sound`.
+	@param ... string -- Names of the `Sounds`.
 ]=]
-function Sounds.Cache.Warm(soundName: GeneratedSoundNames)
+function Sounds.Cache.Warm(...: GeneratedSoundNames)
 	schemaFailCheck()
 	clientFailCheck()
 
-	local definition = Sounds.Schema.GetDefinition(soundName)
-	if not definition then
-		return
+	local sounds = createSoundsFromName(Sounds.Schema.GetDefinition, ...)
+	for _, sound in ipairs(sounds) do
+		WarmCache.SetSound(soundSchema.WarmedSounds, sound)
 	end
-
-	local sound = Converters.DefinitionToSound(definition)
-
-	WarmCache.SetSound(soundSchema.WarmedSounds, sound)
 end
 
 --[=[
@@ -984,13 +975,15 @@ end
 	--So, if the soundId isnt used anywhere else it will be removed from memmory.
 	```
 
-	@param soundName string -- The name of the `Sound`.
+	@param ... string -- Names of the `Sounds`.
 ]=]
-function Sounds.Cache.Chill(soundName: GeneratedSoundNames)
+function Sounds.Cache.Chill(...: GeneratedSoundNames)
 	schemaFailCheck()
 	clientFailCheck()
 
-	WarmCache.RemoveSound(soundName)
+	for _, soundName in ipairs({ ... }) do
+		WarmCache.RemoveSound(soundName)
+	end
 end
 
 ----------------------------------------------------------------------------------------------------------------
