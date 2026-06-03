@@ -21,7 +21,7 @@ local Types = require(library.Types)
 local soundRequest = RemoteFunction.new("SoundRequest")
 
 local preloadSoundsFolder = Instance.new("Configuration")
-preloadSoundsFolder.Name = "PreloadSounds"
+preloadSoundsFolder.Name = "PreloadedSounds"
 preloadSoundsFolder.Parent = SoundService
 
 local warmedSoundsFolder = Instance.new("Configuration")
@@ -72,7 +72,7 @@ local function setPreloadGroup(groupFolder: Configuration)
 	local sounds: { Sound } = {}
 	for _, instance in ipairs(taggedInstances) do
 		if instance:IsA("Folder") or instance:IsA("Configuration") then
-			local storedSounds = groupFolder:QueryDescendants("Sound")
+			local storedSounds = instance:QueryDescendants("Sound")
 
 			for _, sound in ipairs(storedSounds) do
 				table.insert(sounds, sound)

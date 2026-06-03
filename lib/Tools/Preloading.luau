@@ -2,9 +2,11 @@
 --!optimize 2
 
 local ContentProvider = game:GetService("ContentProvider")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local libarary = script.Parent.Parent
 
+local FormatMessage = require(ReplicatedStorage.VluxySF.Utility.FormatMessage)
 local Types = require(libarary.Types)
 
 export type AllowedPreloadTypes = string | Sound | Types.SoundDefinition
@@ -62,12 +64,14 @@ function Preload.Selected(parentFolder: Configuration, ...: Sound)
 			preloadIndex += 1
 
 			local newSound = Instance.new("Sound")
-			newSound.Name = "PreloadSound" .. preloadIndex
+			newSound.Name = soundName
 			newSound.SoundId = sound.SoundId
 			newSound.Parent = parentFolder
 
 			soundsToPreload[preloadIndex] = newSound
 		else
+			FormatMessage.Warn(`Sound named {soundName} is already preloaded!`)
+
 			sound:Destroy()
 		end
 	end
