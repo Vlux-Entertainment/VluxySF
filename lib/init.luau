@@ -164,12 +164,6 @@ local Sounds = {}
 	@within VluxySF
 
 	@tag RequiresSchema
-
-	@param name string -- The name of the `Sound`.
-	@param parent Instance? -- Parent of the sound.
-	@param preset (Sound) -> ()? -- `Preset` to apply.
-
-	@return Sound -- The fetched sound instance.
 	
 	Finds the specified `SoundDefinition` and gives back a `Sound`. If somthing goes wrong a `Blank Sound` is returned instead.
 
@@ -193,6 +187,12 @@ local Sounds = {}
 
 	mySound:Play()
 	```
+	
+	@param name string -- The name of the `Sound`.
+	@param parent Instance? -- Parent of the sound.
+	@param preset (Sound) -> ()? -- `Preset` to apply.
+
+	@return Sound -- The fetched sound instance.
 ]=]
 function Sounds.Fetch(name: GeneratedSoundNames, parent: Instance?, preset: (Sound) -> ()?): SoundDefinitionInstanced
 	schemaFailCheck()
@@ -219,12 +219,6 @@ end
 
 	@tag RequiresSchema
 
-	@param name string -- The name of the `Sound`.
-	@param parent Instance? -- Parent of the `Sound`.
-	@param preset (Sound) -> ()? -- `Preset` to apply.
-
-	@return Sound? -- The fetched `Sound` instance if success.
-
 	Similar to `VluxySF.Fetch` but will not return a `Blank Sound` on fail.
 	
 	```lua
@@ -241,6 +235,12 @@ end
 		mySound:Play()
 	end
 	```
+
+	@param name string -- The name of the `Sound`.
+	@param parent Instance? -- Parent of the `Sound`.
+	@param preset (Sound) -> ()? -- `Preset` to apply.
+
+	@return Sound? -- The fetched `Sound` instance if success.
 ]=]
 function Sounds.FetchStrict(
 	name: GeneratedSoundNames,
@@ -277,18 +277,18 @@ end
 
 	@tag RequiresSchema
 
+	Plays a `OneShot` `Sound` and cleans up after playing.
+
+	```lua
+	VluxySF.FetchPlayOnce("MySound")
+	```
+
 	@param name string -- The name of the `Sound`.
 	@param parent Instance? -- Parent of the `Sound`.
 	@param preset (Sound) -> ()? -- `Preset` to apply.
 	@param waitOnLoad boolean? -- Wait for the `Sound` to load? Always separate thread.
 
 	@return () -> () -- Cleanup function.
-
-	Plays a `OneShot` `Sound` and cleans up after playing.
-
-	```lua
-	VluxySF.FetchPlayOnce("MySound")
-	```
 ]=]
 function Sounds.FetchPlayOnce(
 	name: GeneratedSoundNames,
@@ -351,8 +351,6 @@ Sounds.Startup = {}
 
 	@server
 
-	@param soundFolder Configuration -- The `SOUNDS Configurartion`.
-
 	Injects the `SOUNDS Configuration` into the library and creates the `Schema`.
 
 	:::info
@@ -374,6 +372,8 @@ Sounds.Startup = {}
 
 	VluxySF.Startup.InitServer(soundConfig)
 	```
+
+	@param soundFolder Configuration -- The `SOUNDS Configurartion`.
 ]=]
 function Sounds.Startup.InitServer(soundFolder: Configuration)
 	local Server = require(internals.Server)
@@ -394,8 +394,6 @@ end
 
 	@yields
 
-	@param timeout number? -- Timeout for waiting on sounds to preload.
-
 	Fetches the `Schema` from the server and preloads all sounds that require it.
 
 	:::danger
@@ -411,6 +409,8 @@ end
 
 	VluxySF.Startup.InitClient(timeout)
 	```
+
+	@param timeout number? -- Timeout for waiting on sounds to preload.
 ]=]
 function Sounds.Startup.InitClient(timeout: number?)
 	local Client = require(internals.Client)
@@ -429,13 +429,13 @@ end
 --[=[
 	@within Startup
 
-	@return boolean -- Is initialized?
-
 	Checks if the sound schema has been initialized.
 
 	```lua
 	print(VluxySF.Startup.IsInitialized())
 	```
+
+	@return boolean -- Is initialized?
 ]=]
 function Sounds.Startup.IsInitialized(): boolean
 	return isInitialized
@@ -473,10 +473,6 @@ end
 --[=[
 	@within Startup
 
-	@param finished () -> () -- Callback function to execute when the schema is created.
-
-	@return () -> () -- Cleanup function.
-
 	Alternative to `Startup.WaitForSchema` if you do not want to pause the current block.
 
 	```lua
@@ -490,6 +486,10 @@ end
 
 	--doesn't yield down here!
 	```
+
+	@param finished () -> () -- Callback function to execute when the schema is created.
+
+	@return () -> () -- Cleanup function.
 ]=]
 function Sounds.Startup.ConnectForSchema(finished: () -> ()): () -> ()
 	if isInitialized then
@@ -527,13 +527,13 @@ Sounds.Schema = {}
 --[=[
 	@within Schema
 
-	@return SoundSchema -- The internal sound schema used by the system.
-
 	The full `Schema` used internally by the library.
 
 	```lua
 	print(VluxySF.Schema.Get())
 	```
+
+	@return SoundSchema -- The internal sound schema used by the system.
 ]=]
 function Sounds.Schema.Get(): Types.SoundSchema
 	schemaFailCheck()
@@ -544,13 +544,13 @@ end
 --[=[
 	@within Schema
 
-	@return SoundDefinitions -- All converted sound data
-
 	Returns all `SoundDefinitions` in the `Schema`.
 
 	```lua
 	print(VluxySF.Schema.GetDefinitions())
 	```
+
+	@return SoundDefinitions -- All converted sound data
 ]=]
 function Sounds.Schema.GetDefinitions(): Types.SoundDefinitions
 	schemaFailCheck()
@@ -561,15 +561,15 @@ end
 --[=[
 	@within Schema
 
-	@param definitionName string -- The name of the sound definition to retrieve.
-
-	@return SoundDefinition? -- The SoundDefinition associated with the provided name.
-
 	Retrieves a `SoundDefinition` from the `Schema` based on its name.
 
 	```lua
 	print(VluxySF.Schema.GetDefinition("MySound"))
 	```
+
+	@param definitionName string -- The name of the sound definition to retrieve.
+
+	@return SoundDefinition? -- The SoundDefinition associated with the provided name.
 ]=]
 function Sounds.Schema.GetDefinition(definitionName: string): Types.SoundDefinition?
 	schemaFailCheck()
@@ -585,13 +585,13 @@ end
 --[=[
 	@within Schema
 
-	@return { string } -- All registered sound names
-
 	Returns all sound names in the library.
 
 	```lua
 	print(VluxySF.Schema.GetNames())
 	```
+
+	@return { string } -- All registered sound names.
 ]=]
 function Sounds.Schema.GetNames(): { string }
 	schemaFailCheck()
@@ -625,13 +625,13 @@ Sounds.Groups = {}
 --[=[
 	@within SoundGroups
 
-	@return SoundGroups -- Dictionary of `SoundGroups`.
-
 	Returns the `SoundGroups` registerd in the `Schema`.
 
 	```lua
 	print(VluxySF.Groups.Get())
 	```
+
+	@return SoundGroups -- Dictionary of `SoundGroups`.
 ]=]
 function Sounds.Groups.Get(): Types.SoundGroups
 	schemaFailCheck()
@@ -642,10 +642,6 @@ end
 --[=[
 	@within SoundGroups
 
-	@param name string -- Name of the `SoundGroup`.
-
-	@return SoundGroup? -- `SoundGroup` if it exists.
-
 	Finds a `SoundGroup` by name.
 
 	```lua
@@ -655,6 +651,10 @@ end
 		gameSoundGroup.Volume = 0.3
 	end
 	```
+
+	@param name string -- Name of the `SoundGroup`.
+
+	@return SoundGroup? -- `SoundGroup` if it exists.
 ]=]
 function Sounds.Groups.GetByName(name: string): SoundGroup?
 	schemaFailCheck()
@@ -665,13 +665,13 @@ end
 --[=[
 	@within SoundGroups
 
-	@return { string } -- Array of `SoundGroup` names.
-
 	Gets an arrray of all `SoundGroup` names within the main group.
 
 	```lua
 	print(VluxySF.Groups.GetNames())
 	```
+
+	@return { string } -- Array of `SoundGroup` names.
 ]=]
 function Sounds.Groups.GetNames(): { string }
 	schemaFailCheck()
@@ -690,13 +690,13 @@ end
 --[=[
 	@within SoundGroups
 
-	@param mainVolume number -- Volume level to set.
-
 	Sets the volume of the main `SoundGroup` that all other groups derive from.
 
 	```lua
 	VluxySF.Groups.SetMainVolume(0.3)
 	```
+
+	@param mainVolume number -- Volume level to set.
 ]=]
 function Sounds.Groups.SetMainVolume(mainVolume: number)
 	schemaFailCheck()
@@ -710,9 +710,6 @@ end
 
 --[=[
 	@within SoundGroups
-
-	@param mainVolume number? --  -- Main volume level to set.
-	@param volumes { [string]: number } -- Dictionary of the volumes to adjust.
 
 	Sets Volumes to the provided levels.
 
@@ -729,6 +726,9 @@ end
 	
 	VluxySF.Groups.SetVolumes(mainVolume, volumes)
 	```
+
+	@param mainVolume number? --  -- Main volume level to set.
+	@param volumes { [string]: number } -- Dictionary of the volumes to adjust.
 ]=]
 function Sounds.Groups.SetVolumes(mainVolume: number?, volumes: { [string]: number })
 	schemaFailCheck()
@@ -771,13 +771,13 @@ Sounds.Preload = {}
 --[=[
 	@within Preload
 
-	@return { [string]: Sound } -- Dictionary of all `Preloaded` `Sounds`.
-
 	Gets a dictionary of all `Preloaded` `Sounds` including entries added after startup.
 
 	```lua
 	print(VluxySF.Preload.Get())
 	```
+
+	@return { [string]: Sound } -- Dictionary of all `Preloaded` `Sounds`.
 ]=]
 function Sounds.Preload.Get(): { [string]: Sound }
 	schemaFailCheck()
@@ -788,8 +788,6 @@ end
 
 --[=[
 	@within Preload
-
-	@param ... string | Sound | Types.SoundDefinition -- Varargs to `Preload`.
 
 	Preloads the provided variables and stores them internally.
 
@@ -820,6 +818,8 @@ end
 		soundName2
 	)
 	```
+
+	@param ... string | Sound | Types.SoundDefinition -- Varargs to `Preload`.
 ]=]
 function Sounds.Preload.Selected(...: string | Sound | Types.SoundDefinition)
 	schemaFailCheck()
@@ -875,13 +875,13 @@ Sounds.Cache = {}
 --[=[
 	@within Cache
 
-	@return { [string]: Sound } -- The current sounds being Warmed.
-
 	Returns a hash of the current sounds that are warmed.
 
 	```lua
 	print(VluxySF.Cache.Get())
 	```
+
+	@return { [string]: Sound } -- The current sounds being Warmed.
 ]=]
 function Sounds.Cache.Get(): { [string]: Sound }
 	schemaFailCheck()
@@ -893,15 +893,15 @@ end
 --[=[
 	@within Cache
 
-	@param soundName string -- Name of the `Sound`.
-
-	@return boolean -- Is that sound warmed?
-
 	Tells you if a sound from its name is currently warmed.
 
 	```lua
 	print(VluxySF.Cache.IsWarmed("MySound"))
 	```
+
+	@param soundName string -- Name of the `Sound`.
+
+	@return boolean -- Is that sound warmed?
 ]=]
 function Sounds.Cache.IsWarmed(soundName: string): boolean
 	schemaFailCheck()
@@ -912,8 +912,6 @@ end
 
 --[=[
 	@within Cache
-
-	@param soundName string -- The name of the `Sound`.
 
 	Loads the `Sound` to the Client. If the the same `Sound` is fetched it will instead `Clone` from it.
 
@@ -937,6 +935,8 @@ end
 
 	VluxySF.FetchplayOnce("MySound") --should play without delay now
 	```
+
+	@param soundName string -- The name of the `Sound`.
 ]=]
 function Sounds.Cache.Warm(soundName: GeneratedSoundNames)
 	schemaFailCheck()
@@ -954,8 +954,6 @@ end
 
 --[=[
 	@within Cache
-
-	@param soundName string -- The name of the `Sound`.
 
 	If a `Sound` with that name is currently warmed it is removed it from the cache.
 
@@ -985,6 +983,8 @@ end
 	--Now if OnPlay is destroyed it wont be warmed anymore.
 	--So, if the soundId isnt used anywhere else it will be removed from memmory.
 	```
+
+	@param soundName string -- The name of the `Sound`.
 ]=]
 function Sounds.Cache.Chill(soundName: GeneratedSoundNames)
 	schemaFailCheck()
@@ -1011,10 +1011,6 @@ Sounds.Conversions = {}
 --[=[
 	@within Conversions
 
-	@param sound -- The `Sound` to convert.
-
-	@return SoundDefinition -- The resulting `SoundDefinition`.
-
 	Converts a `Sound` into a `SoundDefinition`.
 
 	```lua
@@ -1024,6 +1020,10 @@ Sounds.Conversions = {}
 
 	print(soundDefinition)
 	```
+
+	@param sound -- The `Sound` to convert.
+
+	@return SoundDefinition -- The resulting `SoundDefinition`.
 ]=]
 function Sounds.Conversions.ToDefinition(sound: Sound): Types.SoundDefinition
 	return Converters.SoundToDefinition(sound)
@@ -1031,10 +1031,6 @@ end
 
 --[=[
 	@within Conversions
-
-	@param definition SoundDefinition -- The `SoundDefinition` to convert.
-
-	@return Sound -- The resulting `Sound`.
 
 	Converts a `SoundDefinition` into a `Sound`.
 
@@ -1054,6 +1050,10 @@ end
 
 	mySound:Play()
 	```
+
+	@param definition SoundDefinition -- The `SoundDefinition` to convert.
+
+	@return Sound -- The resulting `Sound`.
 ]=]
 function Sounds.Conversions.FromDefinition(definition: Types.SoundDefinition): Types.SoundDefinitionInstanced
 	return Converters.DefinitionToSound(definition)

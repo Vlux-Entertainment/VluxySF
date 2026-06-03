@@ -20,11 +20,6 @@ local Jitter = {}
 --[=[
 	@within Jitter
 
-	@param center number -- The central value around which the jitter will occur.
-	@param spread number -- The maximum deviation from the center value.
-
-	@return () -> number -- Generates the jitter value when called.
-
 	Standard Jitter function that randomly varies from the center value +- the spread.
 
 	```lua
@@ -36,6 +31,11 @@ local Jitter = {}
 	local sound2 = ...
 	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
 	```
+
+	@param center number -- The central value around which the jitter will occur.
+	@param spread number -- The maximum deviation from the center value.
+
+	@return () -> number -- Generates the jitter value when called.
 ]=]
 function Jitter.Default(center: number, spread: number): () -> number
 	return function()
@@ -48,11 +48,6 @@ end
 --[=[
 	@within Jitter
 
-	@param min number -- The minimum value for the jitter range.
-	@param max number -- The maximum value for the jitter range.
-
-	@return () -> number -- Generates the jitter value when called.
-
 	Essentially just a random number that requires a specified range.
 
 	```lua
@@ -64,6 +59,11 @@ end
 	local sound2 = ...
 	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
 	```
+
+	@param min number -- The minimum value for the jitter range.
+	@param max number -- The maximum value for the jitter range.
+
+	@return () -> number -- Generates the jitter value when called.
 ]=]
 function Jitter.Range(min: number, max: number): () -> number
 	return function()
@@ -76,10 +76,6 @@ end
 --[=[
 	@within Jitter
 
-	@param spread number -- The maximum deviation from the center value.
-
-	@return () -> number -- Generates the jitter value when called.
-
 	Very similar to `Jitter.Default` but the center value is 1.
 
 	```lua
@@ -91,6 +87,10 @@ end
 	local sound2 = ...
 	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
 	```
+
+	@param spread number -- The maximum deviation from the center value.
+
+	@return () -> number -- Generates the jitter value when called.
 ]=]
 function Jitter.Scale(spread: number): () -> number
 	return function()
@@ -102,11 +102,6 @@ end
 
 --[=[
 	@within Jitter
-
-	@param center number -- The central value around which the jitter will occur.
-	@param spread number -- The maximum deviation from the center value.
-
-	@return () -> number -- Generates the jitter value when called.
 
 	Produces jitter values with a shaped distribution that favors the center value.
 
@@ -123,6 +118,11 @@ end
 	:::tip
 		This can be used to make more natural repetitious sounds like footsteps.
 	:::
+
+	@param center number -- The central value around which the jitter will occur.
+	@param spread number -- The maximum deviation from the center value.
+
+	@return () -> number -- Generates the jitter value when called.
 ]=]
 function Jitter.UnitLog(center: number, spread: number): () -> number
 	return function()
