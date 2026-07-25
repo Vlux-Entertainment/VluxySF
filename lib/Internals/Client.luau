@@ -52,6 +52,13 @@ end
 	Extracts preload sound names from the schema and preloads them.
 ]]
 local function setPreloadSounds(timeout: number?)
+	if soundSchema.PreloadNames == nil then
+		return
+	end
+	if #soundSchema.PreloadNames == 0 then
+		return
+	end
+
 	local realTimeout = timeout or 5
 
 	local complete = Instance.new("BindableEvent")
