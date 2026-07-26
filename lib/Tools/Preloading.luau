@@ -62,9 +62,7 @@ function Preload.Selected(parentFolder: Configuration, ...: Sound)
 			preloadHash[soundName] = sound
 			preloadIndex += 1
 
-			local newSound = Instance.new("Sound")
-			newSound.Name = soundName
-			newSound.SoundId = sound.SoundId
+			local newSound = sound:Clone()
 			newSound.Parent = parentFolder
 
 			soundsToPreload[preloadIndex] = newSound
