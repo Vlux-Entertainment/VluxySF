@@ -27,7 +27,7 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `aft
 
 | Task | Command |
 |---|---|
-| Test place sync | `rojo serve test-place.project.json` (lib + plugin + `Tests/` scripts in one place) |
+| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `test-place.project.json` (lib + plugin + `Tests/` scripts in one place); an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json` |
 | Package-only build | `rojo build default.project.json` |
 | Preview what Wally would publish | `.\PackageTests\list.ps1` |
 | Build + unpack the publish tarball | `.\PackageTests\refresh.ps1` (inspect result in `PackageTests/unpacked/`) |
