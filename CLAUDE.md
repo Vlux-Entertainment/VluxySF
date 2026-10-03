@@ -12,13 +12,15 @@ is one consumer; the library also reportedly runs in a live Roblox game peaking 
 so treat the published API as production-facing — breaking changes and behavior changes need real
 version bumps, and leak/perf fixes matter more than they look in Studio.
 
-Three deliverables live here:
+Two deliverables live here:
 
 1. **`lib/`** — the Wally package itself (what ships; see `include`/`exclude` in `wally.toml`).
-2. **`plugin/`** — a Studio companion plugin that sends the game's sound names to the
-   **VluxySF VS Code extension** (separate repo: Vlux-Entertainment/VluxySFExtension), which
-   regenerates `lib/_vluxysf_sound_name_types.luau` so `Fetch("...")` gets autocomplete/typed names.
-3. **Docs** — Moonwave/Docusaurus site (`moonwave.toml`, `docs/*.md`, generated `build/`).
+2. **Docs** — Moonwave/Docusaurus site (`moonwave.toml`, `docs/*.md`, generated `build/`).
+
+The companion tooling lives in a separate repo, **Vlux-Entertainment/VluxySFExtension**: a VS Code
+extension plus the Studio plugin it bundles and installs as a local plugin. The plugin sends the
+game's sound names to the extension, which regenerates `lib/_vluxysf_sound_name_types.luau` so
+`Fetch("...")` gets autocomplete/typed names. The plugin used to live here in `plugin/`.
 
 Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `aftman.toml`
 (rojo, wally, selene, stylua).
@@ -27,12 +29,12 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `aft
 
 | Task | Command |
 |---|---|
-| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `test-place.project.json` (lib + plugin + `Tests/` scripts in one place); an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json` |
+| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `test-place.project.json` (lib + `Tests/` scripts in one place); an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json` |
 | Package-only build | `rojo build default.project.json` |
 | Preview what Wally would publish | `.\PackageTests\list.ps1` |
 | Build + unpack the publish tarball | `.\PackageTests\refresh.ps1` (inspect result in `PackageTests/unpacked/`) |
 | Publish | `wally publish` (bump `version` in `wally.toml` first) |
-| Lint / format | `selene lib plugin` / `stylua lib plugin` |
+| Lint / format | `selene lib` / `stylua lib` |
 | Docs preview | `moonwave dev` |
 
 There is no automated test runner. `Tests/` contains manual scripts that run in the test place
@@ -66,17 +68,9 @@ There is no automated test runner. `Tests/` contains manual scripts that run in 
   reusable `(Sound) -> ()` mutators. **`Jitter`** (`lib/Sections/Jitter.luau`) — randomization
   helpers.
 - `GeneratedSoundNames` (the string type of every sound name) comes from
-  `lib/_vluxysf_sound_name_types.luau`, which the plugin+extension **overwrite per consumer game** —
-  in this repo it stays the generic fallback; don't hand-edit it.
-
-### The plugin (`plugin/`)
-
-Boots from `plugin/src/init.server.luau`; Toolbar/OptionsPanel UI, settings persisted via
-`plugin/src/Tools/Settings.luau`. It finds the game's SOUNDS location
-(`Tools/SoundsLocation.luau`), monitors it (`Components/AutoMonitorSounds.luau`), and POSTs sound
-names to the local VS Code extension (`Components/SocketRequests.luau`) so the extension can write
-the generated types file. `plugin/src/Utility/Trove.luau` is a vendored copy. The plugin is
-**excluded from the Wally package** and distributed via the Roblox marketplace.
+  `lib/_vluxysf_sound_name_types.luau`, which the extension and its Studio plugin (VluxySFExtension
+  repo) **overwrite per consumer game** — in this repo it stays the generic fallback; don't
+  hand-edit it.
 
 ## Conventions
 

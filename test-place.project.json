@@ -12,12 +12,6 @@
 			"$className": "ServerScriptService",
 			"$path": "Tests/ServerScriptService"
 		},
-		"ServerStorage": {
-			"$className": "ServerStorage",
-			"VluxySFPlugin": {
-				"$path": "plugin"
-			}
-		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
