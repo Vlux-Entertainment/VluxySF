@@ -24,6 +24,14 @@ If you really want type checking when fetching your sounds you can use the Compa
 
 ## CompanionExtension
 
-The companion extension installs its own Roblox Studio plugin for you as a local plugin, so there is nothing else to download!
+The companion extension needs its Roblox Studio plugin to function!
 
 [Companion Extension](https://github.com/Vlux-Entertainment/VluxySFExtension)
+
+## CompanionPlugin
+
+From version 0.5.0 the extension installs the plugin for you as a local plugin, so there is nothing else to download.
+
+On older versions of the extension, install the plugin from the Creator Store. Remove it again once you update to 0.5.0 or newer, or two copies of the plugin will run.
+
+[Companion Plugin](https://create.roblox.com/store/asset/135156375922001/Vluxy-Sound-Factory-Companion?viewFromStudio=true&keyword=&searchId=58eb3ad0-447b-4e8d-a720-bca87c689362)
