@@ -1,0 +1,91 @@
+{
+	"ClassName": "Configuration",
+	"Children": [
+		{
+			"Name": "MUSIC",
+			"ClassName": "Configuration",
+			"Children": [
+				{
+					"Name": "MainTheme",
+					"ClassName": "Sound",
+					"Properties": {
+						"SoundId": "rbxassetid://1835444509",
+						"Volume": 0.4,
+						"Looped": true
+					}
+				},
+				{
+					"Name": "Battles",
+					"ClassName": "Folder",
+					"Properties": {
+						"Tags": ["VluxySF_Preload"]
+					},
+					"Children": [
+						{
+							"Name": "BattleOne",
+							"ClassName": "Sound",
+							"Properties": {
+								"SoundId": "rbxasset://sounds/victory.wav"
+							}
+						},
+						{
+							"Name": "BattleTwo",
+							"ClassName": "Sound",
+							"Properties": {
+								"SoundId": "rbxasset://sounds/bass.wav"
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"Name": "SFX",
+			"ClassName": "Configuration",
+			"Children": [
+				{
+					"Name": "UI",
+					"ClassName": "Folder",
+					"Children": [
+						{
+							"Name": "Click",
+							"ClassName": "Sound",
+							"Properties": {
+								"SoundId": "rbxasset://sounds/clickfast.wav",
+								"Volume": 0.8,
+								"Tags": ["VluxySF_Preload"]
+							}
+						}
+					]
+				},
+				{
+					"Name": "Game",
+					"ClassName": "Folder",
+					"Children": [
+						{
+							"Name": "Explosion",
+							"ClassName": "Sound",
+							"Properties": {
+								"SoundId": "rbxasset://sounds/collide.wav",
+								"PlaybackSpeed": 1.2
+							},
+							"Children": [
+								{
+									"Name": "LongEcho",
+									"ClassName": "EchoSoundEffect",
+									"Properties": {
+										"Delay": 0.5
+									}
+								},
+								{
+									"Name": "ReverbSoundEffect",
+									"ClassName": "ReverbSoundEffect"
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	]
+}

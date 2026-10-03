@@ -14,16 +14,16 @@ realm = "shared"
 include = ["lib", "default.project.json", "LICENSE"]
 
 exclude = [
-    "plugin",
-    "assets",
     "docs",
     "build",
-    "plugin",
-    "PackageTests",
     "Tests",
+    "CLAUDE.md",
+    "aftman.toml",
     "moonwave.toml",
+    "selene.toml",
     "stylua.toml",
     "sourcemap.json",
+    "test-place.project.json",
 ]
 
 [server-dependencies]

@@ -6,11 +6,26 @@
 			"$className": "ReplicatedStorage",
 			"VluxySF": {
 				"$path": "lib"
+			},
+			"TestHarness": {
+				"$path": "Tests/ReplicatedStorage/TestHarness.luau"
+			},
+			"SharedCases": {
+				"$path": "Tests/ReplicatedStorage/SharedCases.luau"
+			},
+			"FetchBenchmark": {
+				"$path": "Tests/ReplicatedStorage/FetchBenchmark.luau"
 			}
 		},
 		"ServerScriptService": {
 			"$className": "ServerScriptService",
 			"$path": "Tests/ServerScriptService"
+		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"TEST_SOUNDS": {
+				"$path": "Tests/ServerStorage/TEST_SOUNDS.model.json"
+			}
 		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
