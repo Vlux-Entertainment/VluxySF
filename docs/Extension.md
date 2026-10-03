@@ -5,12 +5,16 @@ sidebar_position: 7
 
 # Extension
 
-The VluxySF library also comes with a companion `Extension` and `Plugin`. Using it is completly optional.
+The VluxySF library also comes with a companion `Extension`, which brings its own Roblox Studio `Plugin`. Using it is completly optional.
 
 ---
 
 ## Instructions
-Install the [Extension](https://create.roblox.com) in VS-Code and install the [Plugin](https://create.roblox.com/store/asset/135156375922001/Vluxy-Sound-Factory-Companion?viewFromStudio=true&keyword=&searchId=58eb3ad0-447b-4e8d-a720-bca87c689362) in Roblox.
+Install the [Extension](https://github.com/Vlux-Entertainment/VluxySFExtension) in VS-Code.
+
+From version `0.5.0` the extension installs the `Plugin` for you as a local plugin and keeps it up to date; restart Roblox Studio when the extension says the plugin was installed.
+
+On older versions of the extension, install the [Plugin](https://create.roblox.com/store/asset/135156375922001/Vluxy-Sound-Factory-Companion?viewFromStudio=true&keyword=&searchId=58eb3ad0-447b-4e8d-a720-bca87c689362) in Roblox yourself. Remove it in Studio's plugin manager once you update to `0.5.0` or newer, or two copies of the plugin will run.
 
 Make sure your ports match in the extension and plugin; by default its `7842`.
 
