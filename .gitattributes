@@ -1,2 +1,2 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Keep every text file on LF, matching .editorconfig and stylua.toml
+* text=auto eol=lf

@@ -2,7 +2,7 @@ title = "VluxySF"
 gitRepoUrl = "https://github.com/Vlux-Entertainment/VluxySF"
 
 changelog = true
-gitSourceBranch = "master"
+gitSourceBranch = "main"
 
 classOrder = [
     "VluxySF",
@@ -40,12 +40,12 @@ position = "right"
 #features
 [[home.features]]
 title = "Easy sound fetching"
-description = "Define sounds once and play them by name anywhere, with automatic sound group handling and no repetitive manual wiring."
+description = "Build your sounds once in Studio and fetch them by name anywhere, with automatic SoundGroups and no repetitive manual wiring."
 
 [[home.features]]
 title = "Clean memory behavior"
-description = "VluxySF stores lightweight sound definitions and creates sounds on demand, so you avoid keeping large pre-instanced sound trees around."
+description = "VluxySF stores lightweight sound definitions and creates sounds on demand, so you avoid keeping large trees of Sound instances around."
 
 [[home.features]]
 title = "Extra tooling"
-description = "VluxySF provides additional tools and utilities to enhance your sound management workflow."
+description = "Presets, jitter, preloading, and warming come built in, and an optional VS Code extension gives you autocomplete for your sound names."

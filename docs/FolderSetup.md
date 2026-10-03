@@ -1,24 +1,17 @@
 ---
-sidebar_position: 4
+sidebar_position: 3
 ---
-
-
-
 
 # Folder Setup
 
-VluxySF makes it easy to manage all your game’s sounds. This guide will walk you through best practices for organizing, grouping, and preloading your audio assets.
+All of your sounds live in one place: a `Configuration` named `SOUNDS` inside `ServerStorage`.
+VluxySF uses the layout of that Configuration to group your sounds and to know which ones to preload.
+
+**You do not need to create or assign SoundGroups yourself!**
 
 ---
----
 
-## The Basics: Folder Structure
-
-VluxySF uses your folder structure to automatically group and identify sounds.  
-
-**You do not need to manually assign SoundGroups or create them!**
-
----
+## The basics
 
 **Legend:**
 ```
@@ -27,40 +20,37 @@ VluxySF uses your folder structure to automatically group and identify sounds.
 🔊 = Sound Instance
 ```
 
+**Example:**
+```
+SOUNDS⚙️               ← The base Configuration
+  ├─ MUSIC⚙️           ← Becomes the MUSIC SoundGroup
+  │    ├─ mainTheme🔊  ← Grouped to MUSIC
+  │    └─ battle🔊     ← Grouped to MUSIC
+  └─ SFX⚙️             ← Becomes the SFX SoundGroup
+        ├─ click🔊     ← Grouped to SFX
+        └─ explosion🔊 ← Grouped to SFX
+```
 
-**Naming Conventions:**
+There are only three rules:
 
-- *`UPPER_CASE`* for `SoundGroups`
-- *`PascalCase`* for ` Folders` is recommended but most naming convention will work
-- *`PascalCase`* or *`camelCase`* for `Sounds` is recommended but most naming convention will work
-- `Sound` names are used as keys for programmatic access (e.g., `VluxySF.Fetch("explosion1")`).
+1. **Every direct child of `SOUNDS` is a `Configuration`.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS` throws an error on startup.
+2. **Every `Sound` goes inside one of those group Configurations.** It is assigned to that `SoundGroup` automatically.
+3. **Every `Sound` has a unique name.** The name is the key you fetch it with, like `VluxySF.Fetch("explosion")`. If two sounds share a name, a warning appears at runtime and only one of them is kept.
+
+### Naming conventions
+
+| Instance | Recommended | Required? |
+|---|---|---|
+| SoundGroup Configurations | `UPPER_CASE` | No, any name works |
+| Folders | `PascalCase` | No, any name works |
+| Sounds | `PascalCase` or `camelCase` | No, but the name must be unique |
 
 ---
 
-**Example:**
-```
-SOUNDS⚙️               ← Base file
-  ├─ MUSIC⚙️           ← Name of SoundGroup
-  │    ├─ mainTheme🔊  ← Grouped to MUSIC SoundGroup
-  │    └─ battle🔊     ← Grouped to MUSIC SoundGroup
-  └─ SFX⚙️             ← Name of SoundGroup
-        ├─ click🔊     ← Grouped to SFX SoundGroup
-        └─ explosion🔊 ← Grouped to SFX SoundGroup
-```
-*Music and SFX become `SoundGroups`, and their children are grouped accordingly.*
+## Organizing with folders
 
+Inside a group you can use Folders (📁) however you like.
 
-> **Tip:** Once `SoundGroup Configurations` are defined (MUSIC, SFX, etc.), organization within them is your choice.
-
----
-
-
-
-### Organizing with Subfolders
-
-You can use additional folders (📁) inside SoundGroups to keep your sounds organized.
-
-**Example:**
 ```
 SOUNDS⚙️
   └─ SFX⚙️
@@ -70,72 +60,81 @@ SOUNDS⚙️
           └─ explosion🔊
 ```
 
-
-> **Tip:** Organize your folders however you want! The heiarchy does not effect the library.
->
-> **Note:** All `Sounds` need to have unique names. A warning will appear at runtime if you go against this.
+:::tip
+The hierarchy inside a group does not affect the library. Sounds are always fetched by name, so you can reorganize your folders at any time without touching your code.
+:::
 
 ---
----
 
-## Preloading Sounds Automatically
+## Preloading sounds
 
-Want certain sounds to be ready instantly? You can tag any Folder or Sound with `VluxySF_Preload` and it will automaticly preload once the client is started.
+Want certain sounds to be ready instantly? Give a `Sound` or a `Folder` the tag `VluxySF_Preload`, and it is preloaded as soon as the client starts.
 
-**How to use:**
+- Tag a **Sound** to preload that one sound.
+- Tag a **Folder** to preload every sound inside it.
+
 ```
 SOUNDS⚙️
   ├─ MUSIC⚙️
   │    ├─ mainTheme🔊
-  │    └─ battles📁 <-- you can tag with "VluxySF_Preload" to preload sounds within this folder
-          ├─ importantSound1🔊
-          └─ importantSound2🔊
+  │    └─ battles📁                      ← Tagged "VluxySF_Preload": both sounds inside preload
+  │         ├─ importantSound1🔊
+  │         └─ importantSound2🔊
   └─ SFX⚙️
         ├─ click🔊
-        ├─ explosions📁
-          ├─ CommonExplosionSound🔊 <-- You can tag with "VluxySF_Preload" to preload this sound
-          └─ UncommonLongExplosionSound🔊
+        └─ explosions📁
+             ├─ commonExplosion🔊         ← Tagged "VluxySF_Preload": only this sound preloads
+             └─ uncommonLongExplosion🔊
 ```
 
-### Preload Timeout
-You can set an optional timeout (in seconds) for preloading. If preloading takes too long, it will continue in the background. Default is 5 seconds.
+You can add a tag in Studio from the **Tags** section at the bottom of the Properties window.
+
+:::warning
+Only preload the sounds that need it. A preloaded sound stays in memory for the whole session, and there is no way to undo it. See [Advice](./Advice.md#memory-optimizations) for more.
+:::
+
+### Preload timeout
+
+The client waits for the tagged sounds to preload before it continues. You can pass a timeout (in seconds) to `InitClient`. If preloading takes longer than that, the client continues and the sounds keep loading in the background. The default is 5 seconds.
 
 ```lua
---!strict
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 
 local preloadTimeout = 10
-VluxySF._initClient(preloadTimeout)
+VluxySF.Startup.InitClient(preloadTimeout)
 
--- <-- reaches this line once sounds are preloaded or timeout is reached
+-- Reaches this line once the sounds are preloaded or the timeout is reached.
 ```
 
 ---
+
+## Configuring sounds
+
+Set up each `Sound` in Studio exactly how you want it to play.
+
+- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. Every property is kept except for the `Parent`.
+- **Effects:** Add effects such as `EqualizerSoundEffect` or `ReverbSoundEffect` as children of the `Sound`.
+
+:::note
+- Only `SoundEffects` are kept. Any other instance parented to a `Sound` is skipped with a warning.
+- Only one effect of each class is kept per `Sound`.
+- A fetched effect is named after its class, so you can always reach it with `sound.EchoSoundEffect`, whatever it was called in Studio.
+:::
+
 ---
 
-## Configuring Sound Instances
+## End result
 
-Each Sound instance can be customized with any Roblox sound properties and child sound effects except for the Parent:
-
-- **Properties:** Set properties like `SoundId`, `Volume`, `PlaybackSpeed`, etc, directly on the Sound instance.
-- **Effects:** Add child instances such as `EqualizerSoundEffect`, `ReverbSoundEffect`, etc, to the Sound Instance.
-
->**Note:** Any Instances parented to a `Sound` thats not a `SoundEffect` will not be serialized.
->
->**Note:** Only 1 of each `Class` will be serialized.
-
----
----
-
-## End Result
-
-
-A `SOUNDS Configuration` should look something like this when you’re done in Roblox Studio:
+When you are done, your `SOUNDS` Configuration should look something like this in Studio:
 
 ![Folder Structure Example](/SoundsConfigExample1.png)
-> **Note:** This should be inside `ServerStorage`. It is recommended to make it a direct child of that service.
 
+:::note
+The `SOUNDS` Configuration belongs in `ServerStorage`. Making it a direct child of that service is recommended.
+:::
 
----
+## Next step
+
+Your sounds are ready. Continue to [Initialization](./Setup.md) to start the library.

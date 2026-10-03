@@ -4,10 +4,14 @@ sidebar_position: 2
 
 # Installation
 
-VluxySF can be acquired using [Wally](https://wally.run/), a package manager for Roblox.
+VluxySF is installed with [Wally](https://wally.run/), a package manager for Roblox, and synced into Studio with [Rojo](https://rojo.space/).
 
-## Wally Configuration
-Once Wally is installed, run `wally init` on your project directory, and then add VluxySF as a dependency. For example, the following could be a `wally.toml` file for a project that includes a few of these modules:
+## 1. Add the package
+
+If your project does not use Wally yet, run `wally init` in your project directory first.
+
+Then add VluxySF under `[dependencies]` in your `wally.toml`:
+
 ```toml
 [package]
 name = "your_name/your_project"
@@ -16,16 +20,20 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
 [dependencies]
-VluxySF = "greenviper126/VluxySF@^1"
+VluxySF = "greenviper126/vluxysf@^1"
 ```
 
-To install this dependency, run `wally install` within your project. Wally will create a Package folder in your directory with the installed dependency.
+Run `wally install` in your project. Wally creates a `Packages` folder that contains VluxySF.
 
-## Rojo Configuration
-The Package folder created by Wally should be synced into Roblox Studio through your Rojo configuration. For instance, a Rojo configuration might have the following entry to sync the Packages folder into ReplicatedStorage:
+## 2. Sync the package into Studio
+
+VluxySF runs on both the server and the client, so the `Packages` folder has to be somewhere both can reach. `ReplicatedStorage` is the usual place.
+
+Add the `Packages` folder to your Rojo project file:
+
 ```json
 {
-	"name": "vluxysf",
+	"name": "your_project",
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
@@ -37,3 +45,19 @@ The Package folder created by Wally should be synced into Roblox Studio through 
 	}
 }
 ```
+
+## 3. Require it
+
+With the setup above, you can require the library from any script:
+
+```lua
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
+```
+
+Every example in these docs uses this path. If your `Packages` folder is somewhere else, change the path to match.
+
+## Next step
+
+The library needs sounds to work with. Continue to [Folder Setup](./FolderSetup.md).

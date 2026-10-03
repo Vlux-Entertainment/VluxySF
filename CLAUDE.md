@@ -29,28 +29,46 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `aft
 
 | Task | Command |
 |---|---|
-| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `test-place.project.json` (lib + `Tests/` scripts in one place); an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json` |
+| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `test-place.project.json` (lib + `Tests/` scripts and sound fixture in one place); an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json` |
 | Package-only build | `rojo build default.project.json` |
-| Preview what Wally would publish | `.\PackageTests\list.ps1` |
-| Build + unpack the publish tarball | `.\PackageTests\refresh.ps1` (inspect result in `PackageTests/unpacked/`) |
+| Preview what Wally would publish | `wally package --list --output vluxysf.tar.gz` (prints the file list, writes nothing) |
 | Publish | `wally publish` (bump `version` in `wally.toml` first) |
-| Lint / format | `selene lib` / `stylua lib` |
+| Lint / format | `selene lib Tests` / `stylua lib Tests` |
+| Type check the tests | `rojo sourcemap test-place.project.json -o sourcemap.json`, then `luau-lsp analyze --sourcemap sourcemap.json --definitions <globalTypes.d.luau> Tests` |
 | Docs preview | `moonwave dev` |
 
-There is no automated test runner. `Tests/` contains manual scripts that run in the test place
-(`ServerTests.server.luau`, `ClientTests.client.luau`, `SoundTest.client.luau`, `StudioTests.luau`).
+### Tests
+
+There is no automated test runner; the tests run when you press Play in the test place and print
+one summary line per side (`[VluxySF Tests] Server: ...` / `Client: ...`), with a warning per
+failed case. `Tests/` mirrors where each file lands in the place:
+
+- `ServerStorage/TEST_SOUNDS.model.json` — the sound fixture (two groups, tagged preloads, a sound
+  with effects). It is named `TEST_SOUNDS`, not `SOUNDS`, so syncing never replaces a `SOUNDS`
+  Configuration saved in someone's place file. Change the fixture and `SharedCases` together.
+- `ReplicatedStorage/TestHarness.luau` — the tiny suite/expectation helper.
+- `ReplicatedStorage/SharedCases.luau` — cases that must pass on both server and client.
+- `ServerScriptService/ServerTests.server.luau`, `StarterPlayerScripts/ClientTests.client.luau` —
+  init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
+- `ServerScriptService/StressFixture.luau`, `ReplicatedStorage/FetchBenchmark.luau` — run from the
+  command bar for large-schema checks; their header comments have the commands.
+
+A few cases trigger library warnings on purpose (unknown sound names); those cases say so in their name.
 
 ## Architecture
 
 ### The schema pipeline
 
-1. The game author builds a `Configuration` named **`SOUNDS`** in ServerStorage: Folders =
-   organization, `UPPER_CASE` folder names = SoundGroups (created automatically), Sound instances =
-   definitions, keyed by their Name (names must be unique — they are the global lookup keys).
+1. The game author builds a `Configuration` named **`SOUNDS`** in ServerStorage. Every direct
+   child must be a `Configuration` and becomes a SoundGroup of the same name (`UPPER_CASE` is only
+   the naming convention; anything else directly under `SOUNDS` throws). Folders below that are
+   organization only. Sound instances = definitions, keyed by their Name (names must be unique —
+   they are the global lookup keys).
 2. Server calls `VluxySF.Startup.InitServer(soundsConfig)` once — `lib/Internals/Server.luau` walks
    the folder, serializes every Sound + its effects (`lib/Tools/Converters.luau`,
    `lib/Utility/Properties.luau`) into a **SoundSchema**, deep-freezes it, and exposes it to clients
-   (via the `lib/Utility/RemoteFunction.luau` wrapper).
+   (via the `lib/Utility/RemoteFunction.luau` wrapper). It then **destroys the Configuration it
+   was given**.
 3. Client calls `VluxySF.Startup.InitClient(timeout?)` once — fetches the schema, preloads sounds
    tagged for preloading. Gate schema-dependent code with `Startup.WaitForSchema()` /
    `ConnectForSchema()` / `IsInitialized()`.
@@ -81,15 +99,19 @@ There is no automated test runner. `Tests/` contains manual scripts that run in 
 - User-facing warnings/errors go through `FormatMessage` (prefixes messages with the library name).
 - Version bumps happen in `wally.toml` and are mentioned in the commit message
   ("Version 1.0.4! …"). No git tags currently.
-- `README.md` doubles as the docs landing page (`moonwave-hide-before-this-line`).
+- The docs home page is built from `moonwave.toml` (`[home]` features, `includeReadme = false`);
+  `README.md` is for GitHub and the Wally package. Guide pages in `docs/` are ordered by
+  `sidebar_position` and link to each other with relative `./Page.md` links; keep their code
+  samples in line with the real API in `lib/init.luau`.
+- Text files are LF (`.gitattributes`, `.editorconfig`, `stylua.toml`).
 
 ## Gotchas
 
 - **Schema is locked after init** (deep-frozen) — no sounds/groups can be registered at runtime.
 - Most API errors at call time if used before init (`schemaFailCheck`), and `Preload`/`Cache` are
   client-only (`clientFailCheck`).
-- `PackageTests/unpacked/` is a **committed snapshot of a previously built tarball** — it goes
-  stale until someone reruns `refresh.ps1`; never treat it as source.
+- `wally.toml`'s `exclude` list is what keeps repo-only files (tests, docs, tool configs,
+  `CLAUDE.md`) out of the published package — a new top-level file ships unless it is added there.
 - `build/` is the generated docs site — never edit by hand.
 - Two docs URLs exist historically (`Vlux-Entertainment.github.io/VluxySF` in README); keep new
   links consistent with the README.
