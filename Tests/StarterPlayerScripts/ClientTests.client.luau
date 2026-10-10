@@ -42,6 +42,13 @@ SharedCases.Run(suite)
 
 local schema = VluxySF.Schema.Get()
 
+suite.Test("InitClient waited for the preloads", function()
+	ExpectEqual(VluxySF.Startup.IsPreloaded(), true, "IsPreloaded")
+
+	--Returns right away when the preloads are done.
+	VluxySF.Startup.WaitForPreload()
+end)
+
 suite.Test("Tagged sounds are preloaded by InitClient", function()
 	local preloaded = VluxySF.Preload.Get()
 

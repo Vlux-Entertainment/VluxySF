@@ -1,8 +1,6 @@
 --!strict
 
-local library = script.Parent.Parent
-
-local Jitter = require(library.Sections.Jitter)
+local Jitter = require(script.Parent.Jitter)
 
 ------------------------------------------------------------------------------------------------------------------------
 

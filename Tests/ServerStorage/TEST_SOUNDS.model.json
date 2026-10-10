@@ -11,7 +11,9 @@
 					"Properties": {
 						"SoundId": "rbxassetid://1835444509",
 						"Volume": 0.4,
-						"Looped": true
+						"Looped": true,
+						"RollOffMode": "Linear",
+						"LoopRegion": { "NumberRange": [1, 3] }
 					}
 				},
 				{
