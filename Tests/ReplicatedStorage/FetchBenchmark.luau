@@ -3,8 +3,12 @@
 --[[
 	Times how long it takes to fetch every sound in the schema.
 
-	Run this from the command bar while playing, on the client or the server:
+	The test scripts run it on both sides whenever the schema has 1000 sounds or more (see StressFixture). To run it
+	yourself, call it from a Script or LocalScript after the library is initialized:
 		require(game:GetService("ReplicatedStorage").FetchBenchmark).Run()
+
+	Do not run it from the command bar: in Studio the command bar has its own module cache, so its copy of the
+	library is never initialized and WaitForSchema yields forever.
 
 	Use ServerScriptService.StressFixture before pressing Play to get a large schema to measure.
 ]]

@@ -1,87 +1,41 @@
 --!strict
+--!optimize 2
 
 --[[
-    A utility module for formatting error and warning messages consistently across the Vluxy Sound Factory.
+	Formats every user-facing warning and error so they are easy to spot in the output.
 ]]
 local FormatMessage = {}
 
+local PREFIX = "[VluxySF]: "
+
 --[[
-    @param errorMessage any - The specific error message to be formatted.
+	@param message any -- The message to prefix.
 
-    @return any - The formatted error message with the module prefix.
+	@return string -- The message with the library prefix.
 
-    Creates a standardized error message by prefixing it with the module name.
+	Prefixes a message with the library name.
 ]]
-function FormatMessage.NewMessage(errorMessage: any): any
-	return "[VluxySF]: " .. errorMessage
+function FormatMessage.NewMessage(message: any): string
+	return PREFIX .. tostring(message)
 end
 
 --[[
-    @param errorMessage any - The specific error message to be thrown.
-    @param level number? - Optional parameter to specify the stack level for the error (default is 1).
+	@param message any -- The message to throw.
+	@param level number? -- The stack level the error points at. Default is 2, the caller of the function that errored.
 
-    Throws an error with a formatted message.
+	Throws a prefixed error.
 ]]
-function FormatMessage.Error(errorMessage: any, level: number?)
-	error(FormatMessage.NewMessage(errorMessage), level or 2)
+function FormatMessage.Error(message: any, level: number?)
+	error(FormatMessage.NewMessage(message), level or 2)
 end
 
 --[[
-    @param errorMessage any - The specific error message to be thrown when the thunk is called.
-    @param level number? - Optional parameter to specify the stack level for the error (default is 1).
+	@param message any -- The message to warn with.
 
-    @return (number?) -> () - A function that, when called, will throw an error with the formatted message.
-
-    Creates a thunked formatted error.
+	Prints a prefixed warning.
 ]]
-function FormatMessage.ErrorThunk(errorMessage: any, level: number?): (number?) -> ()
-	return function(levelOverride: number?)
-		FormatMessage.Error(errorMessage, levelOverride or level or 3)
-	end
-end
-
---[[
-    @param warningMessage any - The specific warning message to be issued.
-
-    Throws a warning with a formatted message.
-]]
-function FormatMessage.Warn(warningMessage: any)
-	warn(FormatMessage.NewMessage(warningMessage))
-end
-
---[[
-    @param warningMessage any - The specific warning message to be issued when the thunk is called.
-
-    @return () -> () - A function that, when called, will issue a warning with the formatted message.
-
-    Creates a thunked formatted warning.
-]]
-function FormatMessage.WarnThunk(warningMessage: any): () -> ()
-	return function()
-		FormatMessage.Warn(warningMessage)
-	end
-end
-
---[[
-    @param message any - The specific message to be printed.
-
-    Prints a formatted message.
-]]
-function FormatMessage.Print(message: any)
-	print(FormatMessage.NewMessage(message))
-end
-
---[[
-    @param message any - The specific message to be printed when the thunk is called.
-
-    @return () -> () - A function that, when called, will print a message with the formatted format.
-
-    Creates a thunked formatted print.
-]]
-function FormatMessage.PrintThunk(message: any): () -> ()
-	return function()
-		FormatMessage.Print(message)
-	end
+function FormatMessage.Warn(message: any)
+	warn(FormatMessage.NewMessage(message))
 end
 
 return FormatMessage

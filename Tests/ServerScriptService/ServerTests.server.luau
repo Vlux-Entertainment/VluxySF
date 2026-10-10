@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
+local InternalCases = require(ReplicatedStorage.InternalCases)
 local SharedCases = require(ReplicatedStorage.SharedCases)
 local TestHarness = require(ReplicatedStorage.TestHarness)
 local VluxySF = require(ReplicatedStorage.VluxySF)
@@ -40,16 +41,46 @@ end)
 --INIT------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
+local initStart = os.clock()
 VluxySF.Startup.InitServer(soundConfig)
+local initSeconds = os.clock() - initStart
 
 suite.Test("InitServer makes the schema ready", function()
 	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
 	ExpectEqual(connectedBeforeInit, true, "ConnectForSchema callback ran")
 end)
 
-suite.Test("InitServer destroys the sounds Configuration it was given", function()
+suite.Test("InitServer detaches the sounds Configuration it was given", function()
 	ExpectEqual(soundConfig.Parent, nil, "TEST_SOUNDS parent")
 end)
+
+suite.Test("InitServer refuses to run twice", function()
+	ExpectError(function()
+		VluxySF.Startup.InitServer(Instance.new("Configuration"))
+	end, "Second InitServer")
+end)
+
+suite.Test("InitServer published the schema under the library", function()
+	local published = ReplicatedStorage.VluxySF:FindFirstChild("VluxySF_Schema")
+	assert(published, "VluxySF_Schema should exist under the library module")
+
+	local size = published:GetAttribute("Size") :: number
+	local chunks = published:GetAttribute("Chunks") :: number
+	local format = published:GetAttribute("Format") :: string
+	ExpectEqual(#published:GetChildren(), chunks, "Chunk count")
+	ExpectEqual(format, "base64", "Format")
+
+	local soundCount = #VluxySF.Schema.GetNames()
+	local timings = require(ReplicatedStorage.VluxySF.Core.SchemaStore).Timings
+	print(
+		`[VluxySF Tests] InitServer compiled {soundCount} sounds in {TestHarness.Milliseconds(initSeconds)} ms (compile {TestHarness.Milliseconds(
+			timings.Compile
+		)}, publish {TestHarness.Milliseconds(timings.Publish)}).`
+	)
+	print(`[VluxySF Tests] Schema is {size} bytes in {chunks} chunk(s), format "{format}".`)
+end)
+
+InternalCases.Run(suite)
 
 suite.Test("Preload and Cache throw on the server", function()
 	ExpectError(function()
@@ -63,3 +94,9 @@ end)
 SharedCases.Run(suite)
 
 suite.Finish()
+
+--With a stress group compiled, time the fetch path too. Run from here, not the command bar: the command bar has its
+--own module cache in Studio, so its copy of the library never initializes.
+if #VluxySF.Schema.GetNames() >= 1000 then
+	require(ReplicatedStorage.FetchBenchmark).Run(3)
+end

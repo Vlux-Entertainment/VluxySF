@@ -47,5 +47,9 @@ title = "Clean memory behavior"
 description = "VluxySF stores lightweight sound definitions and creates sounds on demand, so you avoid keeping large trees of Sound instances around."
 
 [[home.features]]
+title = "Built for scale"
+description = "The schema is compiled once into a compact buffer and replicates with the place, so clients start without a round trip and servers do no work per player, even with thousands of sounds."
+
+[[home.features]]
 title = "Extra tooling"
-description = "Presets, jitter, preloading, and warming come built in, and an optional VS Code extension gives you autocomplete for your sound names."
+description = "Presets, jitter, preloading, and warming come built in."

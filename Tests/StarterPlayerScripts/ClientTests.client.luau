@@ -2,12 +2,14 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local InternalCases = require(ReplicatedStorage.InternalCases)
 local SharedCases = require(ReplicatedStorage.SharedCases)
 local TestHarness = require(ReplicatedStorage.TestHarness)
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
 local Expect = TestHarness.Expect
 local ExpectEqual = TestHarness.ExpectEqual
+local ExpectError = TestHarness.ExpectError
 
 local PRELOAD_TIMEOUT = 5
 
@@ -27,20 +29,45 @@ suite.Test("The schema is not ready before InitClient", function()
 end)
 
 --Yields until the schema arrives and the tagged sounds are preloaded, or the timeout is reached.
+local initStart = os.clock()
 VluxySF.Startup.InitClient(PRELOAD_TIMEOUT)
+local initSeconds = os.clock() - initStart
 
 suite.Test("InitClient makes the schema ready", function()
 	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
 	ExpectEqual(connectedBeforeInit, true, "ConnectForSchema callback ran")
+
+	local timings = require(ReplicatedStorage.VluxySF.Core.SchemaStore).Timings
+	local received = TestHarness.Milliseconds(timings.Receive)
+	local loaded = TestHarness.Milliseconds(timings.Load)
+	local preloaded = TestHarness.Milliseconds(timings.Preload)
+	local total = TestHarness.Milliseconds(initSeconds)
+	print(
+		`[VluxySF Tests] InitClient took {total} ms for {#VluxySF.Schema.GetNames()} sounds (receive {received}, load {loaded}, preload {preloaded}).`
+	)
+end)
+
+suite.Test("InitClient refuses to run twice", function()
+	ExpectError(function()
+		VluxySF.Startup.InitClient(0)
+	end, "Second InitClient")
 end)
 
 SharedCases.Run(suite)
+InternalCases.Run(suite)
 
 ------------------------------------------------------------------------------------------------------------------------
 --PRELOAD---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
 local schema = VluxySF.Schema.Get()
+
+suite.Test("InitClient waited for the preloads", function()
+	ExpectEqual(VluxySF.Startup.IsPreloaded(), true, "IsPreloaded")
+
+	--Returns right away when the preloads are done.
+	VluxySF.Startup.WaitForPreload()
+end)
 
 suite.Test("Tagged sounds are preloaded by InitClient", function()
 	local preloaded = VluxySF.Preload.Get()
@@ -101,3 +128,9 @@ suite.Finish()
 --The cases above cannot hear anything, so play one sound for a person to check.
 print("[VluxySF Tests] You should hear one click now.")
 VluxySF.FetchPlayOnce("Click", nil, nil, true)
+
+--With a stress group compiled, time the fetch path too. Run from here, not the command bar: the command bar has its
+--own module cache in Studio, so its copy of the library never initializes.
+if #VluxySF.Schema.GetNames() >= 1000 then
+	require(ReplicatedStorage.FetchBenchmark).Run(3)
+end

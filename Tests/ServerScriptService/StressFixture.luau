@@ -59,4 +59,25 @@ function StressFixture.Create(folders: number?, sounds: number?)
 	print(`[VluxySF Tests] Created {folderCount} folders with {currentSoundCount} sounds in {GROUP_NAME}.`)
 end
 
+--[[
+	Removes the STRESS group again. Run this from the command bar in edit mode once you are done measuring:
+		require(game:GetService("ServerScriptService").StressFixture).Remove()
+
+	Studio asks to confirm because the command destroys instances. If the command bar already required this module
+	before Remove existed, it keeps the old copy; restart Studio or destroy the group from the Explorer instead.
+]]
+function StressFixture.Remove()
+	local soundConfig = ServerStorage:FindFirstChild("TEST_SOUNDS")
+	local group = soundConfig and soundConfig:FindFirstChild(GROUP_NAME)
+
+	if not group then
+		print(`[VluxySF Tests] There is no {GROUP_NAME} group to remove.`)
+
+		return
+	end
+
+	group:Destroy()
+	print(`[VluxySF Tests] Removed the {GROUP_NAME} group.`)
+end
+
 return StressFixture

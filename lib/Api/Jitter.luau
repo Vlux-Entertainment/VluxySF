@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 
 local Random = Random.new()

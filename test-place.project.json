@@ -1,5 +1,6 @@
 {
 	"name": "VluxySF",
+	"servePlaceIds": [73609616913220],
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
@@ -13,6 +14,9 @@
 			"SharedCases": {
 				"$path": "Tests/ReplicatedStorage/SharedCases.luau"
 			},
+			"InternalCases": {
+				"$path": "Tests/ReplicatedStorage/InternalCases.luau"
+			},
 			"FetchBenchmark": {
 				"$path": "Tests/ReplicatedStorage/FetchBenchmark.luau"
 			}
@@ -25,6 +29,12 @@
 			"$className": "ServerStorage",
 			"TEST_SOUNDS": {
 				"$path": "Tests/ServerStorage/TEST_SOUNDS.model.json"
+			}
+		},
+		"StarterGui": {
+			"$className": "StarterGui",
+			"DemoButtons": {
+				"$path": "Tests/StarterGui/DemoButtons.client.luau"
 			}
 		},
 		"StarterPlayer": {

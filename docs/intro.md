@@ -17,8 +17,8 @@ No folder searching, no `WaitForChild` chains, and no errors when a sound moves 
 ## How it works
 
 1. You put your `Sounds` inside a `Configuration` named `SOUNDS` in `ServerStorage`.
-2. When the server starts, VluxySF reads every `Sound` and turns it into a lightweight **definition**. All the definitions together are called the **schema**.
-3. The schema is shared with every client, so both sides can create any sound on demand from its name.
+2. When the server starts, VluxySF reads every `Sound` and compiles it into a lightweight **definition**. All the definitions together are called the **schema**, stored as one compact buffer.
+3. The schema replicates to every client with the place. Clients do not request it from the server, so both sides can create any sound on demand from its name.
 
 Because only definitions are stored, a `Sound` instance exists only while you are using it. That keeps memory low, and you can still [preload](./FolderSetup.md#preloading-sounds) the few sounds that have to be ready instantly.
 
@@ -33,6 +33,5 @@ Follow these pages in order and you will have sounds playing in a few minutes:
 
 ## Go further
 
-- [Extension](./Extension.md): get autocomplete and type checking for your sound names in VS Code.
 - [Advice](./Advice.md): tips on using the library well and keeping sound memory low.
 - [**API Docs**](/api/VluxySF): every function, with examples.
