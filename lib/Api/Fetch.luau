@@ -164,6 +164,13 @@ function Fetch.FetchPlayOnce(name: string, parent: Instance?, preset: ((Sound) -
 	local sound = Fetch.Fetch(name, parent, preset)
 	sound.Looped = false
 
+	--a sound with no asset never fires Ended or Loaded, so it would sit there forever
+	if sound.SoundId == "" then
+		sound:Destroy()
+
+		return function() end
+	end
+
 	local playThread = task.spawn(function()
 		if waitOnLoad and not sound.IsLoaded then
 			sound.Loaded:Wait()

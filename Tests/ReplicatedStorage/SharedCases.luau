@@ -190,6 +190,15 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		sound:Destroy()
 	end)
 
+	suite.Test("FetchPlayOnce with an unknown name leaves nothing behind (warnings expected)", function()
+		local before = #schema.UnattachedSounds:GetChildren()
+
+		local cleanup = VluxySF.FetchPlayOnce("NotARealSound")
+		cleanup()
+
+		ExpectEqual(#schema.UnattachedSounds:GetChildren(), before, "UnattachedSounds count")
+	end)
+
 	suite.Test("FetchPlayOnce stops looping and its cleanup destroys the sound", function()
 		local captured: { Sound } = {}
 
