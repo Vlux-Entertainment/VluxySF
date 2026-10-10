@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 --[[
 	Formats every user-facing warning and error so they are easy to spot in the output.

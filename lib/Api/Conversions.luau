@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 local Converters = require(script.Parent.Parent.Core.Converters)
 local Types = require(script.Parent.Parent.Types)

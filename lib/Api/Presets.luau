@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 local Jitter = require(script.Parent.Jitter)
 

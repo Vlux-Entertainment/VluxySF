@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 local api = script.Api
 

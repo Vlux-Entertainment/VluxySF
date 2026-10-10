@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 --[[
 	Builds template Sounds for a list of names, stores them as preloaded, and asks ContentProvider to load them.

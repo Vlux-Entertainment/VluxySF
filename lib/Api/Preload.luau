@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 local Preloading = require(script.Parent.Parent.Core.Preloading)
 local SchemaStore = require(script.Parent.Parent.Core.SchemaStore)

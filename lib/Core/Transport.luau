@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 --[[
 	Gets the schema buffer from the server to every client without a request.

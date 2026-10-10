@@ -1,4 +1,5 @@
 --!strict
+--!optimize 2
 
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local SchemaStore = require(script.Parent.Parent.Core.SchemaStore)
