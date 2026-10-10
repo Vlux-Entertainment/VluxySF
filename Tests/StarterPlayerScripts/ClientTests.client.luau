@@ -37,10 +37,13 @@ suite.Test("InitClient makes the schema ready", function()
 	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
 	ExpectEqual(connectedBeforeInit, true, "ConnectForSchema callback ran")
 
+	local timings = require(ReplicatedStorage.VluxySF.Core.SchemaStore).Timings
+	local received = TestHarness.Milliseconds(timings.Receive)
+	local loaded = TestHarness.Milliseconds(timings.Load)
+	local preloaded = TestHarness.Milliseconds(timings.Preload)
+	local total = TestHarness.Milliseconds(initSeconds)
 	print(
-		`[VluxySF Tests] InitClient received {#VluxySF.Schema.GetNames()} sounds and preloaded in {math.round(
-			initSeconds * 1000
-		)} ms.`
+		`[VluxySF Tests] InitClient took {total} ms for {#VluxySF.Schema.GetNames()} sounds (receive {received}, load {loaded}, preload {preloaded}).`
 	)
 end)
 
@@ -125,3 +128,9 @@ suite.Finish()
 --The cases above cannot hear anything, so play one sound for a person to check.
 print("[VluxySF Tests] You should hear one click now.")
 VluxySF.FetchPlayOnce("Click", nil, nil, true)
+
+--With a stress group compiled, time the fetch path too. Run from here, not the command bar: the command bar has its
+--own module cache in Studio, so its copy of the library never initializes.
+if #VluxySF.Schema.GetNames() >= 1000 then
+	require(ReplicatedStorage.FetchBenchmark).Run(3)
+end

@@ -71,8 +71,12 @@ suite.Test("InitServer published the schema under the library", function()
 	ExpectEqual(format, "base64", "Format")
 
 	local soundCount = #VluxySF.Schema.GetNames()
-	local milliseconds = math.round(initSeconds * 1000)
-	print(`[VluxySF Tests] InitServer compiled {soundCount} sounds in {milliseconds} ms.`)
+	local timings = require(ReplicatedStorage.VluxySF.Core.SchemaStore).Timings
+	print(
+		`[VluxySF Tests] InitServer compiled {soundCount} sounds in {TestHarness.Milliseconds(initSeconds)} ms (compile {TestHarness.Milliseconds(
+			timings.Compile
+		)}, publish {TestHarness.Milliseconds(timings.Publish)}).`
+	)
 	print(`[VluxySF Tests] Schema is {size} bytes in {chunks} chunk(s), format "{format}".`)
 end)
 
@@ -90,3 +94,9 @@ end)
 SharedCases.Run(suite)
 
 suite.Finish()
+
+--With a stress group compiled, time the fetch path too. Run from here, not the command bar: the command bar has its
+--own module cache in Studio, so its copy of the library never initializes.
+if #VluxySF.Schema.GetNames() >= 1000 then
+	require(ReplicatedStorage.FetchBenchmark).Run(3)
+end

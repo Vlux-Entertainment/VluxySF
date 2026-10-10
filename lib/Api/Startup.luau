@@ -103,7 +103,11 @@ function Startup.InitServer(soundFolder: Configuration)
 	end
 	starting = true
 
+	local timings = SchemaStore.Timings
+	local clock = os.clock()
+
 	local schemaBuffer, soundCount = Compile.Build(soundFolder)
+	timings.Compile = os.clock() - clock
 	if soundCount == 0 then
 		FormatMessage.Warn(`{soundFolder.Name} has no Sounds in it. The schema is empty.`)
 	end
@@ -114,8 +118,10 @@ function Startup.InitServer(soundFolder: Configuration)
 		soundFolder:Destroy()
 	end)
 
+	clock = os.clock()
 	SchemaStore.LoadServer(schemaBuffer)
 	Transport.Publish(schemaBuffer)
+	timings.Publish = os.clock() - clock
 
 	SchemaStore.SetInitialized()
 end
@@ -162,23 +168,33 @@ function Startup.InitClient(timeout: number?)
 	end
 	starting = true
 
+	local timings = SchemaStore.Timings
+	local clock = os.clock()
+
 	local schemaBuffer = Transport.Receive()
+	timings.Receive = os.clock() - clock
+
+	clock = os.clock()
 	SchemaStore.LoadClient(schemaBuffer)
 
 	--templates exist right away, so a Fetch can clone them even while the assets are still downloading
 	local sounds = Preloading.Register(SchemaStore.GetPreloadNames(), false)
+	timings.Load = os.clock() - clock
 
 	--the schema is complete here; only the caller of InitClient waits for the preloads below
 	SchemaStore.SetInitialized()
 
 	if #sounds == 0 then
+		timings.Preload = 0
 		SchemaStore.SetPreloaded()
 
 		return
 	end
 
+	clock = os.clock()
 	task.spawn(function()
 		Preloading.Load(sounds)
+		timings.Preload = os.clock() - clock
 		SchemaStore.SetPreloaded()
 	end)
 

@@ -40,6 +40,9 @@ local SchemaStore = {}
 SchemaStore.Initialized = initializedSignal
 SchemaStore.Preloaded = preloadedSignal
 
+--Seconds each startup step took, filled in by Startup. Server: Compile, Publish. Client: Receive, Load, Preload.
+SchemaStore.Timings = {} :: { [string]: number }
+
 ------------------------------------------------------------------------------------------------------------------------
 --LOADING---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------

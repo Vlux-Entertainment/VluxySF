@@ -13,6 +13,15 @@ export type Suite = {
 
 local TOLERANCE = 0.0001
 
+--[[
+	@param seconds number? -- A duration in seconds.
+
+	@return number -- The duration in whole milliseconds, or 0 when it was not measured.
+]]
+function TestHarness.Milliseconds(seconds: number?): number
+	return math.round((seconds or 0) * 1000)
+end
+
 ------------------------------------------------------------------------------------------------------------------------
 --EXPECTATIONS----------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
