@@ -15,6 +15,7 @@ The core was rewritten for speed and scale. The public API is the same shape as 
 - Two SoundGroups with the same name make `InitServer` throw.
 - A `VluxySF_Preload` tag on a group Configuration preloads the whole group.
 - Presets run on an unparented `Sound`. A sound the preset leaves unparented lands in `UnattachedSounds`.
+- `FetchPlayOnce` with a name that is not in the schema warns, plays nothing, and leaves nothing behind. Before, the blank sound it returned stayed in `UnattachedSounds` forever.
 - `Preload.Get()` returns the templates that live in `SoundService.PreloadedSounds`. Preloaded sounds are built once, not twice.
 - Deprecated `Sound` properties such as `Pitch`, `MaxDistance`, `MinDistance` and `EmitterSize` are no longer stored.
 - Warning and error messages were reworded. A definition that fails to apply warns once per failing property instead of silently stopping.

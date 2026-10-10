@@ -145,7 +145,8 @@ end
 
 	@tag RequiresSchema
 
-	Fetches a `Sound`, plays it once, and destroys it when it ends. Looping is turned off.
+	Fetches a `Sound`, plays it once, and destroys it when it ends. Looping is turned off. If the name is not in the
+	schema, a warning is printed, nothing plays, and nothing is left behind.
 
 	```lua
 	VluxySF.FetchPlayOnce("MySound")

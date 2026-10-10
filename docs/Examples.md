@@ -54,7 +54,7 @@ end
 
 ### FetchPlayOnce
 
-If you just need a one shot, `FetchPlayOnce` fetches the sound, plays it once, and destroys it when it ends. Looping is turned off.
+If you just need a one shot, `FetchPlayOnce` fetches the sound, plays it once, and destroys it when it ends. Looping is turned off. If the name is not in the schema, it warns and plays nothing.
 
 ```lua
 VluxySF.FetchPlayOnce("LoFiBeat1")
