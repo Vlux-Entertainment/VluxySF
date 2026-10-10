@@ -20,10 +20,12 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
 [dependencies]
-VluxySF = "greenviper126/vluxysf@^1"
+VluxySF = "greenviper126/vluxysf@^2"
 ```
 
 Run `wally install` in your project. Wally creates a `Packages` folder that contains VluxySF.
+
+If you are upgrading from 1.x, change the version to `@^2` and run `wally install` again.
 
 ## 2. Sync the package into Studio
 

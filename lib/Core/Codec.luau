@@ -51,12 +51,21 @@ local MAX_U8 = 0xFF
 
 local INITIAL_CAPACITY = 64 * 1024
 
---Properties that are never encoded. Parent and ClassName are structural, SoundGroup is stored as the group index.
+--Properties that are never encoded. Parent and ClassName are structural, SoundGroup is stored as the group index,
+--and Name is already in the string table (the sound name, or the effect's class name) so it is restored on read.
 local SKIPPED_PROPERTIES: { [string]: boolean } = {
 	Parent = true,
 	ClassName = true,
 	SoundGroup = true,
+	Name = true,
 }
+
+--Resolved EnumItems keyed by enum string id * 65536 + item string id. false marks a pair that does not exist here.
+local enumCache: { [number]: EnumItem | false } = {}
+
+local function resolveEnum(enumName: string, itemName: string): EnumItem
+	return (Enum :: any)[enumName][itemName]
+end
 
 export type Writer = {
 	Buffer: buffer,
@@ -173,9 +182,16 @@ local function intern(writer: Writer, value: string): number
 		return id
 	end
 
+	if #value > MAX_U16 then
+		FormatMessage.Error(
+			`A name is longer than {MAX_U16} bytes and cannot be stored: "{string.sub(value, 1, 40)}..."`,
+			6
+		)
+	end
+
 	local count = #writer.Strings
 	if count >= MAX_STRINGS then
-		FormatMessage.Error(`The schema has more than {MAX_STRINGS} unique names and cannot be stored!`)
+		FormatMessage.Error(`The schema has more than {MAX_STRINGS} unique names and cannot be stored!`, 6)
 	end
 
 	local newId = count + 1
@@ -435,19 +451,31 @@ local function readValue(cursor: Cursor, strings: { string }, owner: string, nam
 	elseif tag == TAG_BOOLEAN then
 		return true, readU8(cursor) ~= 0
 	elseif tag == TAG_ENUM then
-		local enumName = lookupString(strings, readU16(cursor))
-		local itemName = lookupString(strings, readU16(cursor))
+		local enumId = readU16(cursor)
+		local itemId = readU16(cursor)
 
-		local success, item = pcall(function()
-			return (Enum :: any)[enumName][itemName]
-		end)
-		if not success then
+		local cacheKey = enumId * 65536 + itemId
+		local cached = enumCache[cacheKey]
+		if cached then
+			return true, cached
+		elseif cached == false then
+			return false, nil
+		end
+
+		local enumName = lookupString(strings, enumId)
+		local itemName = lookupString(strings, itemId)
+
+		local success, item = pcall(resolveEnum, enumName, itemName)
+		if not success or typeof(item) ~= "EnumItem" then
+			enumCache[cacheKey] = false
 			FormatMessage.Warn(
 				`"{owner}" property "{name}" uses Enum.{enumName}.{itemName}, which does not exist here.`
 			)
 
 			return false, nil
 		end
+
+		enumCache[cacheKey] = item
 
 		return true, item
 	elseif tag == TAG_RANGE then
@@ -498,6 +526,9 @@ function Codec.Load(schemaBuffer: buffer): Loaded
 	end
 
 	local cursor: Cursor = { Buffer = schemaBuffer, Offset = 2 }
+
+	--enum cache keys are string ids, which belong to one buffer
+	table.clear(enumCache)
 
 	local stringCount = readU16(cursor)
 	local strings: { string } = table.create(stringCount)
@@ -560,13 +591,17 @@ function Codec.ReadDefinition(loaded: Loaded, offset: number): (Types.SoundDefin
 	local name = lookupString(strings, readU16(cursor))
 	local groupIndex = readU16(cursor)
 	local properties = readProperties(cursor, strings, name)
+	properties.Name = name
 
 	local effectCount = readU8(cursor)
 	local effects: { [string]: { [string]: any } } = {}
 
 	for _ = 1, effectCount do
 		local className = lookupString(strings, readU16(cursor))
-		effects[className] = readProperties(cursor, strings, `{name}.{className}`)
+		local effectProperties = readProperties(cursor, strings, `{name}.{className}`)
+		effectProperties.Name = className
+
+		effects[className] = effectProperties
 	end
 
 	local definition: Types.SoundDefinition = {

@@ -28,10 +28,14 @@ export type ClassInfo = {
 local IGNORED_PROPERTIES: { [string]: boolean } = {
 	Parent = true,
 	Archivable = true,
+	archivable = true,
 	ClassName = true,
+	className = true,
+	Name = true, --always stored, but set by the caller rather than compared against the default
 	AudioContent = true,
 	Attributes = true,
 	Tags = true,
+	SideChain = true, --an Instance reference that cannot travel to clients
 
 	Pitch = true,
 	MaxDistance = true,
@@ -46,14 +50,18 @@ local IGNORED_PROPERTIES: { [string]: boolean } = {
 	TimeLength = true,
 }
 
---Value types a definition can hold. "nil" covers Instance references such as SoundGroup, whose default is nil.
+--Value types a definition can hold.
 local STORED_TYPES: { [string]: boolean } = {
 	number = true,
 	string = true,
 	boolean = true,
 	EnumItem = true,
 	NumberRange = true,
-	["nil"] = true,
+}
+
+--Properties whose default is nil (so their type cannot be probed) that are stored anyway.
+local STORED_NIL_PROPERTIES: { [string]: boolean } = {
+	SoundGroup = true,
 }
 
 --Never written back to an instance, even when a hand-made definition contains them.
@@ -91,6 +99,10 @@ end
 
 local function writeAll(instance: any, properties: { [string]: any })
 	for name, value in pairs(properties) do
+		if SKIPPED_ON_WRITE[name] then
+			continue
+		end
+
 		instance[name] = value
 	end
 end
@@ -124,7 +136,10 @@ function Properties.GetClassInfo(className: string): ClassInfo
 		end
 
 		local success, default = pcall(readProperty, probe, name)
-		if not success or not STORED_TYPES[typeof(default)] then
+		if not success then
+			continue
+		end
+		if not STORED_TYPES[typeof(default)] and not (default == nil and STORED_NIL_PROPERTIES[name]) then
 			continue
 		end
 

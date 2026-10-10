@@ -45,12 +45,15 @@ local function writeSound(state: State, sound: Sound, preload: boolean)
 	end
 end
 
+--Any non-Sound instance is a container, so a Sound is found wherever it is placed under its group.
 local function walk(state: State, container: Instance, preload: boolean)
 	for _, child in ipairs(container:GetChildren()) do
+		local childPreload = preload or child:HasTag(PRELOAD_TAG)
+
 		if child:IsA("Sound") then
-			writeSound(state, child, preload or child:HasTag(PRELOAD_TAG))
-		elseif child:IsA("Folder") or child:IsA("Configuration") then
-			walk(state, child, preload or child:HasTag(PRELOAD_TAG))
+			writeSound(state, child, childPreload)
+		else
+			walk(state, child, childPreload)
 		end
 	end
 end
@@ -74,6 +77,7 @@ function Compile.Build(soundsFolder: Instance): (buffer, number)
 	}
 
 	local groupNames: { string } = {}
+	local groupSeen: { [string]: boolean } = {}
 
 	for _, child in ipairs(soundsFolder:GetChildren()) do
 		if not child:IsA("Configuration") then
@@ -83,7 +87,16 @@ function Compile.Build(soundsFolder: Instance): (buffer, number)
 			)
 		end
 
-		table.insert(groupNames, child.Name)
+		local groupName = child.Name
+		if groupSeen[groupName] then
+			FormatMessage.Error(
+				`There are two SoundGroups named "{groupName}" under {soundsFolder.Name}. SoundGroup names must be unique.`,
+				4
+			)
+		end
+		groupSeen[groupName] = true
+
+		table.insert(groupNames, groupName)
 		state.GroupIndex = #groupNames
 
 		walk(state, child, child:HasTag(PRELOAD_TAG))

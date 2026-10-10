@@ -20,7 +20,7 @@ local Jitter = require(script.Parent.Jitter)
 	```lua
 	local CustomPresets = {}
 
-	function CustomPrests.DoSomthing(doTheThing: boolean): (Sound) -> ()
+	function CustomPresets.DoSomething(doTheThing: boolean): (Sound) -> ()
 		return function(sound: Sound)
 			if doTheThing then
 				sound.Volume = 0.5

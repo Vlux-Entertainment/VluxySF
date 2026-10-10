@@ -1,24 +1,24 @@
 ---
-sidebar_position: 7
+sidebar_position: 6
 ---
 
 # Advice
 
-Here I'll give you some advice on how to have a good time using this library, plus a few things about sounds in Roblox.
+Tips for using the library well and for keeping sound memory low.
 
 ---
 
 ## Why does this library exist?
 
-**This library is designed for fast iteration and small to medium sized games!**
+**This library is designed for fast iteration!**
 
-I made it because I didn't want to search through folders to find the sound I wanted. I had to write multiple lines just to go fetch a sound, and I found it annoying. On top of that, if the sound's location changed or the sound didn't exist anymore, the entire block would error. So, of course, I spent over 100 hours trying to fix that with a library, as that's completely logical!!!
+Finding a sound by walking folders takes several lines, and it errors when the sound moves or is removed. Fetching by name removes both problems.
 
 ### How far does it scale?
 
-It also works in larger games without much issue. The only bottleneck is that it becomes less convenient after a certain number of sounds. There is no hierarchy when fetching sounds; it is completely flat. So the difficulty of giving every sound a unique name goes up as the number of sounds goes up.
+The schema is compiled on the server into a compact buffer and replicates to clients with the place, so a large sound library costs little at startup. Definitions are only decoded when they are asked for.
 
-The [Extension](./Extension.md) has a limit of 800 sounds, as that should be a safe number for a language server to handle without errors. The library itself should handle a few thousand sounds with no problem if you don't care for the extension.
+The practical limit is naming. There is no hierarchy when fetching sounds; it is completely flat. So the difficulty of giving every sound a unique name goes up as the number of sounds goes up.
 
 ---
 
@@ -26,7 +26,19 @@ The [Extension](./Extension.md) has a limit of 800 sounds, as that should be a s
 
 - **Set your sounds up in Studio for their most common use.** Adjust each sound in edit mode, then use [presets](./Examples.md#presets) or change properties yourself for the small things that differ at runtime. If a sound ends up too different from its original copy, it may be better to make a new `Sound`, even if it has the same `SoundId`.
 
-- **Sounds should not decide your business logic**, at least 95% of the time. Sounds should go on top of your code, not mold it.
+- **Keep sounds out of game logic.** Game code should not wait on a sound or branch on one. Fetch and play sounds from the code that already knows what happened.
+
+- **Gate code that runs before startup.** Most of the API errors if it is used before `Startup.InitServer` or `Startup.InitClient` has run. Scripts that may run earlier should call `VluxySF.Startup.WaitForSchema()` or `VluxySF.Startup.ConnectForSchema(callback)` first.
+
+- **Start the client fast with `InitClient(0)`.** By default, `Startup.InitClient` yields until the tagged sounds preload or 5 seconds pass. If your game wants the fastest possible client start, pass `0`: the call returns right away, the preloads still run in the background, and no timeout warning is printed. Check on them later with `Startup.IsPreloaded()` or `Startup.WaitForPreload()`.
+
+  ```lua
+  VluxySF.Startup.InitClient(0)
+
+  -- Other startup work runs while the preloads download.
+
+  VluxySF.Startup.WaitForPreload()
+  ```
 
 ---
 
@@ -53,9 +65,7 @@ If a sound only has to be ready for a while, like the sounds of one map, [warm i
 
 ### Lazy loading
 
-Lazy loading is when you only create an object when it's needed. This library makes that easy, as you just need to call `VluxySF.Fetch`.
-
-*Just make sure you call that function right when you need the sound, and there you go!*
+Lazy loading means creating a sound only when it is needed. Call `VluxySF.Fetch` at the moment you need the sound, not ahead of time, and destroy it when you are done.
 
 ### Destroying your sounds
 
@@ -65,6 +75,10 @@ If you want to save more memory, destroy the sound made by VluxySF once you're d
 Lazy loading and destroying only save memory if the `SoundId` was not preloaded and no other sound with the same `SoundId` exists.
 :::
 
+### Reading the schema
+
+`VluxySF.Schema.Get()` and `VluxySF.Schema.GetDefinitions()` decode every definition in the schema and keep them in memory. If you only need one, use `VluxySF.Schema.GetDefinition(name)`, which decodes just that one.
+
 ### Sound editing
 
 Editing your audio files should be a last resort, as it is the most tedious of these methods. There is also a monthly import limit for audio in Roblox. But this is the best way to save memory, if it's worth it to you.
@@ -73,8 +87,4 @@ Editing your audio files should be a last resort, as it is the most tedious of t
 
 ## When to optimize?
 
-It depends on the project. In most cases, if your codebase is designed well, or well enough, it can be done later down the line.
-
-For instance, maybe you're just polishing your game up. That could be the best time to start optimizing your sound memory, if it's needed.
-
-**But of course, only optimize when you need to, and if you need to!**
+Optimize sound memory when you have a reason to: a memory warning on a target device, or a polish pass before release. Until then, tag only the sounds that must be ready instantly and destroy sounds you are done with. The rest can wait.

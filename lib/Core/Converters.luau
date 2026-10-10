@@ -91,14 +91,15 @@ function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.
 
 	Properties.Apply(sound, definition.Properties :: any)
 
-	if definition.EffectsCount > 0 then
-		for className, effectProperties in pairs(definition.Effects :: any) do
-			local success, effect = pcall(Instance.new, className)
-			if not success then
+	local effects = definition.Effects :: { [string]: { [string]: any } }?
+	if effects then
+		for className, effectProperties in pairs(effects) do
+			if not ALLOWED_SOUND_CHILDREN[className] then
 				FormatMessage.Warn(`"{className}" is not a SoundEffect class and was skipped on "{sound.Name}".`)
 				continue
 			end
 
+			local effect = Instance.new(className)
 			Properties.Apply(effect, effectProperties)
 			effect.Parent = sound
 		end

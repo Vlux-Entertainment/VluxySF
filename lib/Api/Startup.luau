@@ -10,6 +10,9 @@ local Transport = require(script.Parent.Parent.Core.Transport)
 
 local DEFAULT_PRELOAD_TIMEOUT = 5
 
+--set as soon as an Init call starts, so a second call during the first one's yields is refused
+local starting = false
+
 --[=[
 	@class Startup
 
@@ -91,23 +94,27 @@ function Startup.InitServer(soundFolder: Configuration)
 	if not RunService:IsServer() then
 		FormatMessage.Error("Startup.InitServer only works on the server!", 3)
 	end
-	if SchemaStore.IsInitialized() then
+	if starting or SchemaStore.IsInitialized() then
 		FormatMessage.Error("Startup.InitServer was already called!", 3)
 	end
 	if typeof(soundFolder) ~= "Instance" then
 		FormatMessage.Error(`Startup.InitServer needs the SOUNDS Configuration, got {typeof(soundFolder)}.`, 3)
 	end
+	starting = true
 
-	local schemaBuffer = Compile.Build(soundFolder)
-
-	SchemaStore.LoadServer(schemaBuffer)
-	Transport.Publish(schemaBuffer)
+	local schemaBuffer, soundCount = Compile.Build(soundFolder)
+	if soundCount == 0 then
+		FormatMessage.Warn(`{soundFolder.Name} has no Sounds in it. The schema is empty.`)
+	end
 
 	--detach now so nothing else reads it, destroy later so startup does not pay for tearing down the tree
 	soundFolder.Parent = nil
 	task.defer(function()
 		soundFolder:Destroy()
 	end)
+
+	SchemaStore.LoadServer(schemaBuffer)
+	Transport.Publish(schemaBuffer)
 
 	SchemaStore.SetInitialized()
 end
@@ -121,9 +128,10 @@ end
 
 	Receives the schema from the server, then builds and preloads every sound tagged for preloading.
 
-	The call yields until the preloads finish or `timeout` seconds pass, whichever comes first. Pass `0` to not wait
-	at all: the preloads still run in the background, no timeout warning is printed, and you can check on them with
-	`IsPreloaded` or `WaitForPreload`.
+	The schema is ready as soon as it is received, so `WaitForSchema` and `ConnectForSchema` in other scripts resume
+	then. This call itself yields until the preloads finish or `timeout` seconds pass, whichever comes first, and
+	warns if it timed out. Pass `0` to not wait at all: the preloads still run in the background, no warning is
+	printed, and you can check on them with `IsPreloaded` or `WaitForPreload`.
 
 	:::danger
 	Call this once per client.
@@ -143,7 +151,7 @@ function Startup.InitClient(timeout: number?)
 	if not RunService:IsClient() then
 		FormatMessage.Error("Startup.InitClient only works on the client!", 3)
 	end
-	if SchemaStore.IsInitialized() then
+	if starting or SchemaStore.IsInitialized() then
 		FormatMessage.Error("Startup.InitClient was already called!", 3)
 	end
 
@@ -151,6 +159,7 @@ function Startup.InitClient(timeout: number?)
 	if realTimeout < 0 then
 		FormatMessage.Error(`Startup.InitClient timeout must be 0 or more, got {realTimeout}.`, 3)
 	end
+	starting = true
 
 	local schemaBuffer = Transport.Receive()
 	SchemaStore.LoadClient(schemaBuffer)
@@ -158,20 +167,23 @@ function Startup.InitClient(timeout: number?)
 	--templates exist right away, so a Fetch can clone them even while the assets are still downloading
 	local sounds = Preloading.Register(SchemaStore.GetPreloadNames(), false)
 
+	--the schema is complete here; only the caller of InitClient waits for the preloads below
+	SchemaStore.SetInitialized()
+
 	if #sounds == 0 then
 		SchemaStore.SetPreloaded()
-	else
-		task.spawn(function()
-			Preloading.Load(sounds)
-			SchemaStore.SetPreloaded()
-		end)
 
-		if realTimeout > 0 then
-			waitForPreloads(realTimeout)
-		end
+		return
 	end
 
-	SchemaStore.SetInitialized()
+	task.spawn(function()
+		Preloading.Load(sounds)
+		SchemaStore.SetPreloaded()
+	end)
+
+	if realTimeout > 0 then
+		waitForPreloads(realTimeout)
+	end
 end
 
 ------------------------------------------------------------------------------------------------------------------------

@@ -17,7 +17,7 @@
 
 	.SoundDefinitions SoundDefinitions -- Dictionary of `SoundDefinitions`.
 	
-	.PreloadIds { string } -- List of sound names to `Preload`.
+	.PreloadNames { string } -- Names of the sounds the client preloads on startup.
 
 	The `Schema` for the library that is shared on client and server.
 ]=]
@@ -168,40 +168,27 @@ export type SoundChildrenSerialized = {
 	@interface SoundSerialized
 	@within SerializedTypes
 
-	.AcousticSimulationEnabled boolean
-	.AudioContent string
-	.EmitterSize number
-	.IsLoaded boolean
-	.IsPaused boolean
-	.IsPlaying boolean
-	.isPlaying boolean
-	.Looped boolean
-	.LoopRegion NumberRange
-	.MaxDistance number
-	.MinDistance number
-	.Pitch number
-	.PlaybackLoudness number
-	.PlaybackRegion NumberRange
-	.PlaybackRegionsEnabled boolean
-	.PlaybackSpeed number
-	.Playing boolean
-	.PlayOnRemove boolean
-	.RollOffMaxDistance number
-	.RollOffMinDistance number
-	.RollOffMode Enum.RollOffMode
-	.SoundGroup string
-	.SoundId string
-	.TimeLength number
-	.TimePosition number
-	.Volume number
-
-	.Archivable boolean
 	.Name string
-	.Parent Instance
+	.SoundGroup SoundGroup?
 
-	.ClassName string
+	.AcousticSimulationEnabled boolean?
+	.Looped boolean?
+	.LoopRegion NumberRange?
+	.PlaybackRegion NumberRange?
+	.PlaybackRegionsEnabled boolean?
+	.PlaybackSpeed number?
+	.Playing boolean?
+	.PlayOnRemove boolean?
+	.RollOffMaxDistance number?
+	.RollOffMinDistance number?
+	.RollOffMode Enum.RollOffMode?
+	.SoundId string?
+	.TimePosition number?
+	.Volume number?
 
-	Serialized `Sound` Instance.
+	The properties of a `Sound`. Only `Name` is always present; every other property is left out when it equals the
+	class default. `Parent`, `Archivable`, attributes, tags, read-only state and deprecated properties are never
+	stored.
 ]=]
 export type SoundSerialized = BaseInstance & SoundProperties
 
@@ -218,11 +205,7 @@ export type SoundSerialized = BaseInstance & SoundProperties
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `ChorusSoundEffect` Instance.
 ]=]
@@ -241,11 +224,7 @@ export type ChorusSoundEffectSerialized = BaseEffect & ChorusSoundEffectProperti
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `CompressorSoundEffect` Instance.
 ]=]
@@ -260,11 +239,7 @@ export type CompressorSoundEffectSerialized = BaseEffect & CompressorSoundEffect
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `DistortionSoundEffect` Instance.
 ]=]
@@ -282,11 +257,7 @@ export type DistortionSoundEffectSerialized = BaseEffect & DistortionSoundEffect
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `EchoSoundEffect` Instance.
 ]=]
@@ -303,11 +274,7 @@ export type EchoSoundEffectSerialized = BaseEffect & EchoSoundEffectProperties
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `EqualizerSoundEffect` Instance.
 ]=]
@@ -324,11 +291,7 @@ export type EqualizerSoundEffectSerialized = BaseEffect & EqualizerSoundEffectPr
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `FlangeSoundEffect` Instance.
 ]=]
@@ -343,11 +306,7 @@ export type FlangeSoundEffectSerialized = BaseEffect & FlangeSoundEffectProperti
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `PitchShiftSoundEffect` Instance.
 ]=]
@@ -366,11 +325,7 @@ export type PitchShiftSoundEffectSerialized = BaseEffect & PitchShiftSoundEffect
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `ReverbSoundEffect` Instance.
 ]=]
@@ -387,11 +342,7 @@ export type ReverbSoundEffectSerialized = BaseEffect & ReverbSoundEffectProperti
 	.Enabled boolean
 	.Priority number
 
-	.Archivable boolean
 	.Name string
-	.Parent Instance
-
-	.ClassName string
 
 	Serialized `TremoloSoundEffect` Instance.
 ]=]
@@ -412,108 +363,93 @@ type BaseEffect = BaseInstance & SoundEffectProperties
 ------------------------------------------------------------------------------------------------------------------------
 
 type SoundProperties = {
-	AcousticSimulationEnabled: boolean,
-	AudioContent: string,
-	EmitterSize: number,
-	IsLoaded: boolean,
-	IsPaused: boolean,
-	IsPlaying: boolean,
-	isPlaying: boolean,
-	Looped: boolean,
-	LoopRegion: NumberRange,
-	MaxDistance: number,
-	MinDistance: number,
-	Pitch: number,
-	PlaybackLoudness: number,
-	PlaybackRegion: NumberRange,
-	PlaybackRegionsEnabled: boolean,
-	PlaybackSpeed: number,
-	Playing: boolean,
-	PlayOnRemove: boolean,
-	RollOffMaxDistance: number,
-	RollOffMinDistance: number,
-	RollOffMode: Enum.RollOffMode,
-	SoundGroup: string,
-	SoundId: string,
-	TimeLength: number,
-	TimePosition: number,
-	Volume: number,
+	AcousticSimulationEnabled: boolean?,
+	Looped: boolean?,
+	LoopRegion: NumberRange?,
+	PlaybackRegion: NumberRange?,
+	PlaybackRegionsEnabled: boolean?,
+	PlaybackSpeed: number?,
+	Playing: boolean?,
+	PlayOnRemove: boolean?,
+	RollOffMaxDistance: number?,
+	RollOffMinDistance: number?,
+	RollOffMode: Enum.RollOffMode?,
+	SoundGroup: SoundGroup?,
+	SoundId: string?,
+	TimePosition: number?,
+	Volume: number?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
 
 type ChorusSoundEffectProperties = {
-	Depth: number,
-	Mix: number,
-	Rate: number,
+	Depth: number?,
+	Mix: number?,
+	Rate: number?,
 }
 
 type CompressorSoundEffectProperties = {
-	Attack: number,
-	GainMakeup: number,
-	Ratio: number,
-	Release: number,
-	Threshold: number,
+	Attack: number?,
+	GainMakeup: number?,
+	Ratio: number?,
+	Release: number?,
+	Threshold: number?,
 }
 
 type DistortionSoundEffectProperties = {
-	Level: number,
+	Level: number?,
 }
 
 type EchoSoundEffectProperties = {
-	Delay: number,
-	Feedback: number,
-	WetLevel: number,
-	DryLevel: number,
+	Delay: number?,
+	Feedback: number?,
+	WetLevel: number?,
+	DryLevel: number?,
 }
 
 type EqualizerSoundEffectProperties = {
-	HighGain: number,
-	LowGain: number,
-	MidGain: number,
+	HighGain: number?,
+	LowGain: number?,
+	MidGain: number?,
 }
 
 type FlangeSoundEffectProperties = {
-	Depth: number,
-	Mix: number,
-	Rate: number,
+	Depth: number?,
+	Mix: number?,
+	Rate: number?,
 }
 
 type PitchShiftSoundEffectProperties = {
-	Octave: number,
+	Octave: number?,
 }
 
 type ReverbSoundEffectProperties = {
-	DecayTime: number,
-	Density: number,
-	Diffusion: number,
-	DryLevel: number,
-	WetLevel: number,
+	DecayTime: number?,
+	Density: number?,
+	Diffusion: number?,
+	DryLevel: number?,
+	WetLevel: number?,
 }
 
 type TremoloSoundEffectProperties = {
-	Depth: number,
-	Duty: number,
-	Frequency: number,
+	Depth: number?,
+	Duty: number?,
+	Frequency: number?,
 }
 
 ------------------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
 type SoundEffectProperties = {
-	Enabled: boolean,
-	Priority: number,
+	Enabled: boolean?,
+	Priority: number?,
 }
 
 type InstanceProperties = {
-	Archivable: boolean,
 	Name: string,
-	Parent: Instance,
 }
 
-type ObjectProperties = {
-	ClassName: string,
-}
+type ObjectProperties = {}
 
 ------------------------------------------------------------------------------------------------------------------------
 

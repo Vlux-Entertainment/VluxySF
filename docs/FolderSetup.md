@@ -5,7 +5,7 @@ sidebar_position: 3
 # Folder Setup
 
 All of your sounds live in one place: a `Configuration` named `SOUNDS` inside `ServerStorage`.
-VluxySF uses the layout of that Configuration to group your sounds and to know which ones to preload.
+VluxySF reads the layout of that Configuration once on the server to group your sounds and to know which ones to preload.
 
 **You do not need to create or assign SoundGroups yourself!**
 
@@ -33,9 +33,9 @@ SOUNDS⚙️               ← The base Configuration
 
 There are only three rules:
 
-1. **Every direct child of `SOUNDS` is a `Configuration`.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS` throws an error on startup.
+1. **Every direct child of `SOUNDS` is a `Configuration` with a unique name.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS`, or two groups with the same name, makes `InitServer` throw an error.
 2. **Every `Sound` goes inside one of those group Configurations.** It is assigned to that `SoundGroup` automatically.
-3. **Every `Sound` has a unique name.** The name is the key you fetch it with, like `VluxySF.Fetch("explosion")`. If two sounds share a name, a warning appears at runtime and only one of them is kept.
+3. **Every `Sound` has a unique name.** The name is the key you fetch it with, like `VluxySF.Fetch("explosion")`. If two sounds share a name, a warning is printed on the server and only the first one is kept.
 
 ### Naming conventions
 
@@ -49,7 +49,7 @@ There are only three rules:
 
 ## Organizing with folders
 
-Inside a group you can use Folders (📁) however you like.
+Inside a group you can use Folders (📁) however you like. Any other instance that is not a `Sound`, such as a nested `Configuration` or a `Model`, is treated the same way as a `Folder`.
 
 ```
 SOUNDS⚙️
@@ -68,10 +68,11 @@ The hierarchy inside a group does not affect the library. Sounds are always fetc
 
 ## Preloading sounds
 
-Want certain sounds to be ready instantly? Give a `Sound` or a `Folder` the tag `VluxySF_Preload`, and it is preloaded as soon as the client starts.
+Want certain sounds to be ready instantly? Give an instance the tag `VluxySF_Preload`, and every `Sound` under it is preloaded when the client starts.
 
 - Tag a **Sound** to preload that one sound.
-- Tag a **Folder** to preload every sound inside it.
+- Tag a **Folder** or any other container to preload every sound inside it.
+- Tag a **group Configuration** to preload the whole group.
 
 ```
 SOUNDS⚙️
@@ -95,7 +96,7 @@ Only preload the sounds that need it. A preloaded sound stays in memory for the 
 
 ### Preload timeout
 
-The client waits for the tagged sounds to preload before it continues. You can pass a timeout (in seconds) to `InitClient`. If preloading takes longer than that, the client continues and the sounds keep loading in the background. The default is 5 seconds.
+`InitClient` yields until the tagged sounds are preloaded or the timeout passes. The timeout is in seconds and defaults to 5. If the timeout passes first, a warning is printed, `InitClient` returns, and the sounds keep loading in the background.
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -108,19 +109,32 @@ VluxySF.Startup.InitClient(preloadTimeout)
 -- Reaches this line once the sounds are preloaded or the timeout is reached.
 ```
 
+Pass `0` to not wait at all. No warning is printed. Check on the preloads later with `Startup.IsPreloaded()` or `Startup.WaitForPreload()`.
+
+```lua
+VluxySF.Startup.InitClient(0)
+
+-- Do other startup work here.
+
+VluxySF.Startup.WaitForPreload()
+```
+
+See [Startup](/api/Startup) for the full reference.
+
 ---
 
 ## Configuring sounds
 
 Set up each `Sound` in Studio exactly how you want it to play.
 
-- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. Every property is kept except for the `Parent`.
+- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. A fetched sound comes out the way you authored it. `Parent`, `Archivable`, attributes, tags, read-only state such as `IsPlaying` and `TimeLength`, and deprecated properties such as `Pitch`, `MinDistance`, `MaxDistance` and `EmitterSize` are not kept.
 - **Effects:** Add effects such as `EqualizerSoundEffect` or `ReverbSoundEffect` as children of the `Sound`.
 
 :::note
 - Only `SoundEffects` are kept. Any other instance parented to a `Sound` is skipped with a warning.
-- Only one effect of each class is kept per `Sound`.
+- Only one effect of each class is kept per `Sound`. Extra ones are skipped with a warning.
 - A fetched effect is named after its class, so you can always reach it with `sound.EchoSoundEffect`, whatever it was called in Studio.
+- A `SoundEffect` cannot have children. Children are not kept, and a warning is printed.
 :::
 
 ---
@@ -132,8 +146,10 @@ When you are done, your `SOUNDS` Configuration should look something like this i
 ![Folder Structure Example](/SoundsConfigExample1.png)
 
 :::note
-The `SOUNDS` Configuration belongs in `ServerStorage`. Making it a direct child of that service is recommended.
+Keep the `SOUNDS` Configuration in `ServerStorage` so it never replicates to clients. `InitServer` takes the Configuration as an argument, so where exactly it sits is up to you.
 :::
+
+Once `InitServer` has compiled it, the Configuration is detached right away and destroyed shortly after, once the calling thread yields or finishes. Nothing else should read from it after that.
 
 ## Next step
 
