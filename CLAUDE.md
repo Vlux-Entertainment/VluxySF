@@ -49,8 +49,13 @@ failed case. `Tests/` mirrors where each file lands in the place:
   trips, property rules, compile errors); schema-free, run on both sides.
 - `ServerScriptService/ServerTests.server.luau`, `StarterPlayerScripts/ClientTests.client.luau` —
   init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
-- `ServerScriptService/StressFixture.luau`, `ReplicatedStorage/FetchBenchmark.luau` — run from the
-  command bar for large-schema checks; their header comments have the commands.
+- `ServerScriptService/StressFixture.luau` — `Create(folders, sounds)` / `Remove()` from the command bar
+  in edit mode; with 1000+ sounds compiled, both test scripts also run
+  `ReplicatedStorage/FetchBenchmark.luau` and print startup timings. Do not call anything that needs
+  `WaitForSchema` from the command bar: it has its own module cache in Studio and never initializes.
+- `ServerScriptService/RealConfigCheck.server.luau` — runs only when a Configuration named `SOUNDS` is
+  in ServerStorage next to `TEST_SOUNDS`; compiles it and compares every rebuilt sound and effect
+  against the original without touching library state.
 
 A few cases trigger library warnings on purpose (unknown sound names); those cases say so in their name.
 
