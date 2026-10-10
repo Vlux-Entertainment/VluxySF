@@ -12,7 +12,8 @@ local ExpectEqual = TestHarness.ExpectEqual
 local ExpectNear = TestHarness.ExpectNear
 
 --The sounds and groups authored in Tests/ServerStorage/TEST_SOUNDS.model.json
-local FIXTURE_SOUNDS = { "BattleOne", "BattleTwo", "Click", "Explosion", "MainTheme" }
+--Whoosh sits inside a Model, which proves any container under a group is walked.
+local FIXTURE_SOUNDS = { "BattleOne", "BattleTwo", "Click", "Explosion", "MainTheme", "Whoosh" }
 local FIXTURE_GROUPS = { "MUSIC", "SFX" }
 local FIXTURE_PRELOADS = { "BattleOne", "BattleTwo", "Click" }
 

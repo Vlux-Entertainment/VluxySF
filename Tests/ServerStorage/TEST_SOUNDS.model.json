@@ -61,6 +61,19 @@
 					]
 				},
 				{
+					"Name": "Ambience",
+					"ClassName": "Model",
+					"Children": [
+						{
+							"Name": "Whoosh",
+							"ClassName": "Sound",
+							"Properties": {
+								"SoundId": "rbxasset://sounds/swoosh.wav"
+							}
+						}
+					]
+				},
+				{
 					"Name": "Game",
 					"ClassName": "Folder",
 					"Children": [

@@ -45,6 +45,8 @@ failed case. `Tests/` mirrors where each file lands in the place:
   Change the fixture and `SharedCases` together.
 - `ReplicatedStorage/TestHarness.luau` — the tiny suite/expectation helper.
 - `ReplicatedStorage/SharedCases.luau` — cases that must pass on both server and client.
+- `ReplicatedStorage/InternalCases.luau` — cases that require `lib/Core` modules directly (codec round
+  trips, property rules, compile errors); schema-free, run on both sides.
 - `ServerScriptService/ServerTests.server.luau`, `StarterPlayerScripts/ClientTests.client.luau` —
   init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
 - `ServerScriptService/StressFixture.luau`, `ReplicatedStorage/FetchBenchmark.luau` — run from the
