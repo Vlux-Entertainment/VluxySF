@@ -1,5 +1,6 @@
 {
 	"name": "VluxySF",
+	"servePlaceIds": [73609616913220],
 	"tree": {
 		"$className": "DataModel",
 		"ReplicatedStorage": {
