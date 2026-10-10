@@ -66,13 +66,14 @@ suite.Test("InitServer published the schema under the library", function()
 
 	local size = published:GetAttribute("Size") :: number
 	local chunks = published:GetAttribute("Chunks") :: number
-	local mode = published:GetAttribute("Mode") :: string
+	local format = published:GetAttribute("Format") :: string
 	ExpectEqual(#published:GetChildren(), chunks, "Chunk count")
+	ExpectEqual(format, "base64", "Format")
 
 	local soundCount = #VluxySF.Schema.GetNames()
 	local milliseconds = math.round(initSeconds * 1000)
 	print(`[VluxySF Tests] InitServer compiled {soundCount} sounds in {milliseconds} ms.`)
-	print(`[VluxySF Tests] Schema is {size} bytes in {chunks} chunk(s), mode "{mode}".`)
+	print(`[VluxySF Tests] Schema is {size} bytes in {chunks} chunk(s), format "{format}".`)
 end)
 
 InternalCases.Run(suite)

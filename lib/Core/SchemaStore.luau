@@ -13,6 +13,7 @@ local SoundService = game:GetService("SoundService")
 
 local Codec = require(script.Parent.Codec)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
 
@@ -21,13 +22,8 @@ local PRELOADED_NAME = "PreloadedSounds"
 local WARMED_NAME = "WarmedSounds"
 local UNATTACHED_NAME = "UnattachedSounds"
 
-local initializedEvent = Instance.new("BindableEvent")
-initializedEvent.Name = "Initialized"
-initializedEvent.Parent = script
-
-local preloadedEvent = Instance.new("BindableEvent")
-preloadedEvent.Name = "Preloaded"
-preloadedEvent.Parent = script
+local initializedSignal = Signal.new()
+local preloadedSignal = Signal.new()
 
 local loaded: Codec.Loaded? = nil
 local schema: Types.SoundSchema? = nil
@@ -41,8 +37,8 @@ local isPreloaded = false
 
 local SchemaStore = {}
 
-SchemaStore.Initialized = initializedEvent.Event
-SchemaStore.Preloaded = preloadedEvent.Event
+SchemaStore.Initialized = initializedSignal
+SchemaStore.Preloaded = preloadedSignal
 
 ------------------------------------------------------------------------------------------------------------------------
 --LOADING---------------------------------------------------------------------------------------------------------------
@@ -253,7 +249,7 @@ function SchemaStore.SetInitialized()
 	end
 
 	isInitialized = true
-	initializedEvent:Fire()
+	initializedSignal:Fire()
 end
 
 --[[
@@ -272,7 +268,7 @@ function SchemaStore.SetPreloaded()
 	end
 
 	isPreloaded = true
-	preloadedEvent:Fire()
+	preloadedSignal:Fire()
 end
 
 --[[

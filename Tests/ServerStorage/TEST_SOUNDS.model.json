@@ -68,7 +68,7 @@
 							"Name": "Whoosh",
 							"ClassName": "Sound",
 							"Properties": {
-								"SoundId": "rbxasset://sounds/swoosh.wav"
+								"SoundId": "rbxasset://sounds/clickfast.wav"
 							}
 						}
 					]

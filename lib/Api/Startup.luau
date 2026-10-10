@@ -49,14 +49,14 @@ local function waitForPreloads(timeout: number)
 		task.spawn(thread, timedOut)
 	end
 
-	local connection = SchemaStore.Preloaded:Once(function()
+	local disconnect = SchemaStore.Preloaded:Once(function()
 		finish(false)
 	end)
 	local timer = task.delay(timeout, finish, true)
 
 	local timedOut = coroutine.yield()
 
-	connection:Disconnect()
+	disconnect()
 	if coroutine.status(timer) == "suspended" then
 		task.cancel(timer)
 	end
@@ -252,11 +252,7 @@ function Startup.ConnectForSchema(finished: () -> ()): () -> ()
 		end
 	end
 
-	local connection = SchemaStore.Initialized:Once(finished)
-
-	return function()
-		connection:Disconnect()
-	end
+	return SchemaStore.Initialized:Once(finished)
 end
 
 --[=[
