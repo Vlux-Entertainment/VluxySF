@@ -31,6 +31,12 @@
 				"$path": "Tests/ServerStorage/TEST_SOUNDS.model.json"
 			}
 		},
+		"StarterGui": {
+			"$className": "StarterGui",
+			"DemoButtons": {
+				"$path": "Tests/StarterGui/DemoButtons.client.luau"
+			}
+		},
 		"StarterPlayer": {
 			"$className": "StarterPlayer",
 			"StarterPlayerScripts": {
