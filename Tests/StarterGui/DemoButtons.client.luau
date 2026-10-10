@@ -11,13 +11,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
-local BUTTONS = {
-	{ Label = "Lazy Load", Sound = "Explosion", Note = "built on demand" },
-	{ Label = "Load On Start", Sound = "Click", Note = "preloaded by tag" },
-	{ Label = "Load From Warmup", Sound = "Whoosh", Note = "cloned from the cache" },
-}
-
+--Every button plays the warmed sound, so each press clones the template from the cache.
 local WARMED_SOUND = "Whoosh"
+
+local BUTTONS = {
+	{ Label = "Lazy Load", Sound = WARMED_SOUND, Note = "cloned from the cache" },
+	{ Label = "Load On Start", Sound = WARMED_SOUND, Note = "cloned from the cache" },
+	{ Label = "Load From Warmup", Sound = WARMED_SOUND, Note = "cloned from the cache" },
+}
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 

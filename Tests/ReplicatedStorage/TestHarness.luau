@@ -112,6 +112,10 @@ function TestHarness.new(suiteName: string): Suite
 	local suite = {}
 
 	function suite.Test(name: string, case: () -> ())
+		if string.find(name, "warnings expected", 1, true) then
+			print(`[VluxySF Tests] {suiteName}: the warnings after this line are expected, from "{name}".`)
+		end
+
 		local success, reason = pcall(case :: () -> any)
 
 		if success then
