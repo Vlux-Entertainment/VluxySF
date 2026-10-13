@@ -8,9 +8,9 @@ Guidance for Claude Code when working in this repository.
 library**, published to Wally as `greenviper126/vluxysf` (MIT). It turns a Studio-authored folder of
 Sound instances into a compact, frozen "schema" that both server and client consume, so game code
 fetches sounds by name instead of holding instance references. TheLaundryShift (sibling repo) is one
-consumer; the library also runs in a live Roblox game peaking above 20k CCU daily, so treat the
-published API as production-facing: breaking changes and behavior changes need real version bumps,
-and leak/perf fixes matter more than they look in Studio. Target scale is up to ~10k sounds.
+consumer; the library also runs in a live Roblox games, so treat the published API as production-facing:
+breaking changes and behavior changes need real version bumps, and leak/perf fixes matter more than they 
+look in Studio. Target scale is up to ~10k sounds.
 
 Two deliverables live here:
 
