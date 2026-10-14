@@ -2,60 +2,65 @@
 
 ## 3.0.0
 
-3.0 renames several functions and changes a few parameters; the [migration guide](https://Vlux-Entertainment.github.io/VluxySF/docs/Migration) lists every old name next to its replacement. It also changes how the library behaves when something goes wrong: nothing called at runtime throws anymore.
+3.0 renames several functions, makes the schema about a third of its old size, and changes how the library behaves when something goes wrong: nothing it does at runtime throws into your game code anymore. Code written for 2.x needs the renames below.
 
-### Breaking
+### Renamed
 
-- `FetchStrict` is `TryFetch`. `FetchPlayOnce` is `OneShot(name, parent?, preset?)`; its `waitOnLoad` argument is gone, since Roblox already holds a played sound until its audio loads and starts it from the beginning.
-- `Startup`: `IsInitialized` is `IsReady`, `WaitForSchema` is `WaitUntilReady(timeout?)`, `ConnectForSchema` is `OnReady`, `WaitForPreload` is `WaitUntilPreloaded(timeout?)`. Both waits return `true`, or `false` if the timeout passed.
-- `Preload.Selected` is `Preload.AddAsync`. `Preload.Get` and `Cache.Get` are replaced by `GetNames()`, plus `Preload.Has(name)`; the kept `Sound` instances are internal.
-- `Groups.GetByName(name)` is `Groups.Get(name)`, and the old `Groups.Get()` is `Groups.GetAll()`. `Groups.SetVolumes` takes only the group table; set the main volume with `SetMainVolume`.
-- `Schema.Get` returns `nil` before the library has started.
-- `Jitter.Default` is `Jitter.Uniform`, `Jitter.UnitLog` is `Jitter.Natural`, and `Jitter.Scale` is removed. Jitter values are kept at 0 or more instead of clamped from 0 to 10.
-- The `SoundGroups` and `SoundPresets` doc pages are `Groups` and `Presets`.
+| 2.x | 3.0 |
+|---|---|
+| `VluxySF.FetchStrict(name, parent, preset)` | `VluxySF.TryFetch(name, parent, preset)` |
+| `VluxySF.FetchPlayOnce(name, parent, preset, waitOnLoad)` | `VluxySF.OneShot(name, parent, preset)` |
+| `Startup.IsInitialized()` | `Startup.IsReady()` |
+| `Startup.WaitForSchema()` | `Startup.WaitUntilReady(timeout?)` |
+| `Startup.ConnectForSchema(callback)` | `Startup.OnReady(callback)` |
+| `Startup.WaitForPreload()` | `Startup.WaitUntilPreloaded(timeout?)` |
+| `Preload.Selected(...)` | `Preload.AddAsync(...)` |
+| `Preload.Get()` | `Preload.GetNames()`, `Preload.Has(name)` |
+| `Cache.Get()` | `Cache.GetNames()` |
+| `Groups.GetByName(name)` | `Groups.Get(name)` |
+| `Groups.Get()` | `Groups.GetAll()` |
+| `Groups.SetVolumes(main, volumes)` | `Groups.SetMainVolume(main)` and `Groups.SetVolumes(volumes)` |
+| `Jitter.Default(center, spread)` | `Jitter.Uniform(center, spread)` |
+| `Jitter.UnitLog(center, spread)` | `Jitter.Natural(center, spread)` |
+| `Jitter.Scale(spread)` | `Jitter.Uniform(1, spread)` |
+
+`Groups.Get` changed meaning: it used to return every group and now returns one by name, so check each call rather than replacing it blindly. The `SoundGroups` and `SoundPresets` API pages are now `Groups` and `Presets`.
 
 ### Added
 
-- `Schema.Has(name)`, `Groups.SetVolume(name, volume)`, `Groups.GetMain()`, `Groups.GetVolumes()`, `Groups.GetMainVolume()`.
-- Timeouts on `Startup.WaitUntilReady` and `Startup.WaitUntilPreloaded`.
-
-### Never in the way
-
-- Every function warns once and returns a blank sound, `nil` or an empty result when it is called before the library has started, instead of throwing.
-- `Preload` and `Cache` warn once and do nothing on the server, instead of throwing.
-- `InitServer` and `InitClient` warn when called twice, on the wrong side or with a bad argument, and catch failures while starting so sounds turn off instead of breaking the calling script.
-- A child of `SOUNDS` that is not a Configuration, or a second group with a name already used, is skipped with a warning instead of making `InitServer` throw.
-- A volume that is not a number from 0 to 10 prints a warning and is ignored.
-- `Schema.GetDefinition` no longer warns for an unknown name.
+- `VluxySF.WithWrapper(wrap)` returns a copy of the library whose `Fetch` and `TryFetch` return your own class instead of a `Sound`. It is fully typed, and `VluxySF` itself is unchanged.
+- `Schema.Has(name)` checks whether a sound exists without a warning.
+- `Groups.SetVolume(name, volume)`, `Groups.GetMain()`, `Groups.GetVolumes()` and `Groups.GetMainVolume()`.
+- `Startup.WaitUntilReady` and `Startup.WaitUntilPreloaded` take an optional timeout and return `false` if it passed first.
 
 ### Changed
 
-- `Fetch` builds preloaded sounds instead of cloning their kept copies, which measured faster; it still clones warmed sounds.
+- Nothing the library does at runtime throws anymore:
+  - Called before the library has started, every function warns once and returns a blank sound, `nil` or an empty result.
+  - `Preload` and `Cache` warn once and do nothing on the server.
+  - `InitServer` and `InitClient` warn when called twice, on the wrong side or with a bad argument, and a failure while starting turns sounds off with a warning instead of breaking the calling script.
+  - A child of `SOUNDS` that is not a Configuration, or a second group with a name already used, is skipped with a warning.
+  - A volume that is not a number from 0 to 10 prints a warning and is ignored.
+- `OneShot` has no `waitOnLoad` argument. Roblox already holds a played sound until its audio loads and plays it from the beginning.
+- `Schema.Get` returns `nil` before the library has started, and `Schema.GetDefinition` no longer warns for an unknown name.
+- `Fetch` builds preloaded sounds instead of cloning their kept copies, which measured faster. It still clones warmed sounds.
 - `Groups.GetNames` lists groups in the order they appear under `SOUNDS`.
-- On the server, `Startup.IsPreloaded` is `true` and `WaitUntilPreloaded` returns right away once `InitServer` has run. `WaitForPreload` used to wait forever there.
-
-### Added
-
-- `VluxySF.WithWrapper(wrap)` returns a copy of the library whose `Fetch` and `FetchStrict` return your own class instead of a `Sound`. It is fully typed, and `VluxySF` itself is unchanged. See the Wrapping Sounds guide.
-
-### Changed
-
-- The schema replicates as one string attribute named `Schema` on a `VluxySF_Schema` Configuration in `SoundService`, so it is visible in the Explorer. It used to be split across StringValues in a folder under the library module. The client clears its copy of the attribute after decoding it.
-- `InitServer` errors if Roblox refuses or shortens the schema attribute, instead of leaving clients waiting.
-- The schema buffer no longer starts with a magic byte and a format version. Server and client always run the same copy of the library, so the check could never fail.
-- The schema is about half the size. Counts, ids and lengths are variable-length integers, `rbxassetid://` ids are stored as numbers, numbers that fit 32-bit floats take 4 bytes, booleans fit in their tag, and the index stores the gap between definitions. A 180-sound game config went from 15,765 to 8,037 bytes.
-- The schema is compressed (LZ4-style, built for speed) before it is published. The same config shrinks to 5,459 bytes; compressing took 0.3 ms and decompressing 0.05 ms. At 10,000 realistic sounds decompressing takes about 3 to 4 ms.
-- Names and string values have no length limit in the schema; the old format capped names at 65,535 bytes and a schema at 65,535 unique names.
+- Jitter values are kept at 0 or more instead of being clamped from 0 to 10.
+- The schema is about a third of its old size. Counts and lengths are variable-length integers, `rbxassetid://` ids are stored as numbers, numbers that fit 32-bit floats take 4 bytes, and the whole schema is compressed with a fast LZ4-style compressor. A real 180-sound game went from 15,765 bytes to 5,459; decompressing it takes 0.05 ms.
+- The schema replicates as one string attribute named `Schema` on a `VluxySF_Schema` Configuration in `SoundService`, visible in the Explorer. It used to be split across StringValues under the library module. The client clears its copy after reading it.
+- Names and other strings in the schema have no length limit, and there is no limit on the number of unique names.
 
 ### Fixed
 
-- `FetchPlayOnce` destroys the sound, with a warning, when its asset has not loaded within 10 seconds. Deleted, moderated or private audio never loads and never fires `Ended`, so these sounds used to stay in `UnattachedSounds` forever.
-- A failed `ContentProvider:PreloadAsync` only warns. Before, it could make `Preload.Selected` throw and leave `WaitForPreload` waiting forever.
-- Enums decoded from one schema can no longer be mixed up with another schema's. The enum lookup cache is kept per loaded schema instead of shared.
+- `OneShot` destroys a sound whose audio has not loaded within 10 seconds, with a warning. Deleted, moderated or private audio never fires `Ended`, so these sounds used to stay in `UnattachedSounds` forever.
+- `Startup.WaitUntilPreloaded` returns right away on the server. `WaitForPreload` used to wait there forever.
+- A failed audio preload only warns. It used to be able to throw from `Preload` and leave preload waits hanging.
+- Enums read from one schema can no longer be mixed up with another schema's.
 
 ### Removed
 
-- The `GeneratedSoundNames` type, kept in 2.0 only for code that annotated sound names with it. Use `string`. This is a type-only change: running code is unaffected, but annotations that name the type no longer type-check.
+- The `GeneratedSoundNames` type, kept in 2.0 only for code that annotated sound names with it. Use `string`.
+- The magic byte and format version at the start of the schema. Server and client always run the same copy of the library, so the check could never fail.
 
 ## 2.0.0
 

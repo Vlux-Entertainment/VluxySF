@@ -130,9 +130,10 @@ frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freez
   `README.md` is for GitHub and the Wally package. Guide pages in `docs/` are ordered by
   `sidebar_position` and link to each other with relative `./Page.md` links; keep their code
   samples in line with the real API in `lib/Api/`. The guides follow the Cmdr / Promise docs
-  style: one topic per page in learning order (Introduction, Why VluxySF?, Installation, Folder
-  Setup, Starting, Fetching, Presets, SoundGroups, Preloading, Warming, Wrapping, How It Works,
-  Performance, Cookbook, Migration), concepts and examples in the guides, exact signatures left
+  style: one topic per page, ordered by importance after Installation (Introduction, Why VluxySF?,
+  Installation, Folder Setup, Starting, Fetching, SoundGroups, Preloading, Presets, Cookbook,
+  Warming, Performance, Wrapping, How It Works); renames between versions live in the changelog,
+  not a migration page, concepts and examples in the guides, exact signatures left
   to the API pages, and complete recipes in `Cookbook.md`. A new feature gets its own page or a
   section on the matching one, not a catch-all page. `moonwave build --out-dir ../somewhere`
   checks for broken links (delete the output after).

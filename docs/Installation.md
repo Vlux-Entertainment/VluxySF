@@ -27,9 +27,7 @@ Run `wally install` in your project. Wally creates a `Packages` folder that cont
 
 ### Upgrading from 2.x
 
-3.0 renames several functions and changes a few parameters, so code written for 2.x needs small edits. Change the version to `@^3`, run `wally install`, then follow the [migration guide](./Migration.md), which lists every old name next to its replacement.
-
-Upgrading from 1.x works the same way: the migration guide covers the 2.x names, and the [changelog](https://github.com/Vlux-Entertainment/VluxySF/blob/main/CHANGELOG.md) lists what changed in 2.0.
+3.0 renames several functions, so code written for 2.x needs small edits. Change the version to `@^3`, run `wally install`, then follow the table of renames in the [changelog](https://github.com/Vlux-Entertainment/VluxySF/blob/main/CHANGELOG.md).
 
 ## 2. Sync the package into Studio
 

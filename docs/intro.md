@@ -44,7 +44,7 @@ Follow these pages in order and you will have sounds playing in a few minutes:
 After that, each page in the sidebar covers one feature, and the [Cookbook](./Cookbook.md) has complete examples for common jobs like a volume settings menu or footsteps.
 
 :::info
-Upgrading from 2.x? 3.0 renames several functions. The [migration guide](./Migration.md) lists every change.
+Upgrading from 2.x? 3.0 renames several functions. The [changelog](https://github.com/Vlux-Entertainment/VluxySF/blob/main/CHANGELOG.md) has a table of every old name next to its replacement.
 :::
 
 ## Getting help
