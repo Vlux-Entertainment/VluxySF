@@ -32,6 +32,9 @@ local SAMPLE_SIZE = 1000
 --How many sounds the client tries to load, to check that the fixture's assets really play.
 local PLAYABLE_SAMPLE = 100
 
+--Seconds the asset check waits before reporting.
+local PLAYABLE_TIMEOUT = 20
+
 --Microseconds per item above which a line is marked SLOW. Several times the 2.0 measurements (Fetch was 11 to 13 us).
 local BUDGETS = {
 	Decode = 25,
@@ -286,22 +289,35 @@ function Benchmarks.Run()
 			end
 		end
 
+		--PreloadAsync waits for every asset, and a slow one can take minutes, so it runs in its own thread and the
+		--report goes out after PLAYABLE_TIMEOUT whatever is still pending
 		local loadedCount, failed = 0, 0
+		local finished = false
 		clock = os.clock()
-		ContentProvider:PreloadAsync(probes, function(_contentId: string, status: Enum.AssetFetchStatus)
-			if status == Enum.AssetFetchStatus.Success then
-				loadedCount += 1
-			else
-				failed += 1
-			end
+
+		task.spawn(function()
+			ContentProvider:PreloadAsync(probes, function(_contentId: string, status: Enum.AssetFetchStatus)
+				if status == Enum.AssetFetchStatus.Success then
+					loadedCount += 1
+				else
+					failed += 1
+				end
+			end)
+			finished = true
 		end)
+
+		while not finished and os.clock() - clock < PLAYABLE_TIMEOUT do
+			task.wait(0.1)
+		end
+
 		line(
 			string.format(
-				"assets that load: %d of %d sampled (%d failed) in %.0f ms",
+				"assets that load: %d of %d sampled, %d failed, %d still loading after %.1f s",
 				loadedCount,
 				#probes,
 				failed,
-				(os.clock() - clock) * 1000
+				#probes - loadedCount - failed,
+				os.clock() - clock
 			)
 		)
 		destroyAll(probes)

@@ -2,16 +2,16 @@
 	"ClassName": "Configuration",
 	"Children": [
 		{ "Name": "Folder1", "ClassName": "Folder", "Children": [
-			{"Name": "StressSound9985", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://135328073601357", "Volume": 0.22, "RollOffMaxDistance": 218, "RollOffMinDistance": 16, "PlaybackSpeed": 1.198, "Looped": true}},
-			{"Name": "StressSound9986", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://126618807512393", "Volume": 0.55, "RollOffMaxDistance": 150, "RollOffMinDistance": 15}},
-			{"Name": "StressSound9987", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://129822254617682", "Volume": 0.223, "RollOffMaxDistance": 212, "RollOffMinDistance": 15}},
-			{"Name": "StressSound9988", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://9125703168", "Volume": 0.832, "RollOffMaxDistance": 284, "RollOffMinDistance": 17}},
-			{"Name": "StressSound9989", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://139685206535254", "Volume": 0.823, "RollOffMaxDistance": 243, "RollOffMinDistance": 5, "PlaybackSpeed": 0.802}},
-			{"Name": "StressSound9990", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://135328073601357", "Volume": 0.423, "RollOffMaxDistance": 113, "RollOffMinDistance": 14, "RollOffMode": "InverseTapered", "Looped": true}},
-			{"Name": "StressSound9991", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://109671418379503", "Volume": 0.243, "RollOffMaxDistance": 148, "RollOffMinDistance": 11, "RollOffMode": "Inverse"}},
-			{"Name": "StressSound9992", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://9125869138", "Volume": 0.142, "RollOffMaxDistance": 110, "RollOffMinDistance": 6}, "Children": [{"Name": "ReverbSoundEffect", "ClassName": "ReverbSoundEffect", "Properties": {"DecayTime": 0.834}}]},
-			{"Name": "StressSound9993", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://122511104023124", "Volume": 0.996, "RollOffMaxDistance": 56, "RollOffMinDistance": 8}},
-			{"Name": "StressSound9994", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://109598434966968", "Volume": 0.23, "RollOffMaxDistance": 257, "RollOffMinDistance": 19, "Looped": true}}
+			{"Name": "eq17RCL07", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://135328073601357", "Volume": 0.22, "RollOffMaxDistance": 218, "RollOffMinDistance": 16, "PlaybackSpeed": 1.198, "Looped": true}},
+			{"Name": "fWjnLh", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://126618807512393", "Volume": 0.55, "RollOffMaxDistance": 150, "RollOffMinDistance": 15}},
+			{"Name": "Pera25", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://129822254617682", "Volume": 0.223, "RollOffMaxDistance": 212, "RollOffMinDistance": 15}},
+			{"Name": "j4qJddGBH1YP", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://9125703168", "Volume": 0.832, "RollOffMaxDistance": 284, "RollOffMinDistance": 17}},
+			{"Name": "Lenotimu", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://139685206535254", "Volume": 0.823, "RollOffMaxDistance": 243, "RollOffMinDistance": 5, "PlaybackSpeed": 0.802}},
+			{"Name": "JRSQYPYc", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://135328073601357", "Volume": 0.423, "RollOffMaxDistance": 113, "RollOffMinDistance": 14, "RollOffMode": "InverseTapered", "Looped": true}},
+			{"Name": " dragon - BOSS", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://109671418379503", "Volume": 0.243, "RollOffMaxDistance": 148, "RollOffMinDistance": 11, "RollOffMode": "Inverse"}},
+			{"Name": "jVkbrkoU", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://9125869138", "Volume": 0.142, "RollOffMaxDistance": 110, "RollOffMinDistance": 6}, "Children": [{"Name": "ReverbSoundEffect", "ClassName": "ReverbSoundEffect", "Properties": {"DecayTime": 0.834}}]},
+			{"Name": "rb7orml23YZBWN", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://122511104023124", "Volume": 0.996, "RollOffMaxDistance": 56, "RollOffMinDistance": 8}},
+			{"Name": "6CVLu78trnowg", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://109598434966968", "Volume": 0.23, "RollOffMaxDistance": 257, "RollOffMinDistance": 19, "Looped": true}}
 		] }
 	]
 }

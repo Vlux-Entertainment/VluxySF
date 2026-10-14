@@ -2,11 +2,11 @@
 	"ClassName": "Configuration",
 	"Children": [
 		{ "Name": "Folder1", "ClassName": "Folder", "Children": [
-			{"Name": "StressSound9995", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://135328073601357", "Volume": 0.764, "RollOffMaxDistance": 193, "RollOffMinDistance": 20, "RollOffMode": "Linear"}, "Children": [{"Name": "EchoSoundEffect", "ClassName": "EchoSoundEffect", "Properties": {"Delay": 0.25, "Feedback": 0.47}}]},
-			{"Name": "StressSound9996", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://117224450347034", "Volume": 0.915, "RollOffMaxDistance": 124, "RollOffMinDistance": 8, "RollOffMode": "Linear"}},
-			{"Name": "StressSound9997", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://138379619096943", "Volume": 0.123, "RollOffMaxDistance": 295, "RollOffMinDistance": 17, "PlaybackSpeed": 0.857}, "Children": [{"Name": "ReverbSoundEffect", "ClassName": "ReverbSoundEffect", "Properties": {"DecayTime": 2.162}}]},
-			{"Name": "StressSound9998", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://5507830073", "Volume": 0.799, "RollOffMaxDistance": 155, "RollOffMinDistance": 17, "RollOffMode": "Inverse", "Looped": true}, "Children": [{"Name": "EchoSoundEffect", "ClassName": "EchoSoundEffect", "Properties": {"Delay": 0.52, "Feedback": 0.672}}]},
-			{"Name": "StressSound9999", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://97094698098374", "Volume": 0.973, "RollOffMaxDistance": 118, "RollOffMinDistance": 7, "PlaybackSpeed": 1.175, "RollOffMode": "Linear"}}
+			{"Name": "UI_Wind_Pickup", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://135328073601357", "Volume": 0.764, "RollOffMaxDistance": 193, "RollOffMinDistance": 20, "RollOffMode": "Linear"}, "Children": [{"Name": "EchoSoundEffect", "ClassName": "EchoSoundEffect", "Properties": {"Delay": 0.25, "Feedback": 0.47}}]},
+			{"Name": "JmTr6Z8uXrtU9", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://117224450347034", "Volume": 0.915, "RollOffMaxDistance": 124, "RollOffMinDistance": 8, "RollOffMode": "Linear"}},
+			{"Name": "lNeS6xHBs4fx", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://138379619096943", "Volume": 0.123, "RollOffMaxDistance": 295, "RollOffMinDistance": 17, "PlaybackSpeed": 0.857}, "Children": [{"Name": "ReverbSoundEffect", "ClassName": "ReverbSoundEffect", "Properties": {"DecayTime": 2.162}}]},
+			{"Name": "zloSb0Vtdrw", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://5507830073", "Volume": 0.799, "RollOffMaxDistance": 155, "RollOffMinDistance": 17, "RollOffMode": "Inverse", "Looped": true}, "Children": [{"Name": "EchoSoundEffect", "ClassName": "EchoSoundEffect", "Properties": {"Delay": 0.52, "Feedback": 0.672}}]},
+			{"Name": "VPGgTX0e1ErtD", "ClassName": "Sound", "Properties": {"SoundId": "rbxassetid://97094698098374", "Volume": 0.973, "RollOffMaxDistance": 118, "RollOffMinDistance": 7, "PlaybackSpeed": 1.175, "RollOffMode": "Linear"}}
 		] }
 	]
 }
