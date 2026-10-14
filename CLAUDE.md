@@ -25,7 +25,7 @@ type were removed in 2.0; sound names are plain strings.
 
 | Task | Command |
 |---|---|
-| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `test-place.project.json` (lib + `Tests/` scripts and sound fixture in one place); an agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve test-place.project.json` |
+| Test place sync | Rojo-Hub (VS Code panel) with its project file set to `stress-place.project.json`, the default: lib, `Tests/` scripts, the sound fixture and the 10k stress fixture in one place, so every Play runs the tests and the benchmarks. `test-place.project.json` is the same without the stress groups, for a quick run (switching needs the project stopped first). An agent calls Rojo-Hub's `serve_here` from its worktree before checking in Studio. Without Rojo-Hub, `rojo serve stress-place.project.json` |
 | Package-only build | `rojo build default.project.json` |
 | Preview what Wally would publish | `wally package --list --output vluxysf.tar.gz` (prints the file list, writes nothing) |
 | Publish | `wally publish` (bump `version` in `wally.toml` first) |
@@ -51,8 +51,8 @@ failed case. `Tests/` mirrors where each file lands in the place:
   init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
 - `Stress/` + `stress-place.project.json` — the fixed stress fixture for comparable benchmarks: 9,999 sounds
   (8,000 unique public asset ids, 1,999 variants reusing ids with other properties, ~20% with an effect) in 11
-  SoundGroups of 5000, 2500, ... 5, synced into `TEST_SOUNDS`. Switch Rojo-Hub's project file to
-  `stress-place.project.json` for a stress run and back to `test-place.project.json` after. The files come from
+  SoundGroups of 5000, 2500, ... 5, synced into `TEST_SOUNDS` by the default `stress-place.project.json`
+  (`test-place.project.json` leaves them out). A full Play takes about a minute on the client. The files come from
   `Tests/Stress/generate.py` (seeded, byte-identical every run); regenerate only to change the fixture on purpose.
 - `ServerScriptService/StressFixture.luau` — `Create(folders, sounds)` / `Remove()` from the command bar
   in edit mode; with 1000+ sounds compiled, both test scripts also run
