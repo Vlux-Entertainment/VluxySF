@@ -8,7 +8,7 @@
 
 	The test scripts run it on both sides whenever the schema has 1000 sounds or more (see StressFixture). Do not run
 	it from the command bar: in Studio the command bar has its own module cache, so its copy of the library is never
-	initialized and WaitForSchema yields forever.
+	initialized and WaitUntilReady yields forever.
 ]]
 local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

@@ -1,6 +1,38 @@
 # Changelog
 
-## 2.1.0
+## 3.0.0
+
+3.0 renames several functions and changes a few parameters; the [migration guide](docs/Migration.md) lists every old name next to its replacement. It also changes how the library behaves when something goes wrong: nothing called at runtime throws anymore.
+
+### Breaking
+
+- `FetchStrict` is `TryFetch`. `FetchPlayOnce` is `OneShot(name, parent?, preset?)`; its `waitOnLoad` argument is gone, since Roblox already holds a played sound until its audio loads and starts it from the beginning.
+- `Startup`: `IsInitialized` is `IsReady`, `WaitForSchema` is `WaitUntilReady(timeout?)`, `ConnectForSchema` is `OnReady`, `WaitForPreload` is `WaitUntilPreloaded(timeout?)`. Both waits return `true`, or `false` if the timeout passed.
+- `Preload.Selected` is `Preload.AddAsync`. `Preload.Get` and `Cache.Get` are replaced by `GetNames()`, plus `Preload.Has(name)`; the kept `Sound` instances are internal.
+- `Groups.GetByName(name)` is `Groups.Get(name)`, and the old `Groups.Get()` is `Groups.GetAll()`. `Groups.SetVolumes` takes only the group table; set the main volume with `SetMainVolume`.
+- `Schema.Get` returns `nil` before the library has started.
+- `Jitter.Default` is `Jitter.Uniform`, `Jitter.UnitLog` is `Jitter.Natural`, and `Jitter.Scale` is removed. Jitter values are kept at 0 or more instead of clamped from 0 to 10.
+- The `SoundGroups` and `SoundPresets` doc pages are `Groups` and `Presets`.
+
+### Added
+
+- `Schema.Has(name)`, `Groups.SetVolume(name, volume)`, `Groups.GetMain()`, `Groups.GetVolumes()`, `Groups.GetMainVolume()`.
+- Timeouts on `Startup.WaitUntilReady` and `Startup.WaitUntilPreloaded`.
+
+### Never in the way
+
+- Every function warns once and returns a blank sound, `nil` or an empty result when it is called before the library has started, instead of throwing.
+- `Preload` and `Cache` warn once and do nothing on the server, instead of throwing.
+- `InitServer` and `InitClient` warn when called twice, on the wrong side or with a bad argument, and catch failures while starting so sounds turn off instead of breaking the calling script.
+- A child of `SOUNDS` that is not a Configuration, or a second group with a name already used, is skipped with a warning instead of making `InitServer` throw.
+- A volume that is not a number from 0 to 10 prints a warning and is ignored.
+- `Schema.GetDefinition` no longer warns for an unknown name.
+
+### Changed
+
+- `Fetch` builds preloaded sounds instead of cloning their kept copies, which measured faster; it still clones warmed sounds.
+- `Groups.GetNames` lists groups in the order they appear under `SOUNDS`.
+- On the server, `Startup.IsPreloaded` is `true` and `WaitUntilPreloaded` returns right away once `InitServer` has run. `WaitForPreload` used to wait forever there.
 
 ### Added
 

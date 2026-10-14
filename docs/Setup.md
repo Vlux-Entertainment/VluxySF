@@ -57,11 +57,11 @@ VluxySF.Startup.InitClient() -- Yields until the tagged sounds are preloaded, or
 
 - `InitClient()` or `InitClient(seconds)` yields until the preloads finish or the timeout passes, whichever comes first. If it timed out, a warning is printed and the preloads keep going in the background.
 - `InitClient(0)` does not wait for the preloads at all. No warning is printed. The preloads still run in the background.
-- A negative timeout throws an error.
+- A negative or invalid timeout prints a warning and the default is used.
 
-Either way, the schema is ready as soon as it is received, before the preload wait. Other scripts waiting with `WaitForSchema` resume at that point, even while `InitClient` is still waiting for the preloads. Fetching a sound that is still preloading works; the engine finishes loading it when it plays.
+Either way, the library is ready as soon as the schema is received, before the preload wait. Other scripts waiting with `WaitUntilReady` resume at that point, even while `InitClient` is still waiting for the preloads. Fetching a sound that is still preloading works; Roblox plays it as soon as its audio arrives.
 
-When you do not wait, `Startup.IsPreloaded()` tells you whether the tagged sounds have finished loading, and `Startup.WaitForPreload()` yields until they have:
+When you do not wait, `Startup.IsPreloaded()` tells you whether the tagged sounds have finished loading, and `Startup.WaitUntilPreloaded()` yields until they have:
 
 ```lua
 VluxySF.Startup.InitClient(0) -- Does not wait for the preloads.
@@ -70,43 +70,55 @@ VluxySF.Startup.InitClient(0) -- Does not wait for the preloads.
 
 print(VluxySF.Startup.IsPreloaded()) -- true or false
 
-VluxySF.Startup.WaitForPreload() -- Yields until the tagged sounds are loaded.
+VluxySF.Startup.WaitUntilPreloaded() -- Yields until the tagged sounds are loaded.
 ```
 
-Both functions are client only. `WaitForPreload` returns right away if the preloads are already done.
+`WaitUntilPreloaded` returns right away if the preloads are already done. It also takes an optional timeout and returns `false` if the timeout passed first. On the server, which preloads nothing, both report the preloads as done once `InitServer` has run.
 
 :::danger
-Call `InitServer` once on the server and `InitClient` once on each client. Calling either one twice throws an error.
+Call `InitServer` once on the server and `InitClient` once on each client. A second call prints a warning and is ignored.
+:::
+
+:::info
+Starting never breaks the script that calls it. If something goes wrong, for example `InitServer` is given something that is not your `SOUNDS` Configuration, a warning explains it and sounds stay off: fetches return blank sounds or `nil`, and nothing else in the library errors. A `SOUNDS` child that is not a Configuration, or a second group with a name already used, is skipped with a warning and the rest still works.
 :::
 
 ---
 
 ## 3. Use it from other scripts
 
-Most functions in the library throw an error when they are used before the schema is ready. Any script that is not the one that started the library should wait for the schema first:
+Functions used before the library is ready do not error, but they do nothing useful: each one warns once and returns a blank sound, `nil` or an empty result. Any script that is not the one that started the library should wait for it first:
 
 ```lua
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 
-VluxySF.Startup.WaitForSchema() -- Yields until the schema is ready.
+VluxySF.Startup.WaitUntilReady() -- Yields until the library is ready.
 
 -- The schema can be used from here on.
 ```
 
-If you do not want your script to yield, use `ConnectForSchema`. It runs the callback once the schema is ready, or right away in a new thread if it already is. It returns a function that cancels the callback if it has not run yet:
+`WaitUntilReady` takes an optional timeout in seconds and returns `false` if it passed first, so a script never hangs forever if the server failed to start:
 
 ```lua
-local cancel = VluxySF.Startup.ConnectForSchema(function()
-	VluxySF.FetchPlayOnce("LoFiBeat1")
+if not VluxySF.Startup.WaitUntilReady(15) then
+	warn("Sounds are not available")
+end
+```
+
+If you do not want your script to yield, use `OnReady`. It runs the callback once the library is ready, or right away in a new thread if it already is. It returns a function that cancels the callback if it has not run yet:
+
+```lua
+local cancel = VluxySF.Startup.OnReady(function()
+	VluxySF.OneShot("LoFiBeat1")
 end)
 
 -- This line runs right away.
 ```
 
 :::tip
-If you are certain your code runs after the schema is loaded, you do not need to wait at all. `VluxySF.Startup.IsInitialized()` tells you whether it is ready.
+If you are certain your code runs after the schema is loaded, you do not need to wait at all. `VluxySF.Startup.IsReady()` tells you whether it is ready.
 :::
 
 See [Startup](/api/Startup) for every function on this page.
@@ -170,7 +182,7 @@ local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 local MyModule = {}
 
 function MyModule.Start()
-	-- The schema can be used here, without WaitForSchema.
+	-- The schema can be used here, without WaitUntilReady.
 end
 
 return MyModule
@@ -179,7 +191,7 @@ return MyModule
 :::note
 This only works if your loader finishes every `Init` before it runs any `Start`. Sub modules can use the schema too, as long as they run on `Start` or after.
 
-If your loader does not want `Init` to yield, call `InitClient(0)` there instead and use `WaitForPreload` later where the preloaded sounds matter.
+If your loader does not want `Init` to yield, call `InitClient(0)` there instead and use `WaitUntilPreloaded` later where the preloaded sounds matter.
 :::
 
 ## Next step

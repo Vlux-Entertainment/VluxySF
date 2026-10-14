@@ -33,7 +33,7 @@ SOUNDS⚙️               ← The base Configuration
 
 There are only three rules:
 
-1. **Every direct child of `SOUNDS` is a `Configuration` with a unique name.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS`, or two groups with the same name, makes `InitServer` throw an error.
+1. **Every direct child of `SOUNDS` is a `Configuration` with a unique name.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS`, or a second group with a name already used, is skipped by `InitServer` with a warning, along with everything inside it.
 2. **Every `Sound` goes inside one of those group Configurations.** It is assigned to that `SoundGroup` automatically.
 3. **Every `Sound` has a unique name.** The name is the key you fetch it with, like `VluxySF.Fetch("explosion")`. If two sounds share a name, a warning is printed on the server and only the first one is kept.
 
@@ -109,14 +109,14 @@ VluxySF.Startup.InitClient(preloadTimeout)
 -- Reaches this line once the sounds are preloaded or the timeout is reached.
 ```
 
-Pass `0` to not wait at all. No warning is printed. Check on the preloads later with `Startup.IsPreloaded()` or `Startup.WaitForPreload()`.
+Pass `0` to not wait at all. No warning is printed. Check on the preloads later with `Startup.IsPreloaded()` or `Startup.WaitUntilPreloaded()`.
 
 ```lua
 VluxySF.Startup.InitClient(0)
 
 -- Do other startup work here.
 
-VluxySF.Startup.WaitForPreload()
+VluxySF.Startup.WaitUntilPreloaded()
 ```
 
 See [Startup](/api/Startup) for the full reference.

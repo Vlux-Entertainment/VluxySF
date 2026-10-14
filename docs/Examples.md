@@ -13,7 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 
-VluxySF.Startup.WaitForSchema() -- Wait until the schema is ready.
+VluxySF.Startup.WaitUntilReady() -- Wait until the schema is ready.
 ```
 
 :::note
@@ -38,12 +38,12 @@ sound:Play()
 
 If the name is not in the schema, a warning appears and a blank `Sound` named `VluxySF_Blank_Sound` is returned instead, so your code keeps running.
 
-### FetchStrict
+### TryFetch
 
-Use `FetchStrict` if you would rather get `nil` than a blank `Sound` when the name is not in the schema. It still prints a warning.
+Use `TryFetch` if you would rather get `nil` than a blank `Sound` when the name is not in the schema, for example when the name is built at runtime. It still prints a warning. To check a name without a warning, use `VluxySF.Schema.Has(name)`.
 
 ```lua
-local sound = VluxySF.FetchStrict("LoFiBeat1") -- Can return nil.
+local sound = VluxySF.TryFetch("LoFiBeat1") -- Can return nil.
 
 if sound then
 	-- Do stuff here / adjust properties.
@@ -52,29 +52,25 @@ if sound then
 end
 ```
 
-### FetchPlayOnce
+### OneShot
 
-If you just need a one shot, `FetchPlayOnce` fetches the sound, plays it once, and destroys it when it ends. Looping is turned off. If the name is not in the schema, it warns and plays nothing.
+If you just need a one-shot, `OneShot` fetches the sound, plays it once, and destroys it when it ends. Looping is turned off. If the name is not in the schema, it warns and plays nothing.
 
 ```lua
-VluxySF.FetchPlayOnce("LoFiBeat1")
+VluxySF.OneShot("LoFiBeat1")
 ```
 
 It returns a cleanup function that you can call to stop and destroy the sound early:
 
 ```lua
-local stopSound = VluxySF.FetchPlayOnce("LongExplosion1")
+local stopSound = VluxySF.OneShot("LongExplosion1")
 
 task.wait(1)
 
 stopSound()
 ```
 
-The fourth argument waits for the sound to load before playing it. The wait happens in the background, so your script does not yield.
-
-```lua
-VluxySF.FetchPlayOnce("LongExplosion1", nil, nil, true) -- Plays once the asset is loaded.
-```
+You never have to wait for a one-shot's audio to load: Roblox holds the sound until its audio arrives, then plays it from the beginning. A sound whose audio never loads (deleted, moderated or private) is destroyed after 10 seconds with a warning, so nothing is left behind.
 
 ### Choosing a parent
 
@@ -83,7 +79,7 @@ The second argument of every fetch function is the parent. Give it a `BasePart` 
 ```lua
 local door = workspace.Door
 
-VluxySF.FetchPlayOnce("DoorCreak1", door) -- Plays from the door.
+VluxySF.OneShot("DoorCreak1", door) -- Plays from the door.
 ```
 
 :::info
@@ -106,9 +102,9 @@ local myPreset = presets.Combine(
 	presets.Parent(workspace)
 )
 
-VluxySF.FetchPlayOnce("RandomSound1", nil, myPreset)
+VluxySF.OneShot("RandomSound1", nil, myPreset)
 task.delay(0.1, function()
-	VluxySF.FetchPlayOnce("RandomSound1", nil, myPreset)
+	VluxySF.OneShot("RandomSound1", nil, myPreset)
 end)
 
 -- This sound should use the same preset, but with a different parent. The parent argument wins over the preset.
@@ -118,7 +114,7 @@ local sound = VluxySF.Fetch("RandomSound1", workspace.CurrentCamera, myPreset)
 local otherSound = VluxySF.Fetch("OtherRandomSound1", nil, myPreset)
 ```
 
-The built in presets are `Combine`, `Parent`, `Volume`, `PlaybackSpeed`, `NaturalVolumeJitter`, `NaturalPlaybackJitter`, `RandomVolumeJitter` and `RandomPlaybackJitter`. See the [SoundPresets API](/api/SoundPresets) for each one.
+The built in presets are `Combine`, `Parent`, `Volume`, `PlaybackSpeed`, `NaturalVolumeJitter`, `NaturalPlaybackJitter`, `RandomVolumeJitter` and `RandomPlaybackJitter`. See the [Presets API](/api/Presets) for each one.
 
 ### Making your own presets
 
@@ -150,10 +146,10 @@ You can keep your own presets in a module and use them just like the built in on
 
 ### Jitter
 
-The jitter presets above are built from `VluxySF.Jitter`, which you can also use on its own. A jitter is a function that gives you a slightly different number each time you call it. Every jitter value is clamped from 0 to 10.
+The jitter presets above are built from `VluxySF.Jitter`, which you can also use on its own. A jitter is a function that gives you a slightly different number each time you call it. Values never go below 0.
 
 ```lua
-local pitchJitter = VluxySF.Jitter.UnitLog(1, 0.15) -- Stays close to 1.
+local pitchJitter = VluxySF.Jitter.Natural(1, 0.15) -- Stays close to 1.
 
 local function playFootstep()
 	local sound = VluxySF.Fetch("Footstep1")
@@ -162,7 +158,7 @@ local function playFootstep()
 end
 ```
 
-`Jitter.UnitLog` favors values near the center, which makes repeated sounds like footsteps feel more natural. `Jitter.Default` spreads evenly around a center, `Jitter.Scale` does the same around 1, and `Jitter.Range` picks a number between a minimum and a maximum. See the [Jitter API](/api/Jitter) for details.
+`Jitter.Natural` favors values near the center, which makes repeated sounds like footsteps feel more natural. `Jitter.Uniform` spreads evenly around a center, and `Jitter.Range` picks a number between a minimum and a maximum. See the [Jitter API](/api/Jitter) for details.
 
 ---
 
@@ -170,73 +166,82 @@ end
 
 Every group Configuration in your `SOUNDS` Configuration becomes a `SoundGroup`, and all of them sit under one main `SoundGroup` named `SOUNDS` in `SoundService`. That gives you a main volume and a volume for each group.
 
-Volumes can be set on the server or the client. The client is recommended for player settings.
+Set volumes on the client for player settings: a change there affects only that player. A change made on the server affects every player.
 
 ```lua
-local mainVolume = 0.8
-local groupVolumes = {
+-- One slider for one group.
+VluxySF.Groups.SetVolume("MUSIC", 0.55)
+
+-- The main volume scales every group.
+VluxySF.Groups.SetMainVolume(0.8)
+
+-- Several groups at once, for example when loading saved settings.
+VluxySF.Groups.SetVolumes({
 	GAME = 0.7,
 	MUSIC = 0.55,
 	SFX = 0.64,
-}
-
-local function onSettingsChanged()
-	-- Do stuff here if you want, like clamping your values. A SoundGroup volume can go from 0 to 10.
-
-	VluxySF.Groups.SetVolumes(mainVolume, groupVolumes)
-end
-
-onSettingsChanged()
+})
 ```
 
-:::tip
-Call this whenever a slider or setting changes to update the volumes live.
-:::
+To save a player's settings, read them back with `GetVolumes` and `GetMainVolume`:
+
+```lua
+local saved = {
+	Main = VluxySF.Groups.GetMainVolume(),
+	Groups = VluxySF.Groups.GetVolumes(),
+}
+
+-- Later, after loading them:
+VluxySF.Groups.SetMainVolume(saved.Main)
+VluxySF.Groups.SetVolumes(saved.Groups)
+```
 
 :::note
-- The main volume is optional. Pass `nil` to leave it as it is.
-- You only need to list the groups you want to change. A group name that does not exist prints a warning and is skipped.
-- There are more functions for working with your SoundGroups. See the [SoundGroups API](/api/SoundGroups).
+- A volume has to be a number from 0 to 10. Anything else prints a warning and leaves the volume as it was.
+- A group name that does not exist prints a warning and is skipped.
+- `Groups.Get(name)`, `GetAll()`, `GetMain()` and `GetNames()` give you the `SoundGroup` instances themselves. See the [Groups API](/api/Groups).
 :::
 
 ---
 
 ## Keeping sounds ready
 
-A sound that is fetched for the first time has to be created and loaded, which can take a moment. On the client, there are two ways to have a sound ready before you need it. Both keep a template of the sound, and `Fetch` clones the template instead of building a new one.
+On the client there are two separate tools for sounds that matter, and they solve different problems.
 
-### Preload
+### Preload: have the audio downloaded
 
-A preloaded sound stays loaded for the whole session. The easiest way is to [tag it in Studio](./FolderSetup.md#preloading-sounds), but you can also preload by name at runtime:
+A sound's audio has to download before it can be heard. Preloading downloads it ahead of time and keeps it loaded for the whole session, so the sound plays without a delay the first time. The easiest way is to [tag it in Studio](./FolderSetup.md#preloading-sounds), but you can also preload by name at runtime:
 
 ```lua
-VluxySF.Preload.Selected("BossTheme1", "BossRoar1") -- Yields until they are loaded.
+VluxySF.Preload.AddAsync("BossTheme1", "BossRoar1") -- Yields until they are loaded.
+
+print(VluxySF.Preload.Has("BossRoar1")) -- true
 ```
 
-Sounds tagged in Studio are preloaded by `Startup.InitClient`. If you started the client with `InitClient(0)`, check on them with `Startup.IsPreloaded()` or wait with `Startup.WaitForPreload()`:
+Sounds tagged in Studio are preloaded by `Startup.InitClient`. If you started the client with `InitClient(0)`, check on them with `Startup.IsPreloaded()` or wait with `Startup.WaitUntilPreloaded()`:
 
 ```lua
-VluxySF.Startup.WaitForPreload() -- Yields until the tagged sounds are loaded.
+VluxySF.Startup.WaitUntilPreloaded() -- Yields until the tagged sounds are loaded.
 ```
 
-### Warm and chill
+### Warm and chill: keep a built sound ready
 
-Warming keeps a built sound around only for as long as you need it. Warm it before the moment it matters, and chill it afterwards to let it go.
+Warming builds a sound once, effects included, and keeps it so `Fetch` clones it instead of building it again. Warm it before the part of the game where it matters, and chill it afterwards to let it go.
 
 ```lua
-VluxySF.Cache.Warm("BossTheme1", "BossRoar1") -- Built once, so fetches clone instead of build.
+VluxySF.Cache.Warm("BossTheme1", "BossRoar1")
 
 -- Later, during the boss fight.
-VluxySF.FetchPlayOnce("BossRoar1")
+VluxySF.OneShot("BossRoar1")
 
 -- The fight is over, so these sounds are not needed anymore.
 VluxySF.Cache.Chill("BossTheme1", "BossRoar1")
 ```
 
 :::note
-- `Preload` and `Cache` only work on the client.
-- Warming does not download the sound's asset. The engine loads it the first time a `Sound` with that id plays, or when `Preload` is used.
-- Chilling destroys the template. Sounds you already fetched are not affected.
+- `Preload` and `Cache` only work on the client. On the server they warn once and do nothing.
+- Keeping a warmed `Sound` also makes Roblox start downloading its audio, but warming does not wait for it. Use `Preload` when the audio has to be ready.
+- Chilling destroys the kept copy. Sounds you already fetched are not affected.
 :::
 
 See [Advice](./Advice.md#memory-optimizations) for when to use each one.
@@ -249,8 +254,9 @@ You can read what the library knows about your sounds at any time.
 
 ```lua
 print(VluxySF.Schema.GetNames()) -- Every sound name.
+print(VluxySF.Schema.Has("LoFiBeat1")) -- Whether a sound exists, without a warning.
 print(VluxySF.Schema.GetDefinition("LoFiBeat1")) -- The stored properties and effects of one sound.
-print(VluxySF.Groups.GetNames()) -- Every SoundGroup name.
+print(VluxySF.Groups.GetNames()) -- Every SoundGroup name, in the order they appear under SOUNDS.
 ```
 
-`GetDefinition` decodes one definition. `Schema.Get()` and `Schema.GetDefinitions()` decode every definition and freeze the table, so prefer `GetDefinition` when you only need one.
+`GetDefinition` decodes one definition. `Schema.Get()` and `Schema.GetDefinitions()` decode every definition and freeze the table, so prefer `GetDefinition` or `Has` when you only need one.

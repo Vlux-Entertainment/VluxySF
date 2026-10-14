@@ -20,8 +20,11 @@ local starting = false
 	Starts the library and tells you when it is ready.
 
 	The server compiles the `SOUNDS` Configuration into the schema once. Every client receives that schema when it
-	joins. Until a side has started, most of the library errors when used (the fetch functions warn and return
-nothing instead), so other scripts should wait with `WaitUntilReady` or `OnReady`.
+	joins. Until a side has started, the rest of the library warns once per function and returns blank sounds, `nil`
+	or empty results, so other scripts should wait with `WaitUntilReady` or `OnReady`.
+
+	Nothing here throws into your game code: calling an `Init` function twice, on the wrong side or with a bad
+	argument prints a warning, and a failure while starting turns sounds off with a warning.
 ]=]
 local Startup = {}
 

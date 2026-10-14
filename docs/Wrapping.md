@@ -17,11 +17,11 @@ This page sets that up so it is written once and fully typed everywhere.
 
 ## How it works
 
-`WithWrapper` takes a function that turns a `Sound` into your class, and returns a copy of the library whose `Fetch` and `FetchStrict` return your class.
+`WithWrapper` takes a function that turns a `Sound` into your class, and returns a copy of the library whose `Fetch` and `TryFetch` return your class.
 
 - **It is fully typed.** Whatever type your function returns is what `Fetch` returns, so autocomplete and `--!strict` see your class's methods. No casts.
 - **It does not change `VluxySF`.** Scripts and packages that require `VluxySF` directly still get plain `Sound`s. Only code that uses the wrapped copy gets your class.
-- **Everything else is the same.** `Startup`, `Schema`, `Groups`, `Preload`, `Cache`, `Conversions`, `Presets`, `Jitter` and `FetchPlayOnce` are the library's own.
+- **Everything else is the same.** `Startup`, `Schema`, `Groups`, `Preload`, `Cache`, `Conversions`, `Presets`, `Jitter` and `OneShot` are the library's own.
 
 ---
 
@@ -138,7 +138,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 
-Sounds.Startup.WaitForSchema()
+Sounds.Startup.WaitUntilReady()
 
 local music = Sounds.Fetch("LoFiBeat1", workspace)
 music:SetLooped(true):FadeIn(2)
@@ -153,8 +153,8 @@ See [Initialization](./Setup.md) for where `InitServer` and `InitClient` go.
 | | Wrapped copy |
 |---|---|
 | `Fetch` | Returns your class. An unknown name still warns, and the blank sound it returns is wrapped too. |
-| `FetchStrict` | Returns your class, or `nil` for an unknown name without calling your function. |
-| `FetchPlayOnce` | Unchanged. It returns a cleanup function, not a sound. |
+| `TryFetch` | Returns your class, or `nil` for an unknown name without calling your function. |
+| `OneShot` | Unchanged. It returns a cleanup function, not a sound. |
 | Presets | Run on the `Sound` before it is wrapped, so existing presets keep working. |
 | Parent | Set before wrapping, the same as an unwrapped fetch. |
 | Everything else | The library's own `Startup`, `Schema`, `Groups`, `Preload`, `Cache`, `Conversions`, `Presets` and `Jitter`. |

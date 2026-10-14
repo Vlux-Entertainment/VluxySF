@@ -24,6 +24,7 @@ sound:Play()
 - **Low memory use.** Sounds are compiled into a compact schema and created only when you ask for them.
 - **Preloading and warming.** Keep the sounds that matter ready to play without a delay.
 - **Presets and jitter.** Reusable functions that set up a sound, with natural volume and pitch variation.
+- **Stays out of your way.** Mistakes like a misspelled name, a bad volume or deleted audio print a warning; the library never throws into your game code.
 
 ## Installation
 
@@ -31,7 +32,7 @@ Add VluxySF to your `wally.toml` and run `wally install`:
 
 ```toml
 [dependencies]
-VluxySF = "greenviper126/vluxysf@^2"
+VluxySF = "greenviper126/vluxysf@^3"
 ```
 
 ## Quick start
@@ -58,7 +59,7 @@ local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
 
 VluxySF.Startup.InitClient()
 
-VluxySF.FetchPlayOnce("LoFiBeat1")
+VluxySF.OneShot("LoFiBeat1")
 ```
 
 `InitClient` yields until the sounds tagged for preloading are ready, or 5 seconds pass.

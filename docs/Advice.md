@@ -28,16 +28,18 @@ The practical limit is naming. There is no hierarchy when fetching sounds; it is
 
 - **Keep sounds out of game logic.** Game code should not wait on a sound or branch on one. Fetch and play sounds from the code that already knows what happened.
 
-- **Gate code that runs before startup.** Most of the API errors if it is used before `Startup.InitServer` or `Startup.InitClient` has run. Scripts that may run earlier should call `VluxySF.Startup.WaitForSchema()` or `VluxySF.Startup.ConnectForSchema(callback)` first.
+- **Gate code that runs before startup.** Nothing in the library errors if it is used before `Startup.InitServer` or `Startup.InitClient` has run, but it does nothing useful either: it warns once and returns a blank sound, `nil` or an empty result. Scripts that may run earlier should call `VluxySF.Startup.WaitUntilReady()` or `VluxySF.Startup.OnReady(callback)` first.
 
-- **Start the client fast with `InitClient(0)`.** By default, `Startup.InitClient` yields until the tagged sounds preload or 5 seconds pass. If your game wants the fastest possible client start, pass `0`: the call returns right away, the preloads still run in the background, and no timeout warning is printed. Check on them later with `Startup.IsPreloaded()` or `Startup.WaitForPreload()`.
+- **The library stays out of your game's way.** When something goes wrong, such as a misspelled sound name, a bad volume, a sound whose audio was deleted or a `SOUNDS` setup mistake, it prints a warning starting with `[VluxySF]` and carries on. It does not throw into your game code. Watch the output for those warnings while testing.
+
+- **Start the client fast with `InitClient(0)`.** By default, `Startup.InitClient` yields until the tagged sounds preload or 5 seconds pass. If your game wants the fastest possible client start, pass `0`: the call returns right away, the preloads still run in the background, and no timeout warning is printed. Check on them later with `Startup.IsPreloaded()` or `Startup.WaitUntilPreloaded()`.
 
   ```lua
   VluxySF.Startup.InitClient(0)
 
   -- Other startup work runs while the preloads download.
 
-  VluxySF.Startup.WaitForPreload()
+  VluxySF.Startup.WaitUntilPreloaded()
   ```
 
 ---
@@ -61,7 +63,7 @@ This library makes preloading easy, as you just need to tag a sound with `VluxyS
 There is no way to undo preloading a sound.
 :::
 
-If a sound only has to be ready for a while, like the sounds of one map, [warm it](./Examples.md#warm-and-chill) instead. You can chill it again once you are done.
+If a sound only has to be ready for a while, like the sounds of one map, [warm it](./Examples.md#warm-and-chill-keep-a-built-sound-ready) instead. You can chill it again once you are done.
 
 ### Lazy loading
 
@@ -69,7 +71,7 @@ Lazy loading means creating a sound only when it is needed. Call `VluxySF.Fetch`
 
 ### Destroying your sounds
 
-If you want to save more memory, destroy the sound made by VluxySF once you're done playing it. `VluxySF.FetchPlayOnce` does this for you automatically.
+If you want to save more memory, destroy the sound made by VluxySF once you're done playing it. `VluxySF.OneShot` does this for you automatically.
 
 :::note
 Lazy loading and destroying only save memory if the `SoundId` was not preloaded and no other sound with the same `SoundId` exists.

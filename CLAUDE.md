@@ -56,9 +56,9 @@ failed case. `Tests/` mirrors where each file lands in the place:
   `Tests/Stress/generate.py` (seeded, byte-identical every run); regenerate only to change the fixture on purpose.
 - `ServerScriptService/StressFixture.luau` — `Create(folders, sounds)` / `Remove()` from the command bar
   in edit mode; with 1000+ sounds compiled, both test scripts also run
-  `ReplicatedStorage/Benchmarks.luau` (codec, build, fetch, clone, wrapper, FetchPlayOnce and base64
+  `ReplicatedStorage/Benchmarks.luau` (codec, build, fetch, clone, wrapper, OneShot and base64
   timings; numbers only, lines over a budget print as SLOW warnings) and print startup timings. Do not call anything that needs
-  `WaitForSchema` from the command bar: it has its own module cache in Studio and never initializes.
+  `WaitUntilReady` from the command bar: it has its own module cache in Studio and never initializes.
 - `ServerScriptService/RealConfigCheck.server.luau` — runs only when a Configuration named `SOUNDS` is
   in ServerStorage next to `TEST_SOUNDS`; compiles it and compares every rebuilt sound and effect
   against the original without touching library state.
@@ -85,8 +85,8 @@ A few cases trigger library warnings on purpose (unknown sound names); those cas
 3. Client calls `VluxySF.Startup.InitClient(timeout?)` once. It waits for the schema attribute to replicate,
    loads the buffer, builds the preload templates, and yields until they are loaded or the timeout
    passes. `0` means do not wait and do not warn. Gate schema-dependent code with
-   `Startup.WaitForSchema()` / `ConnectForSchema()` / `IsInitialized()`; preload status is
-   `IsPreloaded()` / `WaitForPreload()`.
+   `Startup.WaitUntilReady(timeout?)` / `OnReady()` / `IsReady()`; preload status is
+   `IsPreloaded()` / `WaitUntilPreloaded(timeout?)`.
 
 Definitions are decoded out of the buffer lazily, one per `GetDefinition`/`Fetch`, and cached
 frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freeze the table.
@@ -94,7 +94,7 @@ frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freez
 ### Layout
 
 - `lib/init.luau` assembles the public table and re-exports types. Nothing else.
-- `lib/Api/` — one file per documented class: `Fetch` (the three fetch functions, `@within
+- `lib/Api/` — one file per documented class: `Fetch` (`Fetch`, `TryFetch`, `OneShot`, `@within
   VluxySF`), `Startup`, `Schema`, `Groups`, `Preload`, `Cache`, `Conversions`, `Presets`, `Jitter`,
   `Wrapping` (`WithWrapper`, `@within VluxySF`: a frozen copy of the API whose fetches return a
   user wrapper class; the docs guide is `docs/Wrapping.md`).
@@ -135,8 +135,12 @@ frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freez
 ## Gotchas
 
 - **Schema is locked after init.** No sounds or groups can be registered at runtime.
-- Most API errors at call time if used before init (`SchemaStore.AssertInitialized`), and
-  `Preload`/`Cache` are client-only (`SchemaStore.AssertClient`).
+- **Never in the way:** nothing a game calls at runtime may throw. Every API function starts with
+  `SchemaStore.CheckReady(name)` (and `CheckClient(name)` for `Preload`/`Cache`), which warn once
+  per function and return false; the function then returns a blank sound, `nil` or an empty value.
+  `Init*` warn on misuse and pcall their startup work. Keep new API functions to this rule; the
+  only errors left are from the developer's own code (a `WithWrapper` wrap that errors, or
+  `WithWrapper` given a non-function).
 - `wally.toml`'s `exclude` list is what keeps repo-only files (tests, docs, tool configs,
   `CLAUDE.md`) out of the published package. A new top-level file ships unless it is added there.
 - `build/` is the generated docs site. Never edit it by hand.

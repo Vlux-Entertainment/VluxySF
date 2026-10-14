@@ -461,7 +461,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 	--------------------------------------------------------------------------------------------------------------------
 
 	suite.Test("Startup reports the schema as ready", function()
-		ExpectEqual(VluxySF.Startup.IsReady(), true, "IsInitialized")
+		ExpectEqual(VluxySF.Startup.IsReady(), true, "IsReady")
 
 		--Returns right away when the schema is ready.
 		VluxySF.Startup.WaitUntilReady()
@@ -471,7 +471,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 			ran = true
 		end)
 
-		ExpectEqual(ran, true, "ConnectForSchema callback ran")
+		ExpectEqual(ran, true, "OnReady callback ran")
 	end)
 end
 
