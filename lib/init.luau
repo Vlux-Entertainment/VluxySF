@@ -65,8 +65,8 @@ export type Wrapped<T> = Wrapping.Wrapped<T>
 ]=]
 local VluxySF = {
 	Fetch = Fetch.Fetch,
-	FetchStrict = Fetch.FetchStrict,
-	FetchPlayOnce = Fetch.FetchPlayOnce,
+	TryFetch = Fetch.TryFetch,
+	OneShot = Fetch.OneShot,
 	WithWrapper = Wrapping.WithWrapper,
 
 	Startup = Startup,

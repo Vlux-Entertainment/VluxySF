@@ -1,17 +1,19 @@
 --!strict
 --!optimize 2
 
-local Random = Random.new()
+local random = Random.new()
 
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
 	@class Jitter
-	
-	Jitter functions meant for Volume and Pitch properties of sounds. Can be used in other contexts as well.
+
+	Builders for small random variations, meant for the `Volume` and `PlaybackSpeed` of sounds so repeated sounds do not
+	sound identical. Each builder returns a function that gives a new value every time it is called.
 
 	:::info
-	All jitter functions are clamped from 0 to 10.
+	Values never go below 0, since a negative volume or speed means nothing. There is no upper clamp; Roblox clamps the
+	property itself.
 	:::
 ]=]
 local Jitter = {}
@@ -19,116 +21,71 @@ local Jitter = {}
 --[=[
 	@within Jitter
 
-	Standard Jitter function that randomly varies from the center value +- the spread.
+	Spreads values evenly between `center - spread` and `center + spread`.
 
 	```lua
-	local myJitter = Jitter.Default(1, 0.15)
-	
-	local sound1 = ...
-	sound1.PlaybackSpeed = myJitter() -- Sets a random value.
+	local speed = VluxySF.Jitter.Uniform(1, 0.15)
 
-	local sound2 = ...
-	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
+	sound1.PlaybackSpeed = speed() -- a random value from 0.85 to 1.15
+	sound2.PlaybackSpeed = speed() -- another one
 	```
 
-	@param center number -- The central value around which the jitter will occur.
-	@param spread number -- The maximum deviation from the center value.
+	@param center number -- The value the jitter varies around.
+	@param spread number -- The largest distance from the center.
 
-	@return () -> number -- Generates the jitter value when called.
+	@return () -> number -- Gives a new value when called.
 ]=]
-function Jitter.Default(center: number, spread: number): () -> number
+function Jitter.Uniform(center: number, spread: number): () -> number
 	return function()
-		local j = (Random:NextNumber() * 2 - 1) * spread
-
-		return math.clamp(center + j, 0, 10)
+		return math.max(center + (random:NextNumber() * 2 - 1) * spread, 0)
 	end
 end
 
 --[=[
 	@within Jitter
 
-	Essentially just a random number that requires a specified range.
+	Spreads values evenly between `min` and `max`.
 
 	```lua
-	local myJitter = Jitter.Range(0.85, 1.15)
-	
-	local sound1 = ...
-	sound1.PlaybackSpeed = myJitter() -- Sets a random value.
+	local speed = VluxySF.Jitter.Range(0.85, 1.15)
 
-	local sound2 = ...
-	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
+	sound.PlaybackSpeed = speed()
 	```
 
-	@param min number -- The minimum value for the jitter range.
-	@param max number -- The maximum value for the jitter range.
+	@param min number -- The smallest value.
+	@param max number -- The largest value.
 
-	@return () -> number -- Generates the jitter value when called.
+	@return () -> number -- Gives a new value when called.
 ]=]
 function Jitter.Range(min: number, max: number): () -> number
 	return function()
-		local j = Random:NextNumber(min, max)
-
-		return math.clamp(j, 0, 10)
+		return math.max(random:NextNumber(min, max), 0)
 	end
 end
 
 --[=[
 	@within Jitter
 
-	Very similar to `Jitter.Default` but the center value is 1.
+	Like `Uniform`, but values cluster near the center and rarely reach the edges, which sounds more natural for
+	repeated sounds like footsteps.
 
 	```lua
-	local myJitter = Jitter.Scale(0.15)
-	
-	local sound1 = ...
-	sound1.PlaybackSpeed = myJitter() -- Sets a random value.
+	local volume = VluxySF.Jitter.Natural(0.8, 0.1)
 
-	local sound2 = ...
-	sound2.PlaybackSpeed = myJitter() -- Sets another random value.
+	footstep.Volume = volume()
 	```
 
-	@param spread number -- The maximum deviation from the center value.
+	@param center number -- The value the jitter varies around.
+	@param spread number -- The largest distance from the center.
 
-	@return () -> number -- Generates the jitter value when called.
+	@return () -> number -- Gives a new value when called.
 ]=]
-function Jitter.Scale(spread: number): () -> number
+function Jitter.Natural(center: number, spread: number): () -> number
 	return function()
-		local j = (Random:NextNumber() * 2 - 1) * spread
+		local offset = (random:NextNumber() * 2 - 1) * spread
+		local shaped = offset / (1 + math.abs(offset) * 3)
 
-		return math.clamp(1 + j, 0, 10)
-	end
-end
-
---[=[
-	@within Jitter
-
-	Produces jitter values with a shaped distribution that favors the center value.
-
-	```lua
-	local myJitter = Jitter.UnitLog(1, 0.15)
-	
-	local sound1 = ...
-	sound1.PlaybackSpeed = myJitter() -- Sets a random shaped value.
-
-	local sound2 = ...
-	sound2.PlaybackSpeed = myJitter() -- Sets another random shaped value.
-	```
-
-	:::tip
-		This can be used to make more natural repetitious sounds like footsteps.
-	:::
-
-	@param center number -- The central value around which the jitter will occur.
-	@param spread number -- The maximum deviation from the center value.
-
-	@return () -> number -- Generates the jitter value when called.
-]=]
-function Jitter.UnitLog(center: number, spread: number): () -> number
-	return function()
-		local r = (Random:NextNumber() * 2 - 1) * spread
-		local shaped = r / (1 + math.abs(r) * 3)
-
-		return math.clamp(center + shaped, 0, 10)
+		return math.max(center + shaped, 0)
 	end
 end
 

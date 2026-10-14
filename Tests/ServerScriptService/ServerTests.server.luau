@@ -9,7 +9,6 @@ local TestHarness = require(ReplicatedStorage.TestHarness)
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
 local ExpectEqual = TestHarness.ExpectEqual
-local ExpectError = TestHarness.ExpectError
 
 local suite = TestHarness.new("Server")
 
@@ -21,31 +20,37 @@ local soundConfig = ServerStorage:FindFirstChild("TEST_SOUNDS") :: Configuration
 ------------------------------------------------------------------------------------------------------------------------
 
 local connectedBeforeInit = false
-VluxySF.Startup.ConnectForSchema(function()
+VluxySF.Startup.OnReady(function()
 	connectedBeforeInit = true
 end)
 
 local cancelledRan = false
-local cancelConnection = VluxySF.Startup.ConnectForSchema(function()
+local cancelConnection = VluxySF.Startup.OnReady(function()
 	cancelledRan = true
 end)
 cancelConnection()
 
 --A game callback that errors must not stop InitServer or the other callbacks.
-VluxySF.Startup.ConnectForSchema(function()
-	error("[VluxySF Tests] Server: this error is expected, from a ConnectForSchema callback that errors on purpose.")
+VluxySF.Startup.OnReady(function()
+	error("[VluxySF Tests] Server: this error is expected, from an OnReady callback that errors on purpose.")
 end)
 
-suite.Test("The schema is not ready before InitServer", function()
-	ExpectEqual(VluxySF.Startup.IsInitialized(), false, "IsInitialized")
-	ExpectEqual(connectedBeforeInit, false, "ConnectForSchema callback ran")
+suite.Test("Nothing throws before InitServer (warnings expected)", function()
+	ExpectEqual(VluxySF.Startup.IsReady(), false, "IsReady")
+	ExpectEqual(VluxySF.Startup.WaitUntilReady(0.05), false, "WaitUntilReady times out")
+	ExpectEqual(connectedBeforeInit, false, "OnReady callback ran")
 
-	ExpectError(function()
-		VluxySF.Fetch("Click")
-	end, "Fetch before init")
-	ExpectError(function()
-		VluxySF.Schema.Get()
-	end, "Schema.Get before init")
+	local blank = VluxySF.Fetch("Click")
+	ExpectEqual(blank.Name, "VluxySF_Blank_Sound", "Fetch gives a blank sound")
+	ExpectEqual(blank.Parent, nil, "The early blank sound is unparented")
+	blank:Destroy()
+
+	ExpectEqual(VluxySF.TryFetch("Click"), nil, "TryFetch gives nil")
+	VluxySF.OneShot("Click")()
+	ExpectEqual(VluxySF.Schema.Get(), nil, "Schema.Get gives nil")
+	ExpectEqual(VluxySF.Schema.Has("Click"), false, "Schema.Has gives false")
+	ExpectEqual(#VluxySF.Groups.GetNames(), 0, "Groups.GetNames gives an empty list")
+	VluxySF.Groups.SetVolume("MUSIC", 0.5)
 end)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -56,28 +61,32 @@ local initStart = os.clock()
 VluxySF.Startup.InitServer(soundConfig)
 local initSeconds = os.clock() - initStart
 
-suite.Test("InitServer makes the schema ready", function()
-	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
-	ExpectEqual(connectedBeforeInit, true, "ConnectForSchema callback ran")
+suite.Test("InitServer makes the library ready", function()
+	ExpectEqual(VluxySF.Startup.IsReady(), true, "IsReady")
+	ExpectEqual(VluxySF.Startup.WaitUntilReady(0), true, "WaitUntilReady")
+	ExpectEqual(VluxySF.Startup.IsPreloaded(), true, "IsPreloaded on the server")
+	ExpectEqual(VluxySF.Startup.WaitUntilPreloaded(1), true, "WaitUntilPreloaded on the server")
+	ExpectEqual(connectedBeforeInit, true, "OnReady callback ran")
 end)
 
 suite.Test("InitServer detaches the sounds Configuration it was given", function()
 	ExpectEqual(soundConfig.Parent, nil, "TEST_SOUNDS parent")
 end)
 
-suite.Test("A cancelled ConnectForSchema callback never runs", function()
+suite.Test("A cancelled OnReady callback never runs", function()
 	ExpectEqual(cancelledRan, false, "Cancelled callback ran")
 end)
 
-suite.Test("A ConnectForSchema callback that errors does not stop startup", function()
-	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
+suite.Test("A OnReady callback that errors does not stop startup", function()
+	ExpectEqual(VluxySF.Startup.IsReady(), true, "IsReady")
 	ExpectEqual(connectedBeforeInit, true, "The other callback ran")
 end)
 
-suite.Test("InitServer refuses to run twice", function()
-	ExpectError(function()
-		VluxySF.Startup.InitServer(Instance.new("Configuration"))
-	end, "Second InitServer")
+suite.Test("A second InitServer is ignored (warnings expected)", function()
+	local names = #VluxySF.Schema.GetNames()
+
+	VluxySF.Startup.InitServer(Instance.new("Configuration"))
+	ExpectEqual(#VluxySF.Schema.GetNames(), names, "Sound count after the second call")
 end)
 
 suite.Test("InitServer published the schema in SoundService", function()
@@ -104,13 +113,13 @@ end)
 
 InternalCases.Run(suite)
 
-suite.Test("Preload and Cache throw on the server", function()
-	ExpectError(function()
-		VluxySF.Preload.Get()
-	end, "Preload.Get")
-	ExpectError(function()
-		VluxySF.Cache.Warm("Click")
-	end, "Cache.Warm")
+suite.Test("Preload and Cache do nothing on the server (warnings expected)", function()
+	VluxySF.Preload.AddAsync("Click")
+	ExpectEqual(VluxySF.Preload.Has("Click"), false, "Preload.Has")
+	ExpectEqual(#VluxySF.Preload.GetNames(), 0, "Preload.GetNames")
+
+	VluxySF.Cache.Warm("Click")
+	ExpectEqual(VluxySF.Cache.IsWarmed("Click"), false, "Cache.IsWarmed")
 end)
 
 SharedCases.Run(suite)

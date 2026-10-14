@@ -11,8 +11,8 @@ type SoundDefinitionInstanced = Types.SoundDefinitionInstanced
 
 local BLANK_SOUND_NAME = "VluxySF_Blank_Sound"
 
---Seconds FetchPlayOnce gives an asset to load before it gives up and destroys the sound.
-local PLAY_ONCE_LOAD_TIMEOUT = 10
+--Seconds OneShot gives an asset to load before it gives up and destroys the sound.
+local ONE_SHOT_LOAD_TIMEOUT = 10
 
 local blankDefinition: Types.SoundDefinition = table.freeze({
 	Properties = table.freeze({
@@ -27,8 +27,8 @@ local Fetch = {}
 ------------------------------------------------------------------------------------------------------------------------
 
 --[[
-	Clones a preloaded or warmed template when there is one, otherwise builds the sound from its definition.
-	Returns nil when the name is not in the schema.
+	Clones a warmed template when there is one, otherwise builds the sound from its definition. Returns nil when the
+	name is not in the schema.
 ]]
 local function resolve(name: string): Sound?
 	local sound = Templates.Clone(name)
@@ -60,6 +60,10 @@ local function place(sound: Sound, parent: Instance?, preset: ((Sound) -> ())?)
 	end
 end
 
+local function blankSound(): Sound
+	return Converters.DefinitionToSound(blankDefinition)
+end
+
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
@@ -67,19 +71,21 @@ end
 
 	@tag RequiresSchema
 
-	Creates the `Sound` with that name. If the name is not in the schema, a warning is printed and a blank `Sound`
-	named `VluxySF_Blank_Sound` is returned instead, so calling code never has to nil-check.
+	Creates the `Sound` with that name. If the name is not in the schema, a warning is printed and a silent blank
+	`Sound` named `VluxySF_Blank_Sound` is returned instead, so calling code never has to nil-check.
 
 	:::info
-	- A preloaded or warmed sound is cloned from its template, which is faster than building it.
+	- A warmed sound (see `Cache`) is cloned from its template.
 	- A sound fetched without a parent is placed in `SoundService.UnattachedSounds`.
+	- Called before the library has started, it warns once and returns an unparented blank `Sound` instead of
+	erroring, so early game code keeps running.
 	:::
 
 	```lua
 	local mySound = VluxySF.Fetch("MySound")
 	mySound.Volume = 0.3
 
-	local echo = mySound.EchoSoundEffect
+	local echo = mySound:FindFirstChild("EchoSoundEffect")
 	if echo then
 		echo.WetLevel = 1.3
 	end
@@ -94,12 +100,17 @@ end
 	@return Sound -- The new `Sound`.
 ]=]
 function Fetch.Fetch(name: string, parent: Instance?, preset: ((Sound) -> ())?): SoundDefinitionInstanced
-	SchemaStore.AssertInitialized()
+	if not SchemaStore.CheckReady("Fetch") then
+		local blank = blankSound()
+		blank.Parent = parent
+
+		return blank :: SoundDefinitionInstanced
+	end
 
 	local sound = resolve(name)
 	if not sound then
 		FormatMessage.Warn(`"{name}" is not in the schema. A blank sound was returned instead.`)
-		sound = Converters.DefinitionToSound(blankDefinition)
+		sound = blankSound()
 	end
 
 	place(sound :: Sound, parent, preset)
@@ -112,13 +123,14 @@ end
 
 	@tag RequiresSchema
 
-	The same as `Fetch`, but returns `nil` instead of a blank sound when the name is not in the schema.
+	The same as `Fetch`, but returns `nil` instead of a blank sound when the name is not in the schema, or when the
+	library has not started yet. Use it for names built at runtime or sounds that may not exist.
 
 	```lua
-	local mySound = VluxySF.FetchStrict("MySound")
+	local voiceLine = VluxySF.TryFetch(`VO_{npcName}`, head)
 
-	if mySound then
-		mySound:Play()
+	if voiceLine then
+		voiceLine:Play()
 	end
 	```
 
@@ -128,8 +140,10 @@ end
 
 	@return Sound? -- The new `Sound`, or `nil`.
 ]=]
-function Fetch.FetchStrict(name: string, parent: Instance?, preset: ((Sound) -> ())?): SoundDefinitionInstanced?
-	SchemaStore.AssertInitialized()
+function Fetch.TryFetch(name: string, parent: Instance?, preset: ((Sound) -> ())?): SoundDefinitionInstanced?
+	if not SchemaStore.CheckReady("TryFetch") then
+		return nil
+	end
 
 	local sound = resolve(name)
 	if not sound then
@@ -148,23 +162,37 @@ end
 
 	@tag RequiresSchema
 
-	Fetches a `Sound`, plays it once, and destroys it when it ends. Looping is turned off. If the name is not in the
-	schema, a warning is printed, nothing plays, and nothing is left behind. If the asset has not loaded within 10
-	seconds (deleted, moderated or private audio never loads), a warning is printed and the sound is destroyed.
+	Plays a sound once and cleans it up: builds it, turns looping off, plays it and destroys it when it ends. Returns a
+	function that stops and destroys it early.
+
+	Nothing has to wait for the audio to load: Roblox holds a played sound until its audio arrives and starts it from
+	the beginning. If the audio has not loaded within 10 seconds (deleted, moderated or private audio never does), a
+	warning is printed and the sound is destroyed. With a name that is not in the schema, or before the library has
+	started, a warning is printed and nothing plays.
 
 	```lua
-	VluxySF.FetchPlayOnce("MySound")
+	VluxySF.OneShot("Hit", character.HumanoidRootPart)
+
+	local stop = VluxySF.OneShot("Charge")
+	-- later, if it has to end early:
+	stop()
 	```
+
+	:::info
+	`Sound.Played` fires and `IsPlaying` turns true as soon as the sound is played, before its audio has loaded. Code
+	that needs the sound to be audible should wait for `Sound.Loaded`.
+	:::
 
 	@param name string -- The name of the `Sound`.
 	@param parent Instance? -- Parent of the `Sound`.
 	@param preset ((Sound) -> ())? -- `Preset` to apply before parenting.
-	@param waitOnLoad boolean? -- Wait for the `Sound` to load before playing. The wait never blocks the caller.
 
 	@return () -> () -- Stops and destroys the `Sound` early.
 ]=]
-function Fetch.FetchPlayOnce(name: string, parent: Instance?, preset: ((Sound) -> ())?, waitOnLoad: boolean?): () -> ()
-	SchemaStore.AssertInitialized()
+function Fetch.OneShot(name: string, parent: Instance?, preset: ((Sound) -> ())?): () -> ()
+	if not SchemaStore.CheckReady("OneShot") then
+		return function() end
+	end
 
 	local sound = Fetch.Fetch(name, parent, preset)
 	sound.Looped = false
@@ -179,40 +207,26 @@ function Fetch.FetchPlayOnce(name: string, parent: Instance?, preset: ((Sound) -
 	--a destroyed sound reads IsLoaded as false, so the watchdog needs to know the sound already finished
 	local ended = false
 
-	local playThread = task.spawn(function()
-		if waitOnLoad and not sound.IsLoaded then
-			sound.Loaded:Wait()
-		end
-
-		sound.Ended:Once(function()
-			ended = true
-			sound:Destroy()
-		end)
-
-		sound:Play()
+	sound.Ended:Once(function()
+		ended = true
+		sound:Destroy()
 	end)
 
+	sound:Play()
+
 	--an asset that never loads never fires Ended either, so without this the sound would stay forever
-	local watchdog = task.delay(PLAY_ONCE_LOAD_TIMEOUT, function()
+	local watchdog = task.delay(ONE_SHOT_LOAD_TIMEOUT, function()
 		if ended or sound.IsLoaded then
 			return
 		end
 
 		FormatMessage.Warn(
-			`"{name}" did not load within {PLAY_ONCE_LOAD_TIMEOUT} seconds and was destroyed. Check that its asset is available.`
+			`"{name}" did not load within {ONE_SHOT_LOAD_TIMEOUT} seconds and was destroyed. Check that its asset is available.`
 		)
-
-		if coroutine.status(playThread) == "suspended" then
-			task.cancel(playThread)
-		end
-
 		sound:Destroy()
 	end)
 
 	return function()
-		if coroutine.status(playThread) == "suspended" then
-			task.cancel(playThread)
-		end
 		if coroutine.status(watchdog) == "suspended" then
 			task.cancel(watchdog)
 		end

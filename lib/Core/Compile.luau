@@ -64,7 +64,8 @@ end
 	@return buffer -- The schema buffer.
 	@return number -- How many sounds were written.
 
-	Compiles a SOUNDS Configuration into a schema buffer. Errors when a direct child is not a Configuration.
+	Compiles a SOUNDS Configuration into a schema buffer. A direct child that is not a Configuration, or a second group
+	with a name already used, is skipped with a warning.
 ]]
 function Compile.Build(soundsFolder: Instance): (buffer, number)
 	local state: State = {
@@ -81,18 +82,18 @@ function Compile.Build(soundsFolder: Instance): (buffer, number)
 
 	for _, child in ipairs(soundsFolder:GetChildren()) do
 		if not child:IsA("Configuration") then
-			FormatMessage.Error(
-				`"{child:GetFullName()}" is a {child.ClassName}. Every direct child of {soundsFolder.Name} must be a Configuration, one per SoundGroup.`,
-				4
+			FormatMessage.Warn(
+				`"{child:GetFullName()}" is a {child.ClassName}, so it and everything in it were skipped. Every direct child of {soundsFolder.Name} must be a Configuration, one per SoundGroup.`
 			)
+			continue
 		end
 
 		local groupName = child.Name
 		if groupSeen[groupName] then
-			FormatMessage.Error(
-				`There are two SoundGroups named "{groupName}" under {soundsFolder.Name}. SoundGroup names must be unique.`,
-				4
+			FormatMessage.Warn(
+				`There are two SoundGroups named "{groupName}" under {soundsFolder.Name}; the second one and its sounds were skipped. SoundGroup names must be unique.`
 			)
+			continue
 		end
 		groupSeen[groupName] = true
 

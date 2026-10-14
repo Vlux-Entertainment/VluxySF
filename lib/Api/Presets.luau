@@ -6,9 +6,10 @@ local Jitter = require(script.Parent.Jitter)
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@class SoundPresets
+	@class Presets
 	
-	Presets are functions that you can apply to your sounds to quickly change reoccuring property values.
+	Presets are functions that adjust a `Sound` as it is fetched, before it is parented, for property values you set
+	over and over.
 
 	:::info
 	- Presets are closures that get passed to your fetching functions.
@@ -35,12 +36,12 @@ local Jitter = require(script.Parent.Jitter)
 	```
 	:::
 ]=]
-local SoundPresets = {}
+local Presets = {}
 
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
 	Combines presets together into 1 reusable preset.
 
@@ -49,14 +50,14 @@ local SoundPresets = {}
 	:::
 
 	```lua
-	local myCombinedPreset = SoundPresets.Combine(
-		SoundPresets.NaturalPlaybackJitter(0.8, 0.1),
-		SoundPresets.NaturalVolumeJitter(0.7, 0.15)
+	local myCombinedPreset = VluxySF.Presets.Combine(
+		VluxySF.Presets.NaturalPlaybackJitter(1, 0.1),
+		VluxySF.Presets.NaturalVolumeJitter(0.7, 0.15)
 	)
 
-	local myCombinedPreset2 = SoundPresets.Combine(
+	local myCombinedPreset2 = VluxySF.Presets.Combine(
 		myCombinedPreset,
-		SoundPresets.Parent(workspace.Sounds)
+		VluxySF.Presets.Parent(workspace.Sounds)
 	)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myCombinedPreset)
@@ -70,7 +71,7 @@ local SoundPresets = {}
 
 	@return (Sound) -> () -- Closure of the combined presets.
 ]=]
-function SoundPresets.Combine(...: (Sound) -> ()): (Sound) -> ()
+function Presets.Combine(...: (Sound) -> ()): (Sound) -> ()
 	local presets: { (Sound) -> () } = { ... }
 	local presetCount: number = #presets
 
@@ -84,12 +85,12 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
 	Sets the parent of a sound.
 
 	```lua
-	local myPreset = SoundPresets.Parent(workspace.Sounds)
+	local myPreset = VluxySF.Presets.Parent(workspace.Sounds)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -100,19 +101,19 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.Parent(parent: Instance): (Sound) -> ()
+function Presets.Parent(parent: Instance): (Sound) -> ()
 	return function(sound: Sound)
 		sound.Parent = parent
 	end
 end
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
 	Sets the volume of a sound.
 
 	```lua
-	local myPreset = SoundPresets.Volume(0.1)
+	local myPreset = VluxySF.Presets.Volume(0.1)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -123,19 +124,19 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.Volume(volume: number): (Sound) -> ()
+function Presets.Volume(volume: number): (Sound) -> ()
 	return function(sound: Sound)
 		sound.Volume = volume
 	end
 end
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
 	Sets the playback speed of a sound.
 
 	```lua
-	local myPreset = SoundPresets.PlaybackSpeed(1.3)
+	local myPreset = VluxySF.Presets.PlaybackSpeed(1.3)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -146,7 +147,7 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.PlaybackSpeed(speed: number): (Sound) -> ()
+function Presets.PlaybackSpeed(speed: number): (Sound) -> ()
 	return function(sound: Sound)
 		sound.PlaybackSpeed = speed
 	end
@@ -155,12 +156,12 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
-	Uses `Jitter.UnitLog` to apply a natural jitter to the volume of the sound.
+	Uses `Jitter.Natural` to apply a natural jitter to the volume of the sound.
 
 	```lua
-	local myPreset = SoundPresets.NaturalVolumeJitter(0.8, 0.1)
+	local myPreset = VluxySF.Presets.NaturalVolumeJitter(0.8, 0.1)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -172,8 +173,8 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.NaturalVolumeJitter(center: number?, spread: number?): (Sound) -> ()
-	local jitter = Jitter.UnitLog(center or 0.5, spread or 0.1)
+function Presets.NaturalVolumeJitter(center: number?, spread: number?): (Sound) -> ()
+	local jitter = Jitter.Natural(center or 0.5, spread or 0.1)
 
 	return function(sound: Sound)
 		sound.Volume = jitter()
@@ -181,12 +182,12 @@ function SoundPresets.NaturalVolumeJitter(center: number?, spread: number?): (So
 end
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
-	Uses `Jitter.UnitLog` to apply a natural jitter to the playback speed of the sound.
+	Uses `Jitter.Natural` to apply a natural jitter to the playback speed of the sound.
 
 	```lua
-	local myPreset = SoundPresets.NaturalPlaybackJitter(1, 0.1)
+	local myPreset = VluxySF.Presets.NaturalPlaybackJitter(1, 0.1)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -198,8 +199,8 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.NaturalPlaybackJitter(center: number?, spread: number?): (Sound) -> ()
-	local jitter = Jitter.UnitLog(center or 1, spread or 0.1)
+function Presets.NaturalPlaybackJitter(center: number?, spread: number?): (Sound) -> ()
+	local jitter = Jitter.Natural(center or 1, spread or 0.1)
 
 	return function(sound: Sound)
 		sound.PlaybackSpeed = jitter()
@@ -209,12 +210,12 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
-	Uses `Jitter.Default` to apply a random jitter to the volume of the sound.
+	Uses `Jitter.Uniform` to apply a random jitter to the volume of the sound.
 
 	```lua
-	local myPreset = SoundPresets.RandomVolumeJitter(0.8, 0.1)
+	local myPreset = VluxySF.Presets.RandomVolumeJitter(0.8, 0.1)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -226,8 +227,8 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.RandomVolumeJitter(center: number?, spread: number?): (Sound) -> ()
-	local jitter = Jitter.Default(center or 0.5, spread or 0.1)
+function Presets.RandomVolumeJitter(center: number?, spread: number?): (Sound) -> ()
+	local jitter = Jitter.Uniform(center or 0.5, spread or 0.1)
 
 	return function(sound: Sound)
 		sound.Volume = jitter()
@@ -235,12 +236,12 @@ function SoundPresets.RandomVolumeJitter(center: number?, spread: number?): (Sou
 end
 
 --[=[
-	@within SoundPresets
+	@within Presets
 
-	Uses `Jitter.Default` to apply a random jitter to the playback speed of the sound.
+	Uses `Jitter.Uniform` to apply a random jitter to the playback speed of the sound.
 
 	```lua
-	local myPreset = SoundPresets.RandomPlaybackJitter(1, 0.1)
+	local myPreset = VluxySF.Presets.RandomPlaybackJitter(1, 0.1)
 
 	local sound1 = VluxySF.Fetch("mySound1", nil, myPreset)
 	local sound2 = VluxySF.Fetch("mySound2", nil, myPreset)
@@ -252,8 +253,8 @@ end
 
 	@return (Sound) -> () -- Closure of the preset.
 ]=]
-function SoundPresets.RandomPlaybackJitter(center: number?, spread: number?): (Sound) -> ()
-	local jitter = Jitter.Default(center or 1, spread or 0.1)
+function Presets.RandomPlaybackJitter(center: number?, spread: number?): (Sound) -> ()
+	local jitter = Jitter.Uniform(center or 1, spread or 0.1)
 
 	return function(sound: Sound)
 		sound.PlaybackSpeed = jitter()
@@ -262,4 +263,4 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-return SoundPresets
+return Presets

@@ -26,7 +26,7 @@ local Transport = require(library.Core.Transport)
 --How many passes the Fetch timings average over.
 local FETCH_PASSES = 3
 
---How many sounds the clone and FetchPlayOnce timings use.
+--How many sounds the clone and OneShot timings use.
 local SAMPLE_SIZE = 1000
 
 --How many sounds the client tries to load, to check that the fixture's assets really play.
@@ -156,7 +156,7 @@ end
 	Runs every benchmark once and prints the results.
 ]]
 function Benchmarks.Run()
-	VluxySF.Startup.WaitForSchema()
+	VluxySF.Startup.WaitUntilReady()
 
 	local loaded = SchemaStore.GetLoaded()
 	assert(loaded, "The schema should be loaded")
@@ -264,9 +264,9 @@ function Benchmarks.Run()
 
 	clock = os.clock()
 	for index, name in ipairs(sampled) do
-		cleanups[index] = VluxySF.FetchPlayOnce(name, nil, mute)
+		cleanups[index] = VluxySF.OneShot(name, nil, mute)
 	end
-	report("FetchPlayOnce", os.clock() - clock, #sampled, BUDGETS.PlayOnce)
+	report("OneShot", os.clock() - clock, #sampled, BUDGETS.PlayOnce)
 
 	for _, cleanup in ipairs(cleanups) do
 		cleanup()

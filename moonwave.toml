@@ -10,11 +10,11 @@ classOrder = [
     "InstancedTypes",
     "Startup",
     "Schema",
-    "SoundGroups",
+    "Groups",
     "Preload",
     "Cache",
     "Conversions",
-    "SoundPresets",
+    "Presets",
     "Jitter",
 ]
 

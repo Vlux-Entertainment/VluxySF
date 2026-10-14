@@ -31,7 +31,7 @@ local SharedCases = {}
 	Runs every shared case. The schema has to be initialized first.
 ]]
 function SharedCases.Run(suite: TestHarness.Suite)
-	local schema = VluxySF.Schema.Get()
+	local schema = assert(VluxySF.Schema.Get(), "The schema should be ready before the shared cases run")
 
 	--------------------------------------------------------------------------------------------------------------------
 	--SCHEMA------------------------------------------------------------------------------------------------------------
@@ -56,7 +56,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		ExpectNear(properties.Volume, 0.4, "Volume")
 		ExpectEqual(properties.RollOffMode, Enum.RollOffMode.Linear, "RollOffMode")
 		ExpectEqual(properties.LoopRegion, NumberRange.new(1, 3), "LoopRegion")
-		ExpectEqual(properties.SoundGroup, VluxySF.Groups.GetByName("MUSIC"), "SoundGroup")
+		ExpectEqual(properties.SoundGroup, VluxySF.Groups.Get("MUSIC"), "SoundGroup")
 		ExpectEqual(definition.EffectsCount, 0, "EffectsCount")
 
 		Expect(table.isfrozen(definition), "The definition should be frozen")
@@ -95,26 +95,54 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		local container = schema.SoundGroupContainer
 		ExpectEqual(container.Parent, SoundService, "Main SoundGroup parent")
 
-		local music = VluxySF.Groups.GetByName("MUSIC")
+		local music = VluxySF.Groups.Get("MUSIC")
 		assert(music, "MUSIC should be a SoundGroup")
 
 		ExpectEqual(music.Parent, container, "MUSIC parent")
-		ExpectEqual(VluxySF.Groups.Get().MUSIC, music, "Groups.Get().MUSIC")
-		ExpectEqual(VluxySF.Groups.GetByName("NOT_A_GROUP"), nil, "Unknown group")
+		ExpectEqual(VluxySF.Groups.GetAll().MUSIC, music, "Groups.GetAll().MUSIC")
+		ExpectEqual(VluxySF.Groups.Get("NOT_A_GROUP"), nil, "Unknown group")
 	end)
 
 	suite.Test("Group volumes can be set", function()
 		local container = schema.SoundGroupContainer
-		local music = VluxySF.Groups.GetByName("MUSIC") :: SoundGroup
+		local music = VluxySF.Groups.Get("MUSIC") :: SoundGroup
 
-		VluxySF.Groups.SetVolumes(0.5, { MUSIC = 0.25 })
+		VluxySF.Groups.SetMainVolume(0.5)
+		VluxySF.Groups.SetVolumes({ MUSIC = 0.25 })
 		ExpectNear(container.Volume, 0.5, "Main volume")
 		ExpectNear(music.Volume, 0.25, "MUSIC volume")
+		ExpectNear(VluxySF.Groups.GetMainVolume(), 0.5, "GetMainVolume")
+		ExpectNear(VluxySF.Groups.GetVolumes().MUSIC, 0.25, "GetVolumes().MUSIC")
+
+		VluxySF.Groups.SetVolume("MUSIC", 0.75)
+		ExpectNear(music.Volume, 0.75, "SetVolume")
 
 		VluxySF.Groups.SetMainVolume(1)
-		VluxySF.Groups.SetVolumes(nil, { MUSIC = 1 })
+		VluxySF.Groups.SetVolumes({ MUSIC = 1 })
 		ExpectNear(container.Volume, 1, "Main volume after reset")
 		ExpectNear(music.Volume, 1, "MUSIC volume after reset")
+	end)
+
+	suite.Test("Groups list in schema order and give the main group", function()
+		local names = VluxySF.Groups.GetNames()
+		ExpectEqual(names[1], FIXTURE_GROUPS[1], "First group")
+		ExpectEqual(names[2], FIXTURE_GROUPS[2], "Second group")
+		ExpectEqual(VluxySF.Groups.GetMain(), schema.SoundGroupContainer, "GetMain")
+	end)
+
+	suite.Test("Bad volumes are ignored with a warning (warnings expected)", function()
+		local music = VluxySF.Groups.Get("MUSIC") :: SoundGroup
+
+		VluxySF.Groups.SetVolume("MUSIC", -1)
+		VluxySF.Groups.SetVolume("MUSIC", 0 / 0)
+		VluxySF.Groups.SetVolume("MUSIC", "loud" :: any)
+		VluxySF.Groups.SetVolume("MUSIC", 11)
+		VluxySF.Groups.SetVolume("NOT_A_GROUP", 0.5)
+		VluxySF.Groups.SetVolumes(nil :: any)
+		VluxySF.Groups.SetMainVolume(-5)
+
+		ExpectNear(music.Volume, 1, "MUSIC volume is unchanged")
+		ExpectNear(VluxySF.Groups.GetMainVolume(), 1, "Main volume is unchanged")
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------
@@ -130,7 +158,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		ExpectNear(sound.Volume, 0.4, "Volume")
 		ExpectEqual(sound.RollOffMode, Enum.RollOffMode.Linear, "RollOffMode")
 		ExpectEqual(sound.LoopRegion, NumberRange.new(1, 3), "LoopRegion")
-		ExpectEqual(sound.SoundGroup, VluxySF.Groups.GetByName("MUSIC"), "SoundGroup")
+		ExpectEqual(sound.SoundGroup, VluxySF.Groups.Get("MUSIC"), "SoundGroup")
 		ExpectEqual(sound.Parent, schema.UnattachedSounds, "Parent of a sound fetched without one")
 
 		sound:Destroy()
@@ -182,28 +210,28 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		sound:Destroy()
 	end)
 
-	suite.Test("FetchStrict returns nil for an unknown name (warnings expected)", function()
-		ExpectEqual(VluxySF.FetchStrict("NotARealSound"), nil, "Unknown sound")
+	suite.Test("TryFetch returns nil for an unknown name (warnings expected)", function()
+		ExpectEqual(VluxySF.TryFetch("NotARealSound"), nil, "Unknown sound")
 
-		local sound = VluxySF.FetchStrict("Click")
-		assert(sound, "FetchStrict should find Click")
+		local sound = VluxySF.TryFetch("Click")
+		assert(sound, "TryFetch should find Click")
 
 		sound:Destroy()
 	end)
 
-	suite.Test("FetchPlayOnce with an unknown name leaves nothing behind (warnings expected)", function()
+	suite.Test("OneShot with an unknown name leaves nothing behind (warnings expected)", function()
 		local before = #schema.UnattachedSounds:GetChildren()
 
-		local cleanup = VluxySF.FetchPlayOnce("NotARealSound")
+		local cleanup = VluxySF.OneShot("NotARealSound")
 		cleanup()
 
 		ExpectEqual(#schema.UnattachedSounds:GetChildren(), before, "UnattachedSounds count")
 	end)
 
-	suite.Test("FetchPlayOnce stops looping and its cleanup destroys the sound", function()
+	suite.Test("OneShot stops looping and its cleanup destroys the sound", function()
 		local captured: { Sound } = {}
 
-		local cleanup = VluxySF.FetchPlayOnce("MainTheme", nil, function(sound: Sound)
+		local cleanup = VluxySF.OneShot("MainTheme", nil, function(sound: Sound)
 			table.insert(captured, sound)
 		end)
 
@@ -256,7 +284,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		wrapped.Sound:Destroy()
 	end)
 
-	suite.Test("WithWrapper FetchStrict returns nil without calling the wrapper (warnings expected)", function()
+	suite.Test("WithWrapper TryFetch returns nil without calling the wrapper (warnings expected)", function()
 		local calls = 0
 		local counting = VluxySF.WithWrapper(function(sound: Sound): Sound
 			calls += 1
@@ -264,11 +292,11 @@ function SharedCases.Run(suite: TestHarness.Suite)
 			return sound
 		end)
 
-		ExpectEqual(counting.FetchStrict("NotARealSound"), nil, "Unknown sound")
+		ExpectEqual(counting.TryFetch("NotARealSound"), nil, "Unknown sound")
 		ExpectEqual(calls, 0, "Wrapper calls for an unknown sound")
 
-		local sound = counting.FetchStrict("Click")
-		assert(sound, "FetchStrict should find Click")
+		local sound = counting.TryFetch("Click")
+		assert(sound, "TryFetch should find Click")
 		ExpectEqual(calls, 1, "Wrapper calls for a known sound")
 
 		sound:Destroy()
@@ -278,7 +306,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		Expect(table.isfrozen(Wrapped), "The wrapped library should be frozen")
 		ExpectEqual(Wrapped.Startup, VluxySF.Startup, "Startup")
 		ExpectEqual(Wrapped.Groups, VluxySF.Groups, "Groups")
-		ExpectEqual(Wrapped.FetchPlayOnce, VluxySF.FetchPlayOnce, "FetchPlayOnce")
+		ExpectEqual(Wrapped.OneShot, VluxySF.OneShot, "OneShot")
 
 		local sound = VluxySF.Fetch("Click")
 		Expect(sound:IsA("Sound"), "VluxySF.Fetch should still return a Sound")
@@ -310,13 +338,13 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(unattachedCount(), before, "UnattachedSounds count")
 	end)
 
-	suite.Test("FetchPlayOnce cleanups leave nothing behind", function()
+	suite.Test("OneShot cleanups leave nothing behind", function()
 		local before = unattachedCount()
 		local mute = VluxySF.Presets.Volume(0)
 
 		local cleanups: { () -> () } = {}
 		for _ = 1, 50 do
-			table.insert(cleanups, VluxySF.FetchPlayOnce("Click", nil, mute))
+			table.insert(cleanups, VluxySF.OneShot("Click", nil, mute))
 		end
 		for _, cleanup in ipairs(cleanups) do
 			cleanup()
@@ -347,8 +375,8 @@ function SharedCases.Run(suite: TestHarness.Suite)
 			failing.Fetch("Click")
 		end, "Fetch with a failing wrapper")
 		ExpectError(function()
-			failing.FetchStrict("Click")
-		end, "FetchStrict with a failing wrapper")
+			failing.TryFetch("Click")
+		end, "TryFetch with a failing wrapper")
 
 		ExpectEqual(unattachedCount(), before, "UnattachedSounds count")
 	end)
@@ -358,7 +386,7 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(sound.Name, "VluxySF_Blank_Sound", "Fetch(nil)")
 		sound:Destroy()
 
-		ExpectEqual(VluxySF.FetchStrict(42 :: any), nil, "FetchStrict(42)")
+		ExpectEqual(VluxySF.TryFetch(42 :: any), nil, "TryFetch(42)")
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------
@@ -419,14 +447,13 @@ function SharedCases.Run(suite: TestHarness.Suite)
 			end
 		end
 
-		expectInRange("Default", VluxySF.Jitter.Default(1, 0.2), 0.8, 1.2)
+		expectInRange("Uniform", VluxySF.Jitter.Uniform(1, 0.2), 0.8, 1.2)
 		expectInRange("Range", VluxySF.Jitter.Range(0.5, 0.6), 0.5, 0.6)
-		expectInRange("Scale", VluxySF.Jitter.Scale(0.1), 0.9, 1.1)
-		expectInRange("UnitLog", VluxySF.Jitter.UnitLog(1, 0.2), 0.8, 1.2)
+		expectInRange("Natural", VluxySF.Jitter.Natural(1, 0.2), 0.8, 1.2)
 
-		--Every jitter is clamped from 0 to 10.
-		expectInRange("Default near 10", VluxySF.Jitter.Default(10, 5), 5, 10)
-		expectInRange("Default near 0", VluxySF.Jitter.Default(0, 5), 0, 5)
+		--Values never go below 0, and there is no upper clamp.
+		expectInRange("Uniform near 0", VluxySF.Jitter.Uniform(0, 5), 0, 5)
+		expectInRange("Uniform above 10", VluxySF.Jitter.Uniform(20, 5), 15, 25)
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------
@@ -434,13 +461,13 @@ function SharedCases.Run(suite: TestHarness.Suite)
 	--------------------------------------------------------------------------------------------------------------------
 
 	suite.Test("Startup reports the schema as ready", function()
-		ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
+		ExpectEqual(VluxySF.Startup.IsReady(), true, "IsInitialized")
 
 		--Returns right away when the schema is ready.
-		VluxySF.Startup.WaitForSchema()
+		VluxySF.Startup.WaitUntilReady()
 
 		local ran = false
-		VluxySF.Startup.ConnectForSchema(function()
+		VluxySF.Startup.OnReady(function()
 			ran = true
 		end)
 

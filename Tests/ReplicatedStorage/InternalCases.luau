@@ -456,28 +456,29 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		root:Destroy()
 	end)
 
-	suite.Test("Compile rejects a non-Configuration under SOUNDS and duplicate group names", function()
+	suite.Test("Compile skips a non-Configuration under SOUNDS and a duplicate group (warnings expected)", function()
 		local root = Instance.new("Configuration")
+
 		local folder = Instance.new("Folder")
 		folder.Name = "NotAGroup"
 		folder.Parent = root
+		makeSound("InFolder").Parent = folder
 
-		ExpectError(function()
-			Compile.Build(root)
-		end, "Folder under SOUNDS")
-		root:Destroy()
-
-		root = Instance.new("Configuration")
-		for _ = 1, 2 do
+		for index = 1, 2 do
 			local group = Instance.new("Configuration")
 			group.Name = "TWICE"
 			group.Parent = root
+			makeSound(`InTwice{index}`).Parent = group
 		end
 
-		ExpectError(function()
-			Compile.Build(root)
-		end, "Duplicate group")
+		local loaded = Codec.Load((Compile.Build(root)))
 		root:Destroy()
+
+		ExpectEqual(#loaded.GroupNames, 1, "Group count")
+		ExpectEqual(loaded.GroupNames[1], "TWICE", "The first TWICE group is kept")
+		ExpectEqual(loaded.Offsets.InTwice1 ~= nil, true, "Sound in the kept group")
+		ExpectEqual(loaded.Offsets.InTwice2, nil, "Sound in the skipped duplicate group")
+		ExpectEqual(loaded.Offsets.InFolder, nil, "Sound in the skipped Folder")
 	end)
 
 	suite.Test("Compile keeps the first of two sounds with the same name (warnings expected)", function()

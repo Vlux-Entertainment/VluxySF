@@ -174,7 +174,13 @@ function SchemaStore.GetDefinition(name: string): Types.SoundDefinition?
 		return nil
 	end
 
-	local decoded, groupIndex = Codec.ReadDefinition(loadedSchema, name)
+	--a damaged definition must not break the fetch that asked for it; it is only decoded once, so the pcall is cheap
+	local success, decoded, groupIndex = pcall(Codec.ReadDefinition, loadedSchema, name)
+	if not success then
+		FormatMessage.Warn(`"{name}" could not be read from the schema: {decoded}`)
+
+		return nil
+	end
 	if not decoded then
 		return nil
 	end
@@ -239,6 +245,18 @@ function SchemaStore.GetNames(): { string }
 end
 
 --[[
+	@return { string } -- A new array of every group name, in the order the groups appear under SOUNDS.
+]]
+function SchemaStore.GetGroupNames(): { string }
+	local loadedSchema = loaded
+	if not loadedSchema then
+		return {}
+	end
+
+	return table.clone(loadedSchema.GroupNames)
+end
+
+--[[
 	@return { string } -- The names of the sounds the client preloads on startup.
 ]]
 function SchemaStore.GetPreloadNames(): { string }
@@ -287,33 +305,54 @@ function SchemaStore.IsPreloaded(): boolean
 	return isPreloaded
 end
 
---[[
-	@param level number? -- The stack level the error points at. Default is 3, the caller of the API function.
+--warnings already printed by CheckReady and CheckClient, keyed by function name, so each warns once
+local warnedCalls: { [string]: boolean } = {}
 
-	Errors when the schema is not ready. Every API function that needs the schema calls this first.
-]]
-function SchemaStore.AssertInitialized(level: number?)
-	if isInitialized then
+local function warnOnce(key: string, message: string)
+	if warnedCalls[key] then
 		return
 	end
+	warnedCalls[key] = true
 
-	FormatMessage.Error(
-		"The schema is not ready yet! Call Startup.InitServer or Startup.InitClient first, or wait with Startup.WaitForSchema.",
-		level or 3
-	)
+	FormatMessage.Warn(`{message} (This warning is shown once.)`)
 end
 
 --[[
-	@param level number? -- The stack level the error points at. Default is 3, the caller of the API function.
+	@param functionName string -- The API function being called, for the warning.
 
-	Errors on the server. Every client-only API function calls this first.
+	@return boolean -- Whether the schema is ready.
+
+	The library never throws at game code for being called too early: an API function calls this first and, when it
+	returns false, returns a safe empty value. The first early call of each function warns.
 ]]
-function SchemaStore.AssertClient(level: number?)
-	if RunService:IsClient() then
-		return
+function SchemaStore.CheckReady(functionName: string): boolean
+	if isInitialized then
+		return true
 	end
 
-	FormatMessage.Error("This function only works on the client!", level or 3)
+	warnOnce(
+		functionName,
+		`{functionName} was called before the library finished starting, so it did nothing. Wait with Startup.WaitUntilReady or Startup.OnReady first.`
+	)
+
+	return false
+end
+
+--[[
+	@param functionName string -- The API function being called, for the warning.
+
+	@return boolean -- Whether this is the client.
+
+	Client-only functions call this and do nothing on the server. The first call of each function there warns.
+]]
+function SchemaStore.CheckClient(functionName: string): boolean
+	if RunService:IsClient() then
+		return true
+	end
+
+	warnOnce(`{functionName}@server`, `{functionName} only works on the client, so it did nothing on the server.`)
+
+	return false
 end
 
 return SchemaStore

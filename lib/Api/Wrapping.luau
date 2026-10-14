@@ -10,7 +10,6 @@ local Jitter = require(script.Parent.Jitter)
 local Preload = require(script.Parent.Preload)
 local Presets = require(script.Parent.Presets)
 local Schema = require(script.Parent.Schema)
-local SchemaStore = require(script.Parent.Parent.Core.SchemaStore)
 local Startup = require(script.Parent.Startup)
 local Types = require(script.Parent.Parent.Types)
 
@@ -20,13 +19,13 @@ type Preset = ((Sound) -> ())?
 	@type Wrapped<T> VluxySF
 	@within VluxySF
 
-	The library returned by `WithWrapper`. The same as `VluxySF`, except that `Fetch` and `FetchStrict` return the
+	The library returned by `WithWrapper`. The same as `VluxySF`, except that `Fetch` and `TryFetch` return the
 	wrapper instead of the `Sound`.
 ]=]
 export type Wrapped<T> = {
 	Fetch: (name: string, parent: Instance?, preset: Preset) -> T,
-	FetchStrict: (name: string, parent: Instance?, preset: Preset) -> T?,
-	FetchPlayOnce: typeof(Fetch.FetchPlayOnce),
+	TryFetch: (name: string, parent: Instance?, preset: Preset) -> T?,
+	OneShot: typeof(Fetch.OneShot),
 
 	Startup: typeof(Startup),
 	Schema: typeof(Schema),
@@ -59,7 +58,7 @@ end
 --[=[
 	@within VluxySF
 
-	Returns a copy of the library whose `Fetch` and `FetchStrict` pass every fetched `Sound` through `wrap` and return
+	Returns a copy of the library whose `Fetch` and `TryFetch` pass every fetched `Sound` through `wrap` and return
 	what it returns. Use it to get your own sound class, with methods like fades, out of every fetch.
 
 	The copy is fully typed: whatever type `wrap` returns is what `Fetch` returns. `VluxySF` itself is not changed, so
@@ -80,8 +79,9 @@ end
 
 	:::info
 	- Presets still receive the `Sound` before it is wrapped.
-	- `Fetch` wraps the blank sound it returns for an unknown name. `FetchStrict` returns `nil` without calling `wrap`.
-	- `FetchPlayOnce` is unchanged, since it returns a cleanup function, not a sound.
+	- `Fetch` wraps the blank sound it returns for an unknown name. `TryFetch` returns `nil` without calling `wrap`.
+	- `OneShot` is unchanged, since a one-shot cleans itself up.
+	- If `wrap` errors, the fetched `Sound` is destroyed and the error is passed on, since it comes from your code.
 	:::
 
 	@param wrap (Sound) -> T -- Turns a fetched `Sound` into your wrapper.
@@ -94,17 +94,12 @@ function Wrapping.WithWrapper<T>(wrap: (sound: Types.SoundDefinitionInstanced) -
 	end
 
 	local wrapped: Wrapped<T> = {
-		--each one asserts first so an early call errors at the caller, not in here
 		Fetch = function(name: string, parent: Instance?, preset: Preset): T
-			SchemaStore.AssertInitialized()
-
 			return wrapOrClean(wrap, Fetch.Fetch(name, parent, preset))
 		end,
 
-		FetchStrict = function(name: string, parent: Instance?, preset: Preset): T?
-			SchemaStore.AssertInitialized()
-
-			local sound = Fetch.FetchStrict(name, parent, preset)
+		TryFetch = function(name: string, parent: Instance?, preset: Preset): T?
+			local sound = Fetch.TryFetch(name, parent, preset)
 			if sound == nil then
 				return nil
 			end
@@ -112,7 +107,7 @@ function Wrapping.WithWrapper<T>(wrap: (sound: Types.SoundDefinitionInstanced) -
 			return wrapOrClean(wrap, sound)
 		end,
 
-		FetchPlayOnce = Fetch.FetchPlayOnce,
+		OneShot = Fetch.OneShot,
 
 		Startup = Startup,
 		Schema = Schema,

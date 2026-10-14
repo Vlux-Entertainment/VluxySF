@@ -10,12 +10,12 @@ local TestHarness = require(ReplicatedStorage.TestHarness)
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
 local Expect = TestHarness.Expect
+local ExpectContains = TestHarness.ExpectContains
 local ExpectEqual = TestHarness.ExpectEqual
-local ExpectError = TestHarness.ExpectError
 
 local PRELOAD_TIMEOUT = 5
 
---FetchPlayOnce gives an asset this long to load before destroying the sound, plus a margin.
+--OneShot gives an asset this long to load before destroying the sound, plus a margin.
 local PLAY_ONCE_WATCHDOG_SECONDS = 11
 
 local suite = TestHarness.new("Client")
@@ -25,23 +25,23 @@ local suite = TestHarness.new("Client")
 ------------------------------------------------------------------------------------------------------------------------
 
 local connectedBeforeInit = false
-VluxySF.Startup.ConnectForSchema(function()
+VluxySF.Startup.OnReady(function()
 	connectedBeforeInit = true
 end)
 
 local cancelledRan = false
-local cancelConnection = VluxySF.Startup.ConnectForSchema(function()
+local cancelConnection = VluxySF.Startup.OnReady(function()
 	cancelledRan = true
 end)
 cancelConnection()
 
 --A game callback that errors must not stop InitClient or the other callbacks.
-VluxySF.Startup.ConnectForSchema(function()
-	error("[VluxySF Tests] Client: this error is expected, from a ConnectForSchema callback that errors on purpose.")
+VluxySF.Startup.OnReady(function()
+	error("[VluxySF Tests] Client: this error is expected, from a OnReady callback that errors on purpose.")
 end)
 
 suite.Test("The schema is not ready before InitClient", function()
-	ExpectEqual(VluxySF.Startup.IsInitialized(), false, "IsInitialized")
+	ExpectEqual(VluxySF.Startup.IsReady(), false, "IsReady")
 end)
 
 --Yields until the schema arrives and the tagged sounds are preloaded, or the timeout is reached.
@@ -60,22 +60,22 @@ local logConnection = LogService.MessageOut:Connect(function(message: string)
 	end
 end)
 
-VluxySF.FetchPlayOnce("Click", nil, VluxySF.Presets.Volume(0), true)
+VluxySF.OneShot("Click", nil, VluxySF.Presets.Volume(0))
 
 local unloadable: Sound? = nil
 local unloadableStart = os.clock()
 print(
 	`[VluxySF Tests] Client: a warning that "Click" did not load is expected about {PLAY_ONCE_WATCHDOG_SECONDS - 1} seconds from now.`
 )
-VluxySF.FetchPlayOnce("Click", nil, function(sound: Sound)
+VluxySF.OneShot("Click", nil, function(sound: Sound)
 	sound.SoundId = "rbxassetid://1" --not an audio asset, so it never loads
 	sound.Volume = 0
 	unloadable = sound
 end)
 
 suite.Test("InitClient makes the schema ready", function()
-	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
-	ExpectEqual(connectedBeforeInit, true, "ConnectForSchema callback ran")
+	ExpectEqual(VluxySF.Startup.IsReady(), true, "IsReady")
+	ExpectEqual(connectedBeforeInit, true, "OnReady callback ran")
 
 	local timings = require(ReplicatedStorage.VluxySF.Core.SchemaStore).Timings
 	local received = TestHarness.Milliseconds(timings.Receive)
@@ -95,19 +95,18 @@ suite.Test("InitClient cleared its copy of the schema attribute", function()
 	ExpectEqual(published:GetAttribute("Schema"), nil, "Schema attribute")
 end)
 
-suite.Test("A cancelled ConnectForSchema callback never runs", function()
+suite.Test("A cancelled OnReady callback never runs", function()
 	ExpectEqual(cancelledRan, false, "Cancelled callback ran")
 end)
 
-suite.Test("A ConnectForSchema callback that errors does not stop startup", function()
-	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
+suite.Test("An OnReady callback that errors does not stop startup", function()
+	ExpectEqual(VluxySF.Startup.IsReady(), true, "IsReady")
 	ExpectEqual(connectedBeforeInit, true, "The other callback ran")
 end)
 
-suite.Test("InitClient refuses to run twice", function()
-	ExpectError(function()
-		VluxySF.Startup.InitClient(0)
-	end, "Second InitClient")
+suite.Test("A second InitClient is ignored (warnings expected)", function()
+	VluxySF.Startup.InitClient(0)
+	ExpectEqual(VluxySF.Startup.IsReady(), true, "IsReady after the second call")
 end)
 
 SharedCases.Run(suite)
@@ -117,40 +116,40 @@ InternalCases.Run(suite)
 --PRELOAD---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
-local schema = VluxySF.Schema.Get()
+local schema = assert(VluxySF.Schema.Get(), "The schema should be ready")
 
 suite.Test("InitClient waited for the preloads", function()
 	ExpectEqual(VluxySF.Startup.IsPreloaded(), true, "IsPreloaded")
 
 	--Returns right away when the preloads are done.
-	VluxySF.Startup.WaitForPreload()
+	VluxySF.Startup.WaitUntilPreloaded()
 end)
 
 suite.Test("Tagged sounds are preloaded by InitClient", function()
-	local preloaded = VluxySF.Preload.Get()
-
 	for _, name in ipairs({ "BattleOne", "BattleTwo", "Click" }) do
-		Expect(preloaded[name], `{name} should be preloaded`)
+		Expect(VluxySF.Preload.Has(name), `{name} should be preloaded`)
 		Expect(schema.PreloadedSounds:FindFirstChild(name), `{name} should be kept in PreloadedSounds`)
 	end
 
-	ExpectEqual(preloaded.MainTheme, nil, "MainTheme is not tagged")
+	ExpectEqual(VluxySF.Preload.Has("MainTheme"), false, "MainTheme is not tagged")
+	ExpectContains(VluxySF.Preload.GetNames(), { "BattleOne", "BattleTwo", "Click" }, "Preload.GetNames")
 end)
 
-suite.Test("Fetching a preloaded sound gives a new clone", function()
+suite.Test("Fetching a preloaded sound builds a new one", function()
+	local kept = schema.PreloadedSounds:FindFirstChild("Click")
 	local sound: Sound = VluxySF.Fetch("Click")
 
 	ExpectEqual(sound.Name, "Click", "Name")
-	Expect(sound ~= VluxySF.Preload.Get().Click, "Fetch should not hand out the stored sound")
-	Expect(not sound:IsDescendantOf(schema.PreloadedSounds), "The clone should not stay in PreloadedSounds")
+	Expect(sound ~= kept, "Fetch should not hand out the kept sound")
+	Expect(not sound:IsDescendantOf(schema.PreloadedSounds), "The fetched sound should not stay in PreloadedSounds")
 
 	sound:Destroy()
 end)
 
-suite.Test("Preload.Selected preloads more sounds at runtime", function()
-	VluxySF.Preload.Selected("Explosion")
+suite.Test("Preload.AddAsync preloads more sounds at runtime", function()
+	VluxySF.Preload.AddAsync("Explosion")
 
-	Expect(VluxySF.Preload.Get().Explosion, "Explosion should be preloaded")
+	Expect(VluxySF.Preload.Has("Explosion"), "Explosion should be preloaded")
 end)
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -163,8 +162,10 @@ suite.Test("Cache warms and chills a sound", function()
 	VluxySF.Cache.Warm("MainTheme")
 	ExpectEqual(VluxySF.Cache.IsWarmed("MainTheme"), true, "IsWarmed after Warm")
 
-	local warmed = VluxySF.Cache.Get().MainTheme
-	assert(warmed, "MainTheme should be in the cache")
+	ExpectContains(VluxySF.Cache.GetNames(), { "MainTheme" }, "Cache.GetNames")
+
+	local warmed = schema.WarmedSounds:FindFirstChild("MainTheme")
+	assert(warmed, "MainTheme should be kept in WarmedSounds")
 	ExpectEqual(warmed.Parent, schema.WarmedSounds, "Warmed sound parent")
 
 	local sound: Sound = VluxySF.Fetch("MainTheme")
@@ -185,14 +186,14 @@ if remaining > 0 then
 	task.wait(remaining)
 end
 
-suite.Test("FetchPlayOnce destroys a sound whose asset never loads", function()
+suite.Test("OneShot destroys a sound whose asset never loads", function()
 	local sound = unloadable
 	assert(sound, "The preset should have received the sound")
 
 	ExpectEqual(sound.Parent, nil, "Parent after the load timeout")
 end)
 
-suite.Test("FetchPlayOnce does not flag a sound that loaded and ended", function()
+suite.Test("OneShot does not flag a sound that loaded and ended", function()
 	ExpectEqual(loadWarnings, 1, '"did not load" warnings (only the unloadable sound should warn)')
 end)
 
@@ -206,7 +207,7 @@ suite.Finish()
 
 --The cases above cannot hear anything, so play one sound for a person to check.
 print("[VluxySF Tests] You should hear one click now.")
-VluxySF.FetchPlayOnce("Click", nil, nil, true)
+VluxySF.OneShot("Click")
 
 --With a stress group compiled, time the fetch path too. Run from here, not the command bar: the command bar has its
 --own module cache in Studio, so its copy of the library never initializes.
