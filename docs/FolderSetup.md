@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Folder Setup
@@ -33,7 +33,7 @@ SOUNDS⚙️               ← The base Configuration
 
 There are only three rules:
 
-1. **Every direct child of `SOUNDS` is a `Configuration` with a unique name.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS`, or two groups with the same name, makes `InitServer` throw an error.
+1. **Every direct child of `SOUNDS` is a `Configuration` with a unique name.** Each one becomes a `SoundGroup` with the same name. A `Folder` or `Sound` placed directly under `SOUNDS`, or a second group with a name already used, is skipped by `InitServer` with a warning, along with everything inside it.
 2. **Every `Sound` goes inside one of those group Configurations.** It is assigned to that `SoundGroup` automatically.
 3. **Every `Sound` has a unique name.** The name is the key you fetch it with, like `VluxySF.Fetch("explosion")`. If two sounds share a name, a warning is printed on the server and only the first one is kept.
 
@@ -68,58 +68,7 @@ The hierarchy inside a group does not affect the library. Sounds are always fetc
 
 ## Preloading sounds
 
-Want certain sounds to be ready instantly? Give an instance the tag `VluxySF_Preload`, and every `Sound` under it is preloaded when the client starts.
-
-- Tag a **Sound** to preload that one sound.
-- Tag a **Folder** or any other container to preload every sound inside it.
-- Tag a **group Configuration** to preload the whole group.
-
-```
-SOUNDS⚙️
-  ├─ MUSIC⚙️
-  │    ├─ mainTheme🔊
-  │    └─ battles📁                      ← Tagged "VluxySF_Preload": both sounds inside preload
-  │         ├─ importantSound1🔊
-  │         └─ importantSound2🔊
-  └─ SFX⚙️
-        ├─ click🔊
-        └─ explosions📁
-             ├─ commonExplosion🔊         ← Tagged "VluxySF_Preload": only this sound preloads
-             └─ uncommonLongExplosion🔊
-```
-
-You can add a tag in Studio from the **Tags** section at the bottom of the Properties window.
-
-:::warning
-Only preload the sounds that need it. A preloaded sound stays in memory for the whole session, and there is no way to undo it. See [Advice](./Advice.md#memory-optimizations) for more.
-:::
-
-### Preload timeout
-
-`InitClient` yields until the tagged sounds are preloaded or the timeout passes. The timeout is in seconds and defaults to 5. If the timeout passes first, a warning is printed, `InitClient` returns, and the sounds keep loading in the background.
-
-```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
-
-local preloadTimeout = 10
-VluxySF.Startup.InitClient(preloadTimeout)
-
--- Reaches this line once the sounds are preloaded or the timeout is reached.
-```
-
-Pass `0` to not wait at all. No warning is printed. Check on the preloads later with `Startup.IsPreloaded()` or `Startup.WaitForPreload()`.
-
-```lua
-VluxySF.Startup.InitClient(0)
-
--- Do other startup work here.
-
-VluxySF.Startup.WaitForPreload()
-```
-
-See [Startup](/api/Startup) for the full reference.
+Tag a `Sound`, a Folder or a whole group Configuration with `VluxySF_Preload` to have its sounds downloaded when a client starts, so they play instantly the first time. [Preloading](./Preloading.md) explains how it works and what to tag.
 
 ---
 
@@ -127,7 +76,7 @@ See [Startup](/api/Startup) for the full reference.
 
 Set up each `Sound` in Studio exactly how you want it to play.
 
-- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. A fetched sound comes out the way you authored it. `Parent`, `Archivable`, attributes, tags, read-only state such as `IsPlaying` and `TimeLength`, and deprecated properties such as `Pitch`, `MinDistance`, `MaxDistance` and `EmitterSize` are not kept.
+- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. A fetched sound comes out the way you authored it. `Parent`, `Archivable`, attributes, tags, read-only state such as `IsPlaying` and `TimeLength`, playback state (`Playing` and `TimePosition`: a sound in `SOUNDS` is never playing, and a fetched sound is always stopped at the start), and deprecated properties such as `Pitch`, `MinDistance`, `MaxDistance` and `EmitterSize` are not kept.
 - **Effects:** Add effects such as `EqualizerSoundEffect` or `ReverbSoundEffect` as children of the `Sound`.
 
 :::note
@@ -153,4 +102,4 @@ Once `InitServer` has compiled it, the Configuration is detached right away and 
 
 ## Next step
 
-Your sounds are ready. Continue to [Initialization](./Setup.md) to start the library.
+Your sounds are ready. Continue to [Starting the Library](./Setup.md).

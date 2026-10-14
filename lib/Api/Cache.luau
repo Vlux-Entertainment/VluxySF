@@ -13,48 +13,17 @@ local Templates = require(script.Parent.Parent.Core.Templates)
 
 	@client
 
-	A warmed sound is built once and kept in `SoundService.WarmedSounds` until you chill it. While it is warmed,
-	`Fetch` clones it instead of building it. Use this for sounds that matter during one part of the game, and chill
-	them when that part is over.
+	Warming a sound builds it once and keeps the ready-made `Sound`, effects included, in `SoundService.WarmedSounds`.
+	While it is warmed, `Fetch` clones it instead of building it. Chilling it destroys the kept copy. Use this for
+	sounds that matter during one part of the game, and chill them when that part is over.
 
-	Warming does not download the sound's asset. The engine loads an asset the first time a `Sound` with that id
-	plays, or when `Preload` is used.
+	Keeping the `Sound` also makes Roblox start downloading its audio, but warming does not wait for that; to have
+	audio loaded before it is needed, see `Preload`. The kept copy is silent: it never plays, and `PlayOnRemove` is off
+	on it and restored on the clones `Fetch` hands out.
+
+	Called on the server or before the library has started, every function here warns once and does nothing.
 ]=]
 local Cache = {}
-
---[=[
-	@within Cache
-
-	```lua
-	print(VluxySF.Cache.Get())
-	```
-
-	@return { [string]: Sound } -- Every warmed template, keyed by name. Do not modify it.
-]=]
-function Cache.Get(): { [string]: Sound }
-	SchemaStore.AssertInitialized()
-	SchemaStore.AssertClient()
-
-	return Templates.Warmed.All()
-end
-
---[=[
-	@within Cache
-
-	```lua
-	print(VluxySF.Cache.IsWarmed("MySound"))
-	```
-
-	@param soundName string -- The sound name.
-
-	@return boolean -- Whether the sound is warmed.
-]=]
-function Cache.IsWarmed(soundName: string): boolean
-	SchemaStore.AssertInitialized()
-	SchemaStore.AssertClient()
-
-	return Templates.Warmed.Get(soundName) ~= nil
-end
 
 --[=[
 	@within Cache
@@ -68,8 +37,9 @@ end
 	@param ... string -- The sound names.
 ]=]
 function Cache.Warm(...: string)
-	SchemaStore.AssertInitialized()
-	SchemaStore.AssertClient()
+	if not SchemaStore.CheckReady("Cache.Warm") or not SchemaStore.CheckClient("Cache.Warm") then
+		return
+	end
 
 	local parent = SchemaStore.GetSchema().WarmedSounds
 	local registry = Templates.Warmed
@@ -92,8 +62,8 @@ end
 --[=[
 	@within Cache
 
-	Chills sounds by name: their templates are destroyed. Sounds you already fetched are not affected. A name that
-	is not warmed is ignored.
+	Chills sounds by name: their kept copies are destroyed. Sounds you already fetched are not affected. A name that is
+	not warmed is ignored.
 
 	```lua
 	VluxySF.Cache.Chill("BossRoar", "BossStomp")
@@ -102,12 +72,55 @@ end
 	@param ... string -- The sound names.
 ]=]
 function Cache.Chill(...: string)
-	SchemaStore.AssertInitialized()
-	SchemaStore.AssertClient()
+	if not SchemaStore.CheckReady("Cache.Chill") or not SchemaStore.CheckClient("Cache.Chill") then
+		return
+	end
 
 	for _, name in ipairs({ ... }) do
 		Templates.Warmed.Remove(name)
 	end
+end
+
+--[=[
+	@within Cache
+
+	```lua
+	print(VluxySF.Cache.IsWarmed("BossRoar"))
+	```
+
+	@param name string -- The sound name.
+
+	@return boolean -- Whether the sound is warmed.
+]=]
+function Cache.IsWarmed(name: string): boolean
+	if not SchemaStore.CheckReady("Cache.IsWarmed") or not SchemaStore.CheckClient("Cache.IsWarmed") then
+		return false
+	end
+
+	return Templates.Warmed.Get(name) ~= nil
+end
+
+--[=[
+	@within Cache
+
+	```lua
+	print(VluxySF.Cache.GetNames())
+	```
+
+	@return { string } -- A new array of every warmed sound name, sorted.
+]=]
+function Cache.GetNames(): { string }
+	if not SchemaStore.CheckReady("Cache.GetNames") or not SchemaStore.CheckClient("Cache.GetNames") then
+		return {}
+	end
+
+	local names: { string } = {}
+	for name in pairs(Templates.Warmed.All()) do
+		table.insert(names, name)
+	end
+	table.sort(names)
+
+	return names
 end
 
 return Cache

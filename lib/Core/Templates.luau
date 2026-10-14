@@ -4,8 +4,9 @@
 --[[
 	Keeps template Sounds by name so Fetch can clone them instead of building them.
 
-	There are two registries. Preloaded holds the sounds that stay for the whole session. Warmed holds the sounds the
-	game warms and chills at runtime. Fetch checks Preloaded first, then Warmed.
+	There are two registries. Preloaded holds the sounds Preload keeps for the whole session; those templates exist to
+	keep their audio loaded and are never cloned. Warmed holds the sounds the game warms and chills at runtime; Fetch
+	clones those instead of building them.
 ]]
 
 export type Registry = {
@@ -33,7 +34,7 @@ local function newRegistry(): Registry
 
 	--[[
 		@param name string -- The sound name.
-		@param sound Sound -- The template to store. It is parented to the given parent.
+		@param sound Sound -- The template to store. It is parented to the given parent and silenced.
 		@param parent Instance -- Where the template lives.
 
 		@return boolean -- false when a template with that name already exists. The sound is left untouched then.
@@ -44,6 +45,11 @@ local function newRegistry(): Registry
 		end
 
 		sounds[name] = sound
+
+		--a template sits in SoundService for the whole session and must never make sound: not when it enters the
+		--DataModel and not when it is destroyed. Fetch restores PlayOnRemove on the clones it takes from here.
+		sound.Playing = false
+		sound.PlayOnRemove = false
 		sound.Parent = parent
 
 		return true
@@ -82,10 +88,11 @@ Templates.Warmed = newRegistry()
 --[[
 	@param name string -- The sound name.
 
-	@return Sound? -- A fresh, unparented clone of the preloaded or warmed template, or nil when there is none.
+	@return Sound? -- A fresh, unparented clone of the warmed template, or nil when there is none. The clone has
+	PlayOnRemove off like the template; the caller restores it from the definition.
 ]]
 function Templates.Clone(name: string): Sound?
-	local template = Templates.Preloaded.Get(name) or Templates.Warmed.Get(name)
+	local template = Templates.Warmed.Get(name)
 	if not template then
 		return nil
 	end

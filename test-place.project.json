@@ -17,8 +17,8 @@
 			"InternalCases": {
 				"$path": "Tests/ReplicatedStorage/InternalCases.luau"
 			},
-			"FetchBenchmark": {
-				"$path": "Tests/ReplicatedStorage/FetchBenchmark.luau"
+			"Benchmarks": {
+				"$path": "Tests/ReplicatedStorage/Benchmarks.luau"
 			}
 		},
 		"ServerScriptService": {

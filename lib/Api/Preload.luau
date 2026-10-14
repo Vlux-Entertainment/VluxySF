@@ -12,49 +12,79 @@ local Templates = require(script.Parent.Parent.Core.Templates)
 
 	@client
 
-	Preloaded sounds are built once, kept in `SoundService.PreloadedSounds` for the whole session, and loaded by
-	`ContentProvider`. `Fetch` clones them instead of building them, so they play without a delay.
+	Preloading downloads a sound's audio ahead of time and keeps it loaded for the whole session, so the sound plays
+	without a delay the first time it is needed.
 
-	Sounds tagged `VluxySF_Preload` in Studio are preloaded by `Startup.InitClient`. Use `Selected` to preload more at
-	runtime.
+	Sounds tagged `VluxySF_Preload` in Studio are preloaded by `Startup.InitClient`. Use `AddAsync` to preload more at
+	runtime. This is about the network; to keep built `Sound` instances ready instead, see `Cache`.
+
+	Called on the server or before the library has started, every function here warns once and does nothing.
 ]=]
 local Preload = {}
 
 --[=[
 	@within Preload
 
+	@yields
+
+	Preloads more sounds by name and yields until their audio has loaded. A name that is already preloaded is skipped,
+	and a name that is not in the schema prints a warning.
+
 	```lua
-	print(VluxySF.Preload.Get())
+	VluxySF.Preload.AddAsync("BossRoar", "BossStomp")
 	```
 
-	@return { [string]: Sound } -- Every preloaded template, keyed by name. Do not modify it.
+	@param ... string -- The sound names.
 ]=]
-function Preload.Get(): { [string]: Sound }
-	SchemaStore.AssertInitialized()
-	SchemaStore.AssertClient()
+function Preload.AddAsync(...: string)
+	if not SchemaStore.CheckReady("Preload.AddAsync") or not SchemaStore.CheckClient("Preload.AddAsync") then
+		return
+	end
 
-	return Templates.Preloaded.All()
+	local sounds = Preloading.Register({ ... }, false)
+	Preloading.Load(sounds)
 end
 
 --[=[
 	@within Preload
 
-	@yields
-
-	Preloads more sounds by name. Yields until they are loaded. A name that is already preloaded prints a warning.
-
 	```lua
-	VluxySF.Preload.Selected("Footstep", "Jump")
+	print(VluxySF.Preload.Has("BossRoar"))
 	```
 
-	@param ... string -- The sound names.
-]=]
-function Preload.Selected(...: string)
-	SchemaStore.AssertInitialized()
-	SchemaStore.AssertClient()
+	@param name string -- The sound name.
 
-	local sounds = Preloading.Register({ ... }, true)
-	Preloading.Load(sounds)
+	@return boolean -- Whether the sound is preloaded, or being preloaded.
+]=]
+function Preload.Has(name: string): boolean
+	if not SchemaStore.CheckReady("Preload.Has") or not SchemaStore.CheckClient("Preload.Has") then
+		return false
+	end
+
+	return Templates.Preloaded.Get(name) ~= nil
+end
+
+--[=[
+	@within Preload
+
+	```lua
+	print(VluxySF.Preload.GetNames())
+	```
+
+	@return { string } -- A new array of every preloaded sound name, sorted.
+]=]
+function Preload.GetNames(): { string }
+	if not SchemaStore.CheckReady("Preload.GetNames") or not SchemaStore.CheckClient("Preload.GetNames") then
+		return {}
+	end
+
+	local names: { string } = {}
+	for name in pairs(Templates.Preloaded.All()) do
+		table.insert(names, name)
+	end
+	table.sort(names)
+
+	return names
 end
 
 return Preload

@@ -11,6 +11,9 @@ local Types = require(script.Parent.Parent.Types)
 
 local INSTANCE_TAG = "_VLUXY_SOUND_FACTORY_INSTANCE"
 
+--Name of the silent Sound handed out in place of one that could not be built or found.
+local BLANK_SOUND_NAME = "VluxySF_Blank_Sound"
+
 local ALLOWED_SOUND_CHILDREN: { [string]: boolean } = {
 	ChorusSoundEffect = true,
 	CompressorSoundEffect = true,
@@ -26,6 +29,17 @@ local ALLOWED_SOUND_CHILDREN: { [string]: boolean } = {
 local Converters = {}
 
 ------------------------------------------------------------------------------------------------------------------------
+
+--[[
+	@return SoundDefinition -- A new definition of a silent Sound with no asset and no effects, named BLANK_SOUND_NAME.
+]]
+function Converters.NewBlankDefinition(): Types.SoundDefinition
+	return {
+		Properties = { Name = BLANK_SOUND_NAME } :: any,
+		Effects = {} :: any,
+		EffectsCount = 0,
+	}
+end
 
 --[[
 	@param sound Sound -- The Sound to convert.
@@ -83,19 +97,30 @@ end
 
 	@return Sound -- A new Sound with its SoundEffects parented under their class names.
 
-	Builds a new Sound from a SoundDefinition. The Sound is not parented.
+	Builds a new Sound from a SoundDefinition. The Sound is not parented. A definition with no Properties or no Effects
+	builds what it has; an effect entry that is not a table is warned about and skipped.
 ]]
 function Converters.DefinitionToSound(definition: Types.SoundDefinition): Types.SoundDefinitionInstanced
 	local sound = Instance.new("Sound")
 	sound:AddTag(INSTANCE_TAG)
 
-	Properties.Apply(sound, definition.Properties :: any)
+	local properties = (definition :: any).Properties
+	if type(properties) == "table" then
+		Properties.Apply(sound, properties)
+	end
 
-	local effects = definition.Effects :: { [string]: { [string]: any } }?
-	if effects then
+	local effects = (definition :: any).Effects
+	if type(effects) == "table" then
 		for className, effectProperties in pairs(effects) do
-			if not ALLOWED_SOUND_CHILDREN[className] then
+			if type(className) ~= "string" or not ALLOWED_SOUND_CHILDREN[className] then
 				FormatMessage.Warn(`"{className}" is not a SoundEffect class and was skipped on "{sound.Name}".`)
+				continue
+			end
+
+			if type(effectProperties) ~= "table" then
+				FormatMessage.Warn(
+					`{className} on "{sound.Name}" is {typeof(effectProperties)} instead of a property table and was skipped.`
+				)
 				continue
 			end
 

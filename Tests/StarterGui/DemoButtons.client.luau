@@ -2,7 +2,7 @@
 
 --[[
 	Three buttons for trying the library by ear in the test place. Every button plays a one-shot through
-	FetchPlayOnce, so the sound destroys itself when it ends. The label under the buttons shows how many sounds are
+	OneShot, so the sound destroys itself when it ends. The label under the buttons shows how many sounds are
 	sitting in SoundService.UnattachedSounds, which should go back to zero after each sound finishes.
 ]]
 
@@ -71,9 +71,9 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------
 
-VluxySF.Startup.WaitForSchema()
+VluxySF.Startup.WaitUntilReady()
 
-local unattached = VluxySF.Schema.Get().UnattachedSounds
+local unattached = (VluxySF.Schema.Get() :: VluxySF.SoundSchema).UnattachedSounds
 
 local function refreshStatus(message: string?)
 	local count = #unattached:GetChildren()
@@ -95,7 +95,7 @@ for order, entry in ipairs(BUTTONS) do
 
 	button.Activated:Connect(function()
 		--One-shot: plays once and destroys itself when it ends.
-		VluxySF.FetchPlayOnce(entry.Sound, nil, nil, true)
+		VluxySF.OneShot(entry.Sound)
 
 		refreshStatus(`{entry.Sound} ({entry.Note}).`)
 	end)

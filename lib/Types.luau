@@ -178,18 +178,16 @@ export type SoundChildrenSerialized = {
 	.PlaybackRegion NumberRange?
 	.PlaybackRegionsEnabled boolean?
 	.PlaybackSpeed number?
-	.Playing boolean?
 	.PlayOnRemove boolean?
 	.RollOffMaxDistance number?
 	.RollOffMinDistance number?
 	.RollOffMode Enum.RollOffMode?
 	.SoundId string?
-	.TimePosition number?
 	.Volume number?
 
 	The properties of a `Sound`. Only `Name` is always present; every other property is left out when it equals the
-	class default. `Parent`, `Archivable`, attributes, tags, read-only state and deprecated properties are never
-	stored.
+	class default. `Parent`, `Archivable`, attributes, tags, read-only state, playback state (`Playing`,
+	`TimePosition`) and deprecated properties are never stored: a fetched `Sound` is always stopped at the start.
 ]=]
 export type SoundSerialized = BaseInstance & SoundProperties
 
@@ -370,14 +368,12 @@ type SoundProperties = {
 	PlaybackRegion: NumberRange?,
 	PlaybackRegionsEnabled: boolean?,
 	PlaybackSpeed: number?,
-	Playing: boolean?,
 	PlayOnRemove: boolean?,
 	RollOffMaxDistance: number?,
 	RollOffMinDistance: number?,
 	RollOffMode: Enum.RollOffMode?,
 	SoundGroup: SoundGroup?,
 	SoundId: string?,
-	TimePosition: number?,
 	Volume: number?,
 }
 

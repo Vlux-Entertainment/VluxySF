@@ -1,7 +1,6 @@
 --!strict
 --!optimize 2
 
-local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local SchemaStore = require(script.Parent.Parent.Core.SchemaStore)
 local Types = require(script.Parent.Parent.Types)
 
@@ -14,8 +13,17 @@ local Types = require(script.Parent.Parent.Types)
 
 	Definitions are decoded out of the compiled schema the first time they are asked for. `GetDefinition` decodes one.
 	`Get` and `GetDefinitions` decode every remaining one and then freeze the definitions table.
+
+	Called before the library has started, every function here warns once and returns an empty result.
+
+	:::caution
+	With a large schema, `Get` and `GetDefinitions` cost time and keep every definition in memory. Use them for
+	tooling and debugging, not on hot paths; use `GetDefinition` or `Has` for one sound.
+	:::
 ]=]
 local Schema = {}
+
+local emptyDefinitions: Types.SoundDefinitions = table.freeze({})
 
 --[=[
 	@within Schema
@@ -25,13 +33,17 @@ local Schema = {}
 	```lua
 	local schema = VluxySF.Schema.Get()
 
-	print(schema.PreloadNames)
+	if schema then
+		print(schema.PreloadNames)
+	end
 	```
 
-	@return SoundSchema -- The frozen schema.
+	@return SoundSchema? -- The frozen schema, or `nil` before the library has started.
 ]=]
-function Schema.Get(): Types.SoundSchema
-	SchemaStore.AssertInitialized()
+function Schema.Get(): Types.SoundSchema?
+	if not SchemaStore.CheckReady("Schema.Get") then
+		return nil
+	end
 
 	SchemaStore.GetDefinitions()
 
@@ -44,15 +56,17 @@ end
 	Returns every definition, keyed by sound name. Decodes every definition that has not been decoded yet.
 
 	```lua
-	for name, definition in pairs(VluxySF.Schema.GetDefinitions()) do
+	for name, definition in VluxySF.Schema.GetDefinitions() do
 		print(name, definition.EffectsCount)
 	end
 	```
 
-	@return SoundDefinitions -- The frozen definitions.
+	@return SoundDefinitions -- The frozen definitions. Empty before the library has started.
 ]=]
 function Schema.GetDefinitions(): Types.SoundDefinitions
-	SchemaStore.AssertInitialized()
+	if not SchemaStore.CheckReady("Schema.GetDefinitions") then
+		return emptyDefinitions
+	end
 
 	return SchemaStore.GetDefinitions()
 end
@@ -60,7 +74,8 @@ end
 --[=[
 	@within Schema
 
-	Returns one definition. Prints a warning when the name is not in the schema.
+	Returns one definition, decoding it the first time. Prints nothing for a name that is not in the schema; use `Has`
+	to check first if that matters.
 
 	```lua
 	local definition = VluxySF.Schema.GetDefinition("MySound")
@@ -70,19 +85,41 @@ end
 	end
 	```
 
-	@param definitionName string -- The sound name.
+	@param name string -- The sound name.
 
 	@return SoundDefinition? -- The frozen definition, or `nil`.
 ]=]
-function Schema.GetDefinition(definitionName: string): Types.SoundDefinition?
-	SchemaStore.AssertInitialized()
-
-	local definition = SchemaStore.GetDefinition(definitionName)
-	if not definition then
-		FormatMessage.Warn(`"{definitionName}" is not in the schema.`)
+function Schema.GetDefinition(name: string): Types.SoundDefinition?
+	if not SchemaStore.CheckReady("Schema.GetDefinition") then
+		return nil
 	end
 
-	return definition
+	return SchemaStore.GetDefinition(name)
+end
+
+--[=[
+	@within Schema
+
+	Checks whether a sound is in the schema, without decoding it and without a warning.
+
+	```lua
+	if VluxySF.Schema.Has(`VO_{npcName}`) then
+		VluxySF.OneShot(`VO_{npcName}`)
+	end
+	```
+
+	@param name string -- The sound name.
+
+	@return boolean -- Whether a sound has that name. `false` before the library has started.
+]=]
+function Schema.Has(name: string): boolean
+	if not SchemaStore.CheckReady("Schema.Has") then
+		return false
+	end
+
+	local loaded = SchemaStore.GetLoaded()
+
+	return loaded ~= nil and loaded.Offsets[name] ~= nil
 end
 
 --[=[
@@ -92,10 +129,13 @@ end
 	print(VluxySF.Schema.GetNames())
 	```
 
-	@return { string } -- A new array of every sound name.
+	@return { string } -- A new array of every sound name, in the order they were compiled. Empty before the library
+	has started.
 ]=]
 function Schema.GetNames(): { string }
-	SchemaStore.AssertInitialized()
+	if not SchemaStore.CheckReady("Schema.GetNames") then
+		return {}
+	end
 
 	return SchemaStore.GetNames()
 end

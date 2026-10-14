@@ -48,6 +48,11 @@ local IGNORED_PROPERTIES: { [string]: boolean } = {
 	IsPlaying = true,
 	PlaybackLoudness = true,
 	TimeLength = true,
+
+	--writable runtime state: a Sound in SOUNDS is never playing, and a template that kept Playing = true would play
+	--audibly from SoundService on every client
+	Playing = true,
+	TimePosition = true,
 }
 
 --Value types a definition can hold.
@@ -209,9 +214,18 @@ end
 	@return boolean -- Whether every property was applied.
 
 	Applies a property table to an instance. Writes happen without pcall; if one fails, the table is applied again one
-	property at a time so every valid property still lands, and each invalid one is warned about.
+	property at a time so every valid property still lands, and each invalid one is warned about. Something that is
+	not a table warns and applies nothing.
 ]]
 function Properties.Apply(instance: Instance, properties: { [string]: any }): boolean
+	if type(properties) ~= "table" then
+		FormatMessage.Warn(
+			`Expected a property table for {instance.ClassName} "{instance.Name}", got {typeof(properties)}. Nothing was applied.`
+		)
+
+		return false
+	end
+
 	if pcall(writeAll, instance, properties) then
 		return true
 	end

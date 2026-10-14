@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 
 # Installation
@@ -20,20 +20,14 @@ registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 
 [dependencies]
-VluxySF = "greenviper126/vluxysf@^2"
+VluxySF = "greenviper126/vluxysf@^3"
 ```
 
 Run `wally install` in your project. Wally creates a `Packages` folder that contains VluxySF.
 
-### Upgrading from 1.x
+### Upgrading from 2.x
 
-Change the version to `@^2` and run `wally install` again. Your code keeps working, with these differences:
-
-- `Startup.InitClient(0)` no longer waits for the preloads or warns. Other scripts waiting with `WaitForSchema` resume as soon as the schema arrives, before the preloads finish.
-- Calling `InitServer` or `InitClient` twice throws an error.
-- The companion VS Code extension is gone. Sound names are plain strings.
-
-The full list is in the [changelog](https://github.com/Vlux-Entertainment/VluxySF/blob/main/CHANGELOG.md).
+3.0 renames several functions, so code written for 2.x needs small edits. Change the version to `@^3`, run `wally install`, then follow the table of renames in the [changelog](https://github.com/Vlux-Entertainment/VluxySF/blob/main/CHANGELOG.md).
 
 ## 2. Sync the package into Studio
 

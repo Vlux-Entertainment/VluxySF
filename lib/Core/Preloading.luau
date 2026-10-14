@@ -57,14 +57,18 @@ end
 
 	@param sounds { Sound } -- The sounds to load.
 
-	Loads the sounds' assets. Returns when they are loaded or ContentProvider gives up on them.
+	Loads the sounds' assets. Returns when they are loaded or ContentProvider gives up on them. Never throws: a failed
+	preload only warns, so the code waiting on it carries on.
 ]]
 function Preloading.Load(sounds: { Sound })
 	if #sounds == 0 then
 		return
 	end
 
-	ContentProvider:PreloadAsync(sounds)
+	local success, reason = pcall(ContentProvider.PreloadAsync, ContentProvider, sounds)
+	if not success then
+		FormatMessage.Warn(`Preloading {#sounds} sound(s) failed: {reason}`)
+	end
 end
 
 return Preloading

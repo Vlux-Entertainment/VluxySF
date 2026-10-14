@@ -1,0 +1,83 @@
+{
+	"name": "VluxySF-Stress",
+	"servePlaceIds": [
+		73609616913220
+	],
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"VluxySF": {
+				"$path": "lib"
+			},
+			"TestHarness": {
+				"$path": "Tests/ReplicatedStorage/TestHarness.luau"
+			},
+			"SharedCases": {
+				"$path": "Tests/ReplicatedStorage/SharedCases.luau"
+			},
+			"InternalCases": {
+				"$path": "Tests/ReplicatedStorage/InternalCases.luau"
+			},
+			"Benchmarks": {
+				"$path": "Tests/ReplicatedStorage/Benchmarks.luau"
+			}
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$path": "Tests/ServerScriptService"
+		},
+		"ServerStorage": {
+			"$className": "ServerStorage",
+			"TEST_SOUNDS": {
+				"$path": "Tests/ServerStorage/TEST_SOUNDS.model.json",
+				"Stress5000": {
+					"$path": "Tests/Stress/Stress5000.model.json"
+				},
+				"Stress2500": {
+					"$path": "Tests/Stress/Stress2500.model.json"
+				},
+				"Stress1250": {
+					"$path": "Tests/Stress/Stress1250.model.json"
+				},
+				"Stress625": {
+					"$path": "Tests/Stress/Stress625.model.json"
+				},
+				"Stress313": {
+					"$path": "Tests/Stress/Stress313.model.json"
+				},
+				"Stress157": {
+					"$path": "Tests/Stress/Stress157.model.json"
+				},
+				"Stress79": {
+					"$path": "Tests/Stress/Stress79.model.json"
+				},
+				"Stress40": {
+					"$path": "Tests/Stress/Stress40.model.json"
+				},
+				"Stress20": {
+					"$path": "Tests/Stress/Stress20.model.json"
+				},
+				"Stress10": {
+					"$path": "Tests/Stress/Stress10.model.json"
+				},
+				"Stress5": {
+					"$path": "Tests/Stress/Stress5.model.json"
+				}
+			}
+		},
+		"StarterGui": {
+			"$className": "StarterGui",
+			"DemoButtons": {
+				"$path": "Tests/StarterGui/DemoButtons.client.luau"
+			}
+		},
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"$path": "Tests/StarterPlayerScripts"
+			}
+		}
+	}
+}

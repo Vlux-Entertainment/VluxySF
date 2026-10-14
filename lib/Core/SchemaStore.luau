@@ -13,6 +13,7 @@ local SoundService = game:GetService("SoundService")
 
 local Codec = require(script.Parent.Codec)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Owned = require(script.Parent.Parent.Utility.Owned)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
@@ -77,9 +78,11 @@ local function buildSchema(
 	schema = built
 end
 
+--marked before it is parented so the mark replicates with the instance and the client can tell it from the game's own
 local function newContainer(className: string, name: string): Instance
 	local container = Instance.new(className)
 	container.Name = name
+	Owned.Mark(container)
 	container.Parent = SoundService
 
 	return container
@@ -100,6 +103,7 @@ function SchemaStore.LoadServer(schemaBuffer: buffer)
 		local group = Instance.new("SoundGroup")
 		group.Name = groupName
 		group.Volume = 1
+		Owned.Mark(group)
 		group.Parent = groupContainer
 
 		groupList[index] = group
@@ -117,25 +121,46 @@ end
 --[[
 	@yields
 
-	@param schemaBuffer buffer -- The schema received from the server.
-
-	Loads the schema on the client. Waits for the SoundGroups and holder folders the server made to replicate.
+	Finds the marked child the server made, or errors with the reason when it has not replicated by the deadline. Only
+	called inside the startup pcall, whose warning already carries the library prefix, so the reason is left plain.
 ]]
-function SchemaStore.LoadClient(schemaBuffer: buffer)
+local function findOwned(parent: Instance, name: string, className: string, deadline: number): Instance
+	local child = Owned.WaitFor(parent, name, className, deadline)
+	if not child then
+		error(
+			`the {className} "{name}" the server made in {parent:GetFullName()} did not arrive in time. Check the server output for a VluxySF warning.`,
+			0
+		)
+	end
+
+	return child :: Instance
+end
+
+--[[
+	@yields
+
+	@param schemaBuffer buffer -- The schema received from the server.
+	@param deadline number -- The os.clock() time to give up waiting for the server's instances at.
+
+	Loads the schema on the client. Waits for the SoundGroups and holder folders the server made to replicate, by
+	name, class and mark so a same-named instance of the game's own is never picked up. Errors when one is missing
+	at the deadline.
+]]
+function SchemaStore.LoadClient(schemaBuffer: buffer, deadline: number)
 	local loadedSchema = Codec.Load(schemaBuffer)
 
-	local groupContainer = SoundService:WaitForChild(GROUP_CONTAINER_NAME) :: SoundGroup
+	local groupContainer = findOwned(SoundService, GROUP_CONTAINER_NAME, "SoundGroup", deadline) :: SoundGroup
 
 	for index, groupName in ipairs(loadedSchema.GroupNames) do
-		groupList[index] = groupContainer:WaitForChild(groupName) :: SoundGroup
+		groupList[index] = findOwned(groupContainer, groupName, "SoundGroup", deadline) :: SoundGroup
 	end
 
 	buildSchema(
 		loadedSchema,
 		groupContainer,
-		SoundService:WaitForChild(PRELOADED_NAME) :: Configuration,
-		SoundService:WaitForChild(WARMED_NAME) :: Configuration,
-		SoundService:WaitForChild(UNATTACHED_NAME) :: Configuration
+		findOwned(SoundService, PRELOADED_NAME, "Configuration", deadline) :: Configuration,
+		findOwned(SoundService, WARMED_NAME, "Configuration", deadline) :: Configuration,
+		findOwned(SoundService, UNATTACHED_NAME, "Configuration", deadline) :: Configuration
 	)
 end
 
@@ -174,12 +199,17 @@ function SchemaStore.GetDefinition(name: string): Types.SoundDefinition?
 		return nil
 	end
 
-	local offset = loadedSchema.Offsets[name]
-	if not offset then
+	--a damaged definition must not break the fetch that asked for it; it is only decoded once, so the pcall is cheap
+	local success, decoded, groupIndex = pcall(Codec.ReadDefinition, loadedSchema, name)
+	if not success then
+		FormatMessage.Warn(`"{name}" could not be read from the schema: {decoded}`)
+
+		return nil
+	end
+	if not decoded then
 		return nil
 	end
 
-	local decoded, groupIndex = Codec.ReadDefinition(loadedSchema, offset)
 	if groupIndex > 0 then
 		(decoded.Properties :: any).SoundGroup = groupList[groupIndex]
 	end
@@ -219,6 +249,13 @@ function SchemaStore.GetDefinitions(): Types.SoundDefinitions
 end
 
 --[[
+	@return Codec.Loaded? -- The loaded schema buffer and its header, or nil before load. For tests and benchmarks.
+]]
+function SchemaStore.GetLoaded(): Codec.Loaded?
+	return loaded
+end
+
+--[[
 	@return { string } -- A new array of every sound name.
 
 	Returns the sound names in the order they were compiled.
@@ -230,6 +267,18 @@ function SchemaStore.GetNames(): { string }
 	end
 
 	return table.clone(loadedSchema.Names)
+end
+
+--[[
+	@return { string } -- A new array of every group name, in the order the groups appear under SOUNDS.
+]]
+function SchemaStore.GetGroupNames(): { string }
+	local loadedSchema = loaded
+	if not loadedSchema then
+		return {}
+	end
+
+	return table.clone(loadedSchema.GroupNames)
 end
 
 --[[
@@ -281,33 +330,54 @@ function SchemaStore.IsPreloaded(): boolean
 	return isPreloaded
 end
 
---[[
-	@param level number? -- The stack level the error points at. Default is 3, the caller of the API function.
+--warnings already printed by CheckReady and CheckClient, keyed by function name, so each warns once
+local warnedCalls: { [string]: boolean } = {}
 
-	Errors when the schema is not ready. Every API function that needs the schema calls this first.
-]]
-function SchemaStore.AssertInitialized(level: number?)
-	if isInitialized then
+local function warnOnce(key: string, message: string)
+	if warnedCalls[key] then
 		return
 	end
+	warnedCalls[key] = true
 
-	FormatMessage.Error(
-		"The schema is not ready yet! Call Startup.InitServer or Startup.InitClient first, or wait with Startup.WaitForSchema.",
-		level or 3
-	)
+	FormatMessage.Warn(`{message} (This warning is shown once.)`)
 end
 
 --[[
-	@param level number? -- The stack level the error points at. Default is 3, the caller of the API function.
+	@param functionName string -- The API function being called, for the warning.
 
-	Errors on the server. Every client-only API function calls this first.
+	@return boolean -- Whether the schema is ready.
+
+	The library never throws at game code for being called too early: an API function calls this first and, when it
+	returns false, returns a safe empty value. The first early call of each function warns.
 ]]
-function SchemaStore.AssertClient(level: number?)
-	if RunService:IsClient() then
-		return
+function SchemaStore.CheckReady(functionName: string): boolean
+	if isInitialized then
+		return true
 	end
 
-	FormatMessage.Error("This function only works on the client!", level or 3)
+	warnOnce(
+		functionName,
+		`{functionName} was called before the library finished starting, so it did nothing. Wait with Startup.WaitUntilReady or Startup.OnReady first.`
+	)
+
+	return false
+end
+
+--[[
+	@param functionName string -- The API function being called, for the warning.
+
+	@return boolean -- Whether this is the client.
+
+	Client-only functions call this and do nothing on the server. The first call of each function there warns.
+]]
+function SchemaStore.CheckClient(functionName: string): boolean
+	if RunService:IsClient() then
+		return true
+	end
+
+	warnOnce(`{functionName}@server`, `{functionName} only works on the client, so it did nothing on the server.`)
+
+	return false
 end
 
 return SchemaStore
