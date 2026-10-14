@@ -10,6 +10,7 @@
 	it from the command bar: in Studio the command bar has its own module cache, so its copy of the library is never
 	initialized and WaitForSchema yields forever.
 ]]
+local ContentProvider = game:GetService("ContentProvider")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -27,6 +28,9 @@ local FETCH_PASSES = 3
 
 --How many sounds the clone and FetchPlayOnce timings use.
 local SAMPLE_SIZE = 1000
+
+--How many sounds the client tries to load, to check that the fixture's assets really play.
+local PLAYABLE_SAMPLE = 100
 
 --Microseconds per item above which a line is marked SLOW. Several times the 2.0 measurements (Fetch was 11 to 13 us).
 local BUDGETS = {
@@ -269,6 +273,39 @@ function Benchmarks.Run()
 
 	reportSize("This schema", loaded.Buffer, count)
 	reportSize("Realistic schema, same sound count", buildRealisticSchema(count), count)
+
+	--PLAYABLE_ASSETS (client only)--------------------------------------------------------------------------------------
+
+	if side == "Client" then
+		local probes: { Instance } = {}
+		local step = math.max(1, count // PLAYABLE_SAMPLE)
+		for index = 1, count, step do
+			table.insert(probes, VluxySF.Fetch(names[index]))
+			if #probes == PLAYABLE_SAMPLE then
+				break
+			end
+		end
+
+		local loadedCount, failed = 0, 0
+		clock = os.clock()
+		ContentProvider:PreloadAsync(probes, function(_contentId: string, status: Enum.AssetFetchStatus)
+			if status == Enum.AssetFetchStatus.Success then
+				loadedCount += 1
+			else
+				failed += 1
+			end
+		end)
+		line(
+			string.format(
+				"assets that load: %d of %d sampled (%d failed) in %.0f ms",
+				loadedCount,
+				#probes,
+				failed,
+				(os.clock() - clock) * 1000
+			)
+		)
+		destroyAll(probes)
+	end
 
 	--TRANSPORT----------------------------------------------------------------------------------------------------------
 

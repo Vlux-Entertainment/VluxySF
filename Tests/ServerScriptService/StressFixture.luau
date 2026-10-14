@@ -7,6 +7,10 @@
 		require(game:GetService("ServerScriptService").StressFixture).Create()
 
 	The sounds are added to the place, not to the files, so they are gone once Rojo syncs the fixture again.
+
+	Create makes simple sounds that all share one SoundId, for quick checks at any size. For comparable numbers that
+	look like a real game, serve stress-place.project.json instead: it syncs the fixed stress fixture from Tests/Stress
+	(9,999 sounds with real asset ids and varied properties in 11 SoundGroups) into TEST_SOUNDS.
 ]]
 local ServerStorage = game:GetService("ServerStorage")
 

@@ -49,6 +49,11 @@ failed case. `Tests/` mirrors where each file lands in the place:
   trips, property rules, compile errors); schema-free, run on both sides.
 - `ServerScriptService/ServerTests.server.luau`, `StarterPlayerScripts/ClientTests.client.luau` —
   init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
+- `Stress/` + `stress-place.project.json` — the fixed stress fixture for comparable benchmarks: 9,999 sounds
+  (8,000 unique public asset ids, 1,999 variants reusing ids with other properties, ~20% with an effect) in 11
+  SoundGroups of 5000, 2500, ... 5, synced into `TEST_SOUNDS`. Switch Rojo-Hub's project file to
+  `stress-place.project.json` for a stress run and back to `test-place.project.json` after. The files come from
+  `Tests/Stress/generate.py` (seeded, byte-identical every run); regenerate only to change the fixture on purpose.
 - `ServerScriptService/StressFixture.luau` — `Create(folders, sounds)` / `Remove()` from the command bar
   in edit mode; with 1000+ sounds compiled, both test scripts also run
   `ReplicatedStorage/Benchmarks.luau` (codec, build, fetch, clone, wrapper, FetchPlayOnce and base64

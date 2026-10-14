@@ -26,6 +26,7 @@ exclude = [
     "stylua.toml",
     "sourcemap.json",
     "test-place.project.json",
+    "stress-place.project.json",
 ]
 
 [server-dependencies]
