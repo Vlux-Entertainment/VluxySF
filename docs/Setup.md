@@ -25,7 +25,7 @@ VluxySF.Startup.InitServer(ServerStorage.SOUNDS)
 -- The schema can be used from here on.
 ```
 
-`InitServer` compiles every sound into the schema and publishes it. Clients receive the schema when they join, so nothing is requested from the server at runtime.
+`InitServer` compiles every sound into the schema and publishes it. Clients receive the schema when they join; a client that cannot read it asks the server for it once. Nothing else is requested from the server at runtime.
 
 :::info
 `InitServer` detaches the `SOUNDS` Configuration right away and destroys it shortly after, once the calling thread yields or finishes. Your Configuration in Studio is not changed.
@@ -81,6 +81,8 @@ Call `InitServer` once on the server and `InitClient` once on each client. A sec
 
 :::info
 Starting never breaks the script that calls it. If something goes wrong, for example `InitServer` is given something that is not your `SOUNDS` Configuration, a warning explains it and sounds stay off: fetches return blank sounds or `nil`, and nothing else in the library errors. A `SOUNDS` child that is not a Configuration, or a second group with a name already used, is skipped with a warning and the rest still works.
+
+A client waits at most 30 seconds for the schema. If the server could not start, `InitClient` warns and returns with sounds off for that player instead of holding its script forever.
 :::
 
 ---

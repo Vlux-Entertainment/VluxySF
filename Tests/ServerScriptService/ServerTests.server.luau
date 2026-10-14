@@ -8,6 +8,7 @@ local SharedCases = require(ReplicatedStorage.SharedCases)
 local TestHarness = require(ReplicatedStorage.TestHarness)
 local VluxySF = require(ReplicatedStorage.VluxySF)
 
+local Expect = TestHarness.Expect
 local ExpectEqual = TestHarness.ExpectEqual
 
 local suite = TestHarness.new("Server")
@@ -42,8 +43,22 @@ suite.Test("Nothing throws before InitServer (warnings expected)", function()
 
 	local blank = VluxySF.Fetch("Click")
 	ExpectEqual(blank.Name, "VluxySF_Blank_Sound", "Fetch gives a blank sound")
-	ExpectEqual(blank.Parent, nil, "The early blank sound is unparented")
+	ExpectEqual(blank.Parent, nil, "The early blank sound is unparented when no parent is given")
 	blank:Destroy()
+
+	--the blank goes where the game asked, so nothing is left in the wrong place; the preset is not run on it
+	local early = Instance.new("Folder")
+	local presetRan = false
+	local parented = VluxySF.Fetch("Click", early, function()
+		presetRan = true
+	end)
+	ExpectEqual(parented.Parent, early, "The early blank sound goes to the given parent")
+	ExpectEqual(presetRan, false, "The preset is not applied before the library starts")
+	early:Destroy()
+
+	local badParent = VluxySF.Fetch("Click", "workspace" :: any)
+	ExpectEqual(badParent.Parent, nil, "A parent that is not an Instance is ignored before the library starts")
+	badParent:Destroy()
 
 	ExpectEqual(VluxySF.TryFetch("Click"), nil, "TryFetch gives nil")
 	VluxySF.OneShot("Click")()
@@ -95,11 +110,17 @@ suite.Test("InitServer published the schema in SoundService", function()
 
 	local text = published:GetAttribute("Schema")
 	ExpectEqual(type(text), "string", "Schema attribute type")
+	ExpectEqual(published:GetAttribute("VluxySF"), true, "The container carries the library's mark")
 	local attributeCount = 0
 	for _ in pairs(published:GetAttributes()) do
 		attributeCount += 1
 	end
-	ExpectEqual(attributeCount, 1, "Attribute count")
+	ExpectEqual(attributeCount, 2, "Attribute count (the schema and the mark)")
+
+	--the fallback for a client that cannot read the attribute
+	local request = published:FindFirstChild("Request")
+	Expect(request and request:IsA("RemoteFunction"), "A Request RemoteFunction should sit under the container")
+	ExpectEqual((request :: Instance):GetAttribute("VluxySF"), true, "The Request carries the library's mark")
 
 	local soundCount = #VluxySF.Schema.GetNames()
 	local timings = require(ReplicatedStorage.VluxySF.Core.SchemaStore).Timings
@@ -109,6 +130,23 @@ suite.Test("InitServer published the schema in SoundService", function()
 		)}, publish {TestHarness.Milliseconds(timings.Publish)}).`
 	)
 	print(`[VluxySF Tests] Schema is {#text} base64 characters in one attribute.`)
+end)
+
+suite.Test("Every instance the server made in SoundService carries the VluxySF mark", function()
+	local schema = assert(VluxySF.Schema.Get(), "The schema should be ready")
+
+	for label, instance in
+		pairs({
+			SOUNDS = schema.SoundGroupContainer,
+			PreloadedSounds = schema.PreloadedSounds,
+			WarmedSounds = schema.WarmedSounds,
+			UnattachedSounds = schema.UnattachedSounds,
+			MUSIC = assert(VluxySF.Groups.Get("MUSIC"), "MUSIC should be a SoundGroup"),
+			SFX = assert(VluxySF.Groups.Get("SFX"), "SFX should be a SoundGroup"),
+		} :: { [string]: Instance })
+	do
+		ExpectEqual(instance:GetAttribute("VluxySF"), true, `{label} should be marked`)
+	end
 end)
 
 InternalCases.Run(suite)

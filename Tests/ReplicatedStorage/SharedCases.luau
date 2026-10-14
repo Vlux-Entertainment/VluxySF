@@ -13,7 +13,8 @@ local ExpectError = TestHarness.ExpectError
 local ExpectNear = TestHarness.ExpectNear
 
 --The sounds and groups authored in Tests/ServerStorage/TEST_SOUNDS.model.json
---Whoosh sits inside a Model, which proves any container under a group is walked.
+--Whoosh sits inside a Model, which proves any container under a group is walked. It is silent, has PlayOnRemove on and
+--was saved with a TimePosition, for the cases about playback state.
 local FIXTURE_SOUNDS = { "BattleOne", "BattleTwo", "Click", "Explosion", "MainTheme", "Whoosh" }
 local FIXTURE_GROUPS = { "MUSIC", "SFX" }
 local FIXTURE_PRELOADS = { "BattleOne", "BattleTwo", "Click" }
@@ -73,6 +74,23 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(properties.Pitch, nil, "Pitch is deprecated, so it should never be stored")
 		ExpectEqual(properties.ClassName, nil, "ClassName should not be stored")
 		ExpectEqual(properties.Parent, nil, "Parent should not be stored")
+	end)
+
+	suite.Test("Definitions never keep playback state", function()
+		local definition = VluxySF.Schema.GetDefinition("Whoosh")
+		assert(definition, "Whoosh should have a definition")
+
+		local properties = definition.Properties :: { [string]: any }
+		ExpectEqual(properties.TimePosition, nil, "TimePosition was authored but is runtime state")
+		ExpectEqual(properties.Playing, nil, "Playing is never stored")
+		ExpectEqual(properties.PlayOnRemove, true, "PlayOnRemove is a real property and is kept")
+
+		local sound = VluxySF.Fetch("Whoosh")
+		ExpectEqual(sound.Playing, false, "A fetched sound is stopped")
+		ExpectEqual(sound.TimePosition, 0, "A fetched sound starts at 0")
+		ExpectEqual(sound.PlayOnRemove, true, "PlayOnRemove on the fetched sound")
+
+		sound:Destroy()
 	end)
 
 	suite.Test("GetDefinition returns the same frozen table every time", function()
@@ -183,6 +201,46 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(sound.Parent, parent, "Parent")
 
 		parent:Destroy()
+	end)
+
+	suite.Test("Fetch ignores a parent that is not an Instance (warnings expected)", function()
+		local sound = VluxySF.Fetch("Click", "workspace" :: any)
+		ExpectEqual(sound.Parent, schema.UnattachedSounds, "Fetch with a string parent")
+		sound:Destroy()
+
+		local tried = VluxySF.TryFetch("Click", 42 :: any)
+		assert(tried, "TryFetch should still find Click")
+		ExpectEqual(tried.Parent, schema.UnattachedSounds, "TryFetch with a number parent")
+		tried:Destroy()
+
+		local before = #schema.UnattachedSounds:GetChildren()
+		VluxySF.OneShot("Click", true :: any, VluxySF.Presets.Volume(0))()
+		ExpectEqual(#schema.UnattachedSounds:GetChildren(), before, "OneShot with a boolean parent cleans up")
+	end)
+
+	suite.Test("Fetch ignores a preset that is not a function (warnings expected)", function()
+		local sound = VluxySF.Fetch("Click", nil, "quiet" :: any)
+		ExpectNear(sound.Volume, 0.8, "The authored volume is kept")
+		ExpectEqual(sound.Parent, schema.UnattachedSounds, "Parent")
+		sound:Destroy()
+
+		local tried = VluxySF.TryFetch("Click", nil, {} :: any)
+		assert(tried, "TryFetch should still find Click")
+		tried:Destroy()
+	end)
+
+	suite.Test("Fetch into a destroyed parent does not throw", function()
+		local gone = Instance.new("Folder")
+		gone:Destroy()
+
+		local sound = VluxySF.Fetch("Click", gone)
+		Expect(sound:IsA("Sound"), "Fetch should return a Sound")
+		Expect(
+			sound.Parent == gone or sound.Parent == schema.UnattachedSounds,
+			"The sound is in the given parent or fell back to UnattachedSounds"
+		)
+
+		sound:Destroy()
 	end)
 
 	suite.Test("Fetch rebuilds sound effects under their class name", function()
@@ -418,6 +476,45 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		rebuilt:Destroy()
 	end)
 
+	suite.Test("Conversions leave playback state out", function()
+		local original = Instance.new("Sound")
+		original.Name = "Seeked"
+		original.TimePosition = 2
+
+		local definition = VluxySF.Conversions.ToDefinition(original)
+		ExpectEqual((definition.Properties :: { [string]: any }).TimePosition, nil, "TimePosition")
+		ExpectEqual((definition.Properties :: { [string]: any }).Playing, nil, "Playing")
+
+		original:Destroy()
+	end)
+
+	suite.Test("Conversions warn and give blanks for bad input (warnings expected)", function()
+		local fromNil = VluxySF.Conversions.ToDefinition(nil :: any)
+		ExpectEqual((fromNil.Properties :: { [string]: any }).Name, "VluxySF_Blank_Sound", "ToDefinition(nil)")
+		ExpectEqual(fromNil.EffectsCount, 0, "ToDefinition(nil) effects")
+
+		local fromFolder = VluxySF.Conversions.ToDefinition(Instance.new("Folder") :: any)
+		ExpectEqual((fromFolder.Properties :: { [string]: any }).Name, "VluxySF_Blank_Sound", "ToDefinition(Folder)")
+
+		local blank = VluxySF.Conversions.FromDefinition(nil :: any)
+		ExpectEqual(blank.Name, "VluxySF_Blank_Sound", "FromDefinition(nil)")
+		blank:Destroy()
+
+		local noProperties = VluxySF.Conversions.FromDefinition({ Properties = 5 } :: any)
+		ExpectEqual(noProperties.Name, "VluxySF_Blank_Sound", "FromDefinition without a Properties table")
+		noProperties:Destroy()
+
+		--a bad effect entry is skipped, the rest of the definition is built
+		local partly = VluxySF.Conversions.FromDefinition({
+			Properties = { Name = "Partly" },
+			Effects = { EchoSoundEffect = 5, ReverbSoundEffect = { WetLevel = 1 } },
+		} :: any)
+		ExpectEqual(partly.Name, "Partly", "Name with a bad effect entry")
+		ExpectEqual(partly:FindFirstChild("EchoSoundEffect"), nil, "The bad effect is skipped")
+		Expect(partly:FindFirstChild("ReverbSoundEffect"), "The good effect is built")
+		partly:Destroy()
+	end)
+
 	--------------------------------------------------------------------------------------------------------------------
 	--PRESETS_AND_JITTER------------------------------------------------------------------------------------------------
 	--------------------------------------------------------------------------------------------------------------------
@@ -454,6 +551,53 @@ function SharedCases.Run(suite: TestHarness.Suite)
 		--Values never go below 0, and there is no upper clamp.
 		expectInRange("Uniform near 0", VluxySF.Jitter.Uniform(0, 5), 0, 5)
 		expectInRange("Uniform above 10", VluxySF.Jitter.Uniform(20, 5), 15, 25)
+	end)
+
+	suite.Test("Jitter builders fall back on bad arguments instead of throwing (warnings expected)", function()
+		local Jitter = VluxySF.Jitter
+
+		ExpectEqual(Jitter.Uniform("a" :: any, "b" :: any)(), 1, "Uniform with no numbers gives 1")
+		ExpectEqual(Jitter.Uniform(1, 0 / 0)(), 1, "Uniform with a NaN spread gives the center")
+		ExpectEqual(Jitter.Natural(0.7, nil :: any)(), 0.7, "Natural with no spread gives the center")
+		ExpectEqual(Jitter.Range(nil :: any, 0.4)(), 0.4, "Range with one bound gives that bound")
+		ExpectEqual(Jitter.Range(0 / 0, math.huge)(), 1, "Range with no usable bound gives 1")
+
+		--reversed bounds are swapped, not thrown about inside a later fetch
+		local swapped = Jitter.Range(0.6, 0.5)
+		for _ = 1, JITTER_SAMPLES do
+			local value = swapped()
+			Expect(value >= 0.5 and value <= 0.6, `Jitter.Range(0.6, 0.5) gave {value}`)
+		end
+	end)
+
+	suite.Test("Preset builders given bad arguments return a preset that does nothing (warnings expected)", function()
+		local Presets = VluxySF.Presets
+		local sound = Instance.new("Sound")
+
+		local doNothings: { [string]: (Sound) -> () } = {
+			Volume = Presets.Volume("loud" :: any),
+			PlaybackSpeed = Presets.PlaybackSpeed(0 / 0),
+			Parent = Presets.Parent("workspace" :: any),
+			NaturalVolumeJitter = Presets.NaturalVolumeJitter("a" :: any),
+			NaturalPlaybackJitter = Presets.NaturalPlaybackJitter(nil, math.huge),
+			RandomVolumeJitter = Presets.RandomVolumeJitter({} :: any, 0.1),
+			RandomPlaybackJitter = Presets.RandomPlaybackJitter(1, "b" :: any),
+		}
+		for label, preset in pairs(doNothings) do
+			ExpectEqual(type(preset), "function", `Presets.{label} should still return a preset`)
+			preset(sound)
+		end
+
+		ExpectNear(sound.Volume, 0.5, "Volume is untouched")
+		ExpectNear(sound.PlaybackSpeed, 1, "PlaybackSpeed is untouched")
+		ExpectEqual(sound.Parent, nil, "Parent is untouched")
+
+		--Combine leaves out what is not a function and keeps the rest in order
+		Presets.Combine(Presets.Volume(0.2), nil :: any, "x" :: any, Presets.PlaybackSpeed(1.5))(sound)
+		ExpectNear(sound.Volume, 0.2, "Volume from Combine")
+		ExpectNear(sound.PlaybackSpeed, 1.5, "PlaybackSpeed from Combine")
+
+		sound:Destroy()
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------

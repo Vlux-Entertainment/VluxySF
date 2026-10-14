@@ -31,6 +31,8 @@ VluxySF.OneShot("UIClick", nil, presets.Volume(0.4))
 
 See the [Presets API](/api/Presets) for the defaults and an example of each.
 
+A built-in preset never throws. A builder given a bad argument, like `Volume("loud")` or `Parent(nil)`, warns right where it was called and returns a preset that does nothing, so the sounds that use it still play. `Parent` with an Instance that refuses the sound by the time it is fetched warns and leaves the sound where the fetch puts an unparented one.
+
 ---
 
 ## Combining presets
@@ -93,4 +95,4 @@ end
 | `Natural(center, spread)` | Same range, but mostly close to the center. Sounds more natural for repeated sounds like footsteps |
 | `Range(min, max)` | Anywhere from `min` to `max` |
 
-Jitter values never go below 0. See the [Jitter API](/api/Jitter) for details.
+Jitter values never go below 0. A builder given something that is not a number warns and falls back to a value with no variation; `Range` with its bounds reversed swaps them. See the [Jitter API](/api/Jitter) for details.

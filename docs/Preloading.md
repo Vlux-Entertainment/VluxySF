@@ -82,4 +82,6 @@ Preload the sounds that must play instantly the first time: UI clicks, the main 
 A preloaded sound stays loaded for the whole session, and there is no way to undo it. Do not preload everything. For sounds that only matter for a while, like one map's ambience, [warm](./Warming.md) them instead and chill them when you are done.
 :::
 
+The kept copies live in `SoundService.PreloadedSounds` and are silent: they never play, whatever the sound was doing in Studio, and `PlayOnRemove` is off on them.
+
 See [Performance and Memory](./Performance.md) for how much preloading costs.

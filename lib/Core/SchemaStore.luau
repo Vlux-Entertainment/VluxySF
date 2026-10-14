@@ -13,6 +13,7 @@ local SoundService = game:GetService("SoundService")
 
 local Codec = require(script.Parent.Codec)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Owned = require(script.Parent.Parent.Utility.Owned)
 local Signal = require(script.Parent.Parent.Utility.Signal)
 local Tables = require(script.Parent.Parent.Utility.Tables)
 local Types = require(script.Parent.Parent.Types)
@@ -77,9 +78,11 @@ local function buildSchema(
 	schema = built
 end
 
+--marked before it is parented so the mark replicates with the instance and the client can tell it from the game's own
 local function newContainer(className: string, name: string): Instance
 	local container = Instance.new(className)
 	container.Name = name
+	Owned.Mark(container)
 	container.Parent = SoundService
 
 	return container
@@ -100,6 +103,7 @@ function SchemaStore.LoadServer(schemaBuffer: buffer)
 		local group = Instance.new("SoundGroup")
 		group.Name = groupName
 		group.Volume = 1
+		Owned.Mark(group)
 		group.Parent = groupContainer
 
 		groupList[index] = group
@@ -117,25 +121,46 @@ end
 --[[
 	@yields
 
-	@param schemaBuffer buffer -- The schema received from the server.
-
-	Loads the schema on the client. Waits for the SoundGroups and holder folders the server made to replicate.
+	Finds the marked child the server made, or errors with the reason when it has not replicated by the deadline. Only
+	called inside the startup pcall, whose warning already carries the library prefix, so the reason is left plain.
 ]]
-function SchemaStore.LoadClient(schemaBuffer: buffer)
+local function findOwned(parent: Instance, name: string, className: string, deadline: number): Instance
+	local child = Owned.WaitFor(parent, name, className, deadline)
+	if not child then
+		error(
+			`the {className} "{name}" the server made in {parent:GetFullName()} did not arrive in time. Check the server output for a VluxySF warning.`,
+			0
+		)
+	end
+
+	return child :: Instance
+end
+
+--[[
+	@yields
+
+	@param schemaBuffer buffer -- The schema received from the server.
+	@param deadline number -- The os.clock() time to give up waiting for the server's instances at.
+
+	Loads the schema on the client. Waits for the SoundGroups and holder folders the server made to replicate, by
+	name, class and mark so a same-named instance of the game's own is never picked up. Errors when one is missing
+	at the deadline.
+]]
+function SchemaStore.LoadClient(schemaBuffer: buffer, deadline: number)
 	local loadedSchema = Codec.Load(schemaBuffer)
 
-	local groupContainer = SoundService:WaitForChild(GROUP_CONTAINER_NAME) :: SoundGroup
+	local groupContainer = findOwned(SoundService, GROUP_CONTAINER_NAME, "SoundGroup", deadline) :: SoundGroup
 
 	for index, groupName in ipairs(loadedSchema.GroupNames) do
-		groupList[index] = groupContainer:WaitForChild(groupName) :: SoundGroup
+		groupList[index] = findOwned(groupContainer, groupName, "SoundGroup", deadline) :: SoundGroup
 	end
 
 	buildSchema(
 		loadedSchema,
 		groupContainer,
-		SoundService:WaitForChild(PRELOADED_NAME) :: Configuration,
-		SoundService:WaitForChild(WARMED_NAME) :: Configuration,
-		SoundService:WaitForChild(UNATTACHED_NAME) :: Configuration
+		findOwned(SoundService, PRELOADED_NAME, "Configuration", deadline) :: Configuration,
+		findOwned(SoundService, WARMED_NAME, "Configuration", deadline) :: Configuration,
+		findOwned(SoundService, UNATTACHED_NAME, "Configuration", deadline) :: Configuration
 	)
 end
 

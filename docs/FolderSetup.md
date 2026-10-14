@@ -76,7 +76,7 @@ Tag a `Sound`, a Folder or a whole group Configuration with `VluxySF_Preload` to
 
 Set up each `Sound` in Studio exactly how you want it to play.
 
-- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. A fetched sound comes out the way you authored it. `Parent`, `Archivable`, attributes, tags, read-only state such as `IsPlaying` and `TimeLength`, and deprecated properties such as `Pitch`, `MinDistance`, `MaxDistance` and `EmitterSize` are not kept.
+- **Properties:** Set `SoundId`, `Volume`, `PlaybackSpeed`, and so on directly on the `Sound`. A fetched sound comes out the way you authored it. `Parent`, `Archivable`, attributes, tags, read-only state such as `IsPlaying` and `TimeLength`, playback state (`Playing` and `TimePosition`: a sound in `SOUNDS` is never playing, and a fetched sound is always stopped at the start), and deprecated properties such as `Pitch`, `MinDistance`, `MaxDistance` and `EmitterSize` are not kept.
 - **Effects:** Add effects such as `EqualizerSoundEffect` or `ReverbSoundEffect` as children of the `Sound`.
 
 :::note

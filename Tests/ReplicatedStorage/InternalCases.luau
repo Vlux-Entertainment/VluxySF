@@ -9,6 +9,7 @@ local Codec = require(library.Core.Codec)
 local Compile = require(library.Core.Compile)
 local Compression = require(library.Core.Compression)
 local Converters = require(library.Core.Converters)
+local Owned = require(library.Utility.Owned)
 local Properties = require(library.Core.Properties)
 local Transport = require(library.Core.Transport)
 local Types = require(library.Types)
@@ -20,6 +21,9 @@ local ExpectError = TestHarness.ExpectError
 local ExpectNear = TestHarness.ExpectNear
 
 local LARGE_SCHEMA_SOUNDS = 2000
+
+--The enum cache used to key on enum id * 65536 + item id, which collides once string ids pass this.
+local ENUM_COLLISION_STRIDE = 65536
 
 --[[
 	Cases for the core modules that the public API does not reach directly: the codec, property reading, and the
@@ -165,6 +169,55 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		ExpectEqual((fromLinear.Properties :: any).RollOffMode, Enum.RollOffMode.Linear, "Linear schema")
 	end)
 
+	suite.Test(`Codec keeps enums apart when the string table passes {ENUM_COLLISION_STRIDE} entries`, function()
+		--Two (enum, item) pairs whose old cache keys were equal: (e, i + 65536) and (e + 1, i). "Button" is both an
+		--item of StudioStyleGuideColor and an enum name, so interning StudioStyleGuideColor.Button gives the two enum
+		--names adjacent ids; "Jump" is interned early for the small item id, and fillers push the next new item name
+		--exactly 65536 ids past it.
+		local writer = Codec.NewWriter()
+
+		local function write(name: string, properties: { [string]: any })
+			Codec.WriteDefinition(
+				writer,
+				name,
+				0,
+				{ Properties = properties :: any, Effects = {} :: any, EffectsCount = 0 }
+			)
+		end
+
+		write("Early", { Name = "Early", Action = Enum.PathWaypointAction.Jump })
+		local jumpId = assert(table.find(writer.Strings, "Jump"), "Jump should be interned")
+
+		write("Adjacent", { Name = "Adjacent", Color = Enum.StudioStyleGuideColor.Button })
+		local colorId = assert(table.find(writer.Strings, "StudioStyleGuideColor"), "The enum name should be interned")
+		ExpectEqual(table.find(writer.Strings, "Button"), colorId + 1, "Button follows StudioStyleGuideColor")
+
+		--the Collide definition interns its name and its property name before the item name
+		local targetId = jumpId + ENUM_COLLISION_STRIDE
+		while #writer.Strings < targetId - 3 do
+			local filler = `Filler{#writer.Strings}`
+			write(filler, { Name = filler })
+		end
+
+		write("Collide", { Name = "Collide", Shade = Enum.StudioStyleGuideColor.MainBackground })
+		ExpectEqual(table.find(writer.Strings, "MainBackground"), targetId, "MainBackground id")
+
+		write("Jumped", { Name = "Jumped", Pressed = Enum.Button.Jump })
+
+		local loaded = Codec.Load(Codec.Finish(writer, {}, {}))
+		Expect(#loaded.Strings > ENUM_COLLISION_STRIDE, "The string table should be past the old key's range")
+
+		--Collide is read first so its cached item would be handed to Jumped under a colliding key
+		local collide = readDefinition(loaded, "Collide").Properties :: any
+		ExpectEqual(collide.Shade, Enum.StudioStyleGuideColor.MainBackground, "Collide.Shade")
+
+		local jumped = readDefinition(loaded, "Jumped").Properties :: any
+		ExpectEqual(jumped.Pressed, Enum.Button.Jump, "Jumped.Pressed")
+
+		local adjacent = readDefinition(loaded, "Adjacent").Properties :: any
+		ExpectEqual(adjacent.Color, Enum.StudioStyleGuideColor.Button, "Adjacent.Color")
+	end)
+
 	suite.Test("Codec skips an enum that does not exist here (warnings expected)", function()
 		local loaded = loadRolled(Enum.RollOffMode.Linear)
 
@@ -184,7 +237,7 @@ function InternalCases.Run(suite: TestHarness.Suite)
 			SoundId = "rbxassetid://1234567890123",
 			Volume = 0.5, --fits f32
 			PlaybackSpeed = 0.1, --does not fit f32, so it must come back as the same double
-			TimePosition = 1e300, --far outside f32
+			RollOffMaxDistance = 1e300, --far outside f32
 			Looped = true,
 			PlayOnRemove = false,
 			LoopRegion = NumberRange.new(1.5, 2.5),
@@ -337,6 +390,43 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(Transport.Decode("TWF"), nil, "Length that is not a multiple of 4")
 		ExpectEqual(Transport.Decode("TW!u"), nil, "Character outside the alphabet")
 		ExpectEqual(Transport.Decode("TQ==TWFu"), nil, "Padding in the middle")
+		ExpectEqual(Transport.Decode("TW\0u"), nil, "A zero byte")
+		ExpectEqual(Transport.Decode("\0\0\0\0"), nil, "Only zero bytes")
+	end)
+
+	--------------------------------------------------------------------------------------------------------------------
+	--OWNED-------------------------------------------------------------------------------------------------------------
+	--------------------------------------------------------------------------------------------------------------------
+
+	suite.Test("Owned finds only a marked child of the right class and gives up at the deadline", function()
+		local parent = Instance.new("Folder")
+
+		--the game's own instance with the library's name, and a marked one of the wrong class
+		local decoy = Instance.new("Folder")
+		decoy.Name = "Holder"
+		decoy.Parent = parent
+
+		local wrongClass = Instance.new("Configuration")
+		wrongClass.Name = "Holder"
+		Owned.Mark(wrongClass)
+		wrongClass.Parent = parent
+
+		ExpectEqual(Owned.WaitFor(parent, "Holder", "Folder", os.clock() - 1), nil, "A deadline that already passed")
+
+		local start = os.clock()
+		ExpectEqual(Owned.WaitFor(parent, "Holder", "Folder", os.clock() + 0.1), nil, "Unmarked or wrong class")
+		Expect(os.clock() - start >= 0.05, "WaitFor should wait until the deadline")
+
+		local real = Instance.new("Folder")
+		real.Name = "Holder"
+		Owned.Mark(real)
+		task.delay(0.05, function()
+			real.Parent = parent
+		end)
+		ExpectEqual(Owned.WaitFor(parent, "Holder", "Folder", os.clock() + 2), real, "A marked child added later")
+		ExpectEqual(Owned.WaitFor(parent, "Holder", "Folder", os.clock()), real, "A marked child already there")
+
+		parent:Destroy()
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------
@@ -353,6 +443,8 @@ function InternalCases.Run(suite: TestHarness.Suite)
 			"EmitterSize",
 			"IsPlaying",
 			"TimeLength",
+			"Playing",
+			"TimePosition",
 			"Parent",
 			"Archivable",
 			"ClassName",
@@ -360,7 +452,15 @@ function InternalCases.Run(suite: TestHarness.Suite)
 			Expect(not table.find(names, forbidden), `{forbidden} should not be a stored property`)
 		end
 
-		for _, required in ipairs({ "SoundId", "Volume", "PlaybackSpeed", "Looped", "RollOffMode", "SoundGroup" }) do
+		for _, required in ipairs({
+			"SoundId",
+			"Volume",
+			"PlaybackSpeed",
+			"Looped",
+			"RollOffMode",
+			"SoundGroup",
+			"PlayOnRemove",
+		}) do
 			Expect(table.find(names, required), `{required} should be a stored property`)
 		end
 	end)
@@ -368,12 +468,24 @@ function InternalCases.Run(suite: TestHarness.Suite)
 	suite.Test("Properties read only what differs from the defaults", function()
 		local sound = makeSound("Changed")
 		sound.Volume = 0.3
+		sound.TimePosition = 1.5
 
 		local read = Properties.ReadChanged(sound)
 		ExpectNear(read.Volume, 0.3, "Volume")
 		ExpectEqual(read.SoundId, "rbxasset://sounds/clickfast.wav", "SoundId")
 		ExpectEqual(read.Looped, nil, "Looped is the default")
 		ExpectEqual(read.PlaybackSpeed, nil, "PlaybackSpeed is the default")
+		ExpectEqual(read.TimePosition, nil, "TimePosition is runtime state")
+
+		sound:Destroy()
+	end)
+
+	suite.Test("Properties apply nothing from something that is not a table (warnings expected)", function()
+		local sound = Instance.new("Sound")
+
+		ExpectEqual(Properties.Apply(sound, nil :: any), false, "Apply(nil)")
+		ExpectEqual(Properties.Apply(sound, "Volume" :: any), false, "Apply(string)")
+		ExpectNear(sound.Volume, 0.5, "Volume is untouched")
 
 		sound:Destroy()
 	end)

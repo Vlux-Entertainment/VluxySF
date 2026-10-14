@@ -3,29 +3,44 @@
 --!optimize 2
 
 --[[
-	Gets the schema buffer from the server to every client without a request.
+	Gets the schema buffer from the server to every client.
 
-	The server compresses the buffer (Compression, LZ4-style) and base64-encodes it into one string attribute on a Configuration in SoundService. It replicates
-	to every client as part of joining, so the client just waits for it and decodes it. Nothing is serialized per
-	player and no remote round trip happens.
+	The server compresses the buffer (Compression, LZ4-style) and base64-encodes it into one string attribute on a
+	Configuration in SoundService. It replicates to every client as part of joining, so the client normally just
+	waits for it and decodes it: nothing is serialized per player and no remote round trip happens.
+
+	A RemoteFunction under the same Configuration is the fallback. A client whose attribute is missing, cut short or
+	damaged (NextGenerationReplication limits script-set string attributes) asks the server for the compressed buffer
+	instead, a few times at most per player. Every client wait here is bounded by a deadline, so a server that never
+	published cannot hold a client forever.
 
 	Base64 is used because buffer attributes are refused and replicated strings are not binary safe: a raw buffer
 	string is cut at its first zero byte. Text survives.
 ]]
 
+local Players = game:GetService("Players")
 local SoundService = game:GetService("SoundService")
 
 local Compression = require(script.Parent.Compression)
 local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
+local Owned = require(script.Parent.Parent.Utility.Owned)
 
 local CONTAINER_NAME = "VluxySF_Schema"
 local SCHEMA_ATTRIBUTE = "Schema"
+local REQUEST_NAME = "Request"
+
+--how many times one player may ask the server for the schema
+local MAX_REQUESTS_PER_PLAYER = 3
 
 local ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 local PAD = string.byte("=")
 
 local encodeTable: { number } = table.create(64)
-local decodeTable: { number } = table.create(256, -1)
+--every byte maps to -1 (not base64) unless the alphabet says otherwise, byte 0 included
+local decodeTable: { [number]: number } = {}
+for byte = 0, 255 do
+	decodeTable[byte] = -1
+end
 for index = 1, 64 do
 	local byte = string.byte(ALPHABET, index)
 	encodeTable[index - 1] = byte
@@ -191,62 +206,145 @@ end
 	@param schemaBuffer buffer -- The schema to publish.
 
 	Publishes the schema so clients can read it. Call once on the server.
+
+	The schema goes into one string attribute, which replicates with the place. A RemoteFunction next to it hands out
+	the compressed buffer to a client that could not read the attribute, for example when NextGenerationReplication limits
+	string attributes, so the attribute is the fast path and never the only one.
 ]]
 function Transport.Publish(schemaBuffer: buffer)
-	if SoundService:FindFirstChild(CONTAINER_NAME) then
-		FormatMessage.Error("The schema was already published! Startup.InitServer should only run once.", 4)
-	end
-
-	local text = Transport.Encode(Compression.Compress(schemaBuffer))
-
 	local container = Instance.new("Configuration")
 	container.Name = CONTAINER_NAME
+	Owned.Mark(container)
+
+	--the remote below hands out the same compressed bytes, so the fallback is as small as the attribute
+	local compressed = Compression.Compress(schemaBuffer)
+	local text = Transport.Encode(compressed)
 	container:SetAttribute(SCHEMA_ATTRIBUTE, text)
 
-	--a refused or shortened attribute would leave every client without a schema, so fail here where it is visible
 	if container:GetAttribute(SCHEMA_ATTRIBUTE) ~= text then
-		container:Destroy()
-		FormatMessage.Error(
-			`Roblox did not store the {#text} character schema attribute. Attribute limits may have changed; VluxySF needs an update.`,
-			4
+		container:SetAttribute(SCHEMA_ATTRIBUTE, nil)
+		FormatMessage.Warn(
+			`Roblox did not store the {#text} character schema attribute, so every client will ask the server for the schema instead.`
 		)
 	end
 
-	--parented last so the attribute replicates with it
+	local requestCounts: { [Player]: number } = {}
+
+	local request = Instance.new("RemoteFunction")
+	request.Name = REQUEST_NAME
+	Owned.Mark(request)
+	request.OnServerInvoke = function(player: Player): buffer?
+		--a client needs the schema once; the limit stops a client from making the server send it over and over
+		local count = (requestCounts[player] or 0) + 1
+		requestCounts[player] = count
+
+		return if count <= MAX_REQUESTS_PER_PLAYER then compressed else nil
+	end
+	request.Parent = container
+
+	Players.PlayerRemoving:Connect(function(player: Player)
+		requestCounts[player] = nil
+	end)
+
+	--parented last so the attribute and the remote replicate with it
 	container.Parent = SoundService
+end
+
+--[[
+	Decodes the attribute's text, or returns nil when it is missing, cut short or damaged.
+]]
+local function readAttribute(container: Instance): buffer?
+	local text = container:GetAttribute(SCHEMA_ATTRIBUTE)
+	if type(text) ~= "string" then
+		return nil
+	end
+
+	local compressed = Transport.Decode(text)
+	if not compressed then
+		return nil
+	end
+
+	local success, result = pcall(Compression.Decompress, compressed)
+
+	return if success then result else nil
 end
 
 --[[
 	@yields
 
-	@return buffer -- The schema the server published.
-
-	Waits for the published schema to replicate and decodes it. The attribute is then cleared on this client so the
-	text does not stay in memory. Call once on the client.
+	Asks the server for the compressed schema and decompresses it, giving up at the deadline.
 ]]
-function Transport.Receive(): buffer
-	local container = SoundService:WaitForChild(CONTAINER_NAME)
-
-	local text = container:GetAttribute(SCHEMA_ATTRIBUTE)
-	while text == nil do
-		container:GetAttributeChangedSignal(SCHEMA_ATTRIBUTE):Wait()
-		text = container:GetAttribute(SCHEMA_ATTRIBUTE)
+local function requestSchema(container: Instance, deadline: number): buffer?
+	local request = Owned.WaitFor(container, REQUEST_NAME, "RemoteFunction", deadline) :: RemoteFunction?
+	if not request then
+		return nil
 	end
 
-	local compressed = if type(text) == "string" then Transport.Decode(text) else nil
-	if not compressed then
-		FormatMessage.Error("The schema arrived damaged: it is not valid base64.")
+	local thread = coroutine.running()
+	local done = false
+
+	local function finish(result: buffer?)
+		if done then
+			return
+		end
+		done = true
+
+		if coroutine.status(thread) == "suspended" then
+			task.spawn(thread, result)
+		end
 	end
 
-	local success, result = pcall(Compression.Decompress, compressed :: buffer)
-	if not success then
-		FormatMessage.Error(`The schema arrived damaged: {result}`)
+	task.spawn(function()
+		local success, result = pcall(request.InvokeServer, request)
+		if not success or type(result) ~= "buffer" then
+			finish(nil)
+
+			return
+		end
+
+		local decompressed, schemaBuffer = pcall(Compression.Decompress, result)
+		finish(if decompressed then schemaBuffer else nil)
+	end)
+	local timer = task.delay(math.max(deadline - os.clock(), 0), finish, nil)
+
+	local result = coroutine.yield()
+
+	if coroutine.status(timer) == "suspended" then
+		task.cancel(timer)
 	end
 
-	--a local change only; the server keeps its copy for players who join later
-	container:SetAttribute(SCHEMA_ATTRIBUTE, nil)
+	return result
+end
 
-	return result :: buffer
+--[[
+	@yields
+
+	@param deadline number -- The os.clock() time to give up at.
+
+	@return buffer? -- The schema the server published, or nil when it did not arrive before the deadline.
+	@return string? -- Why it did not arrive.
+
+	Reads the published schema from its attribute, or asks the server for it when the attribute cannot be read. The
+	attribute is left as it is, so a second reader on this client (another copy of the library, a tool) still finds
+	it. Call once on the client.
+]]
+function Transport.Receive(deadline: number): (buffer?, string?)
+	local container = Owned.WaitFor(SoundService, CONTAINER_NAME, "Configuration", deadline)
+	if not container then
+		return nil, "the server did not publish the schema in time. Check the server output for a VluxySF warning."
+	end
+
+	local schemaBuffer = readAttribute(container)
+	if schemaBuffer then
+		return schemaBuffer
+	end
+
+	schemaBuffer = requestSchema(container, deadline)
+	if not schemaBuffer then
+		return nil, "the schema attribute could not be read and the server did not answer a request for it in time."
+	end
+
+	return schemaBuffer
 end
 
 return Transport

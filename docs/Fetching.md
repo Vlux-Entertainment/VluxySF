@@ -93,6 +93,8 @@ stopCharge()
 
 You never have to wait for a one-shot's audio to load. Roblox holds a played sound until its audio arrives and then plays it from the beginning. A sound whose audio never loads, because it was deleted, moderated or is private, is destroyed after 10 seconds with a warning, so nothing is left behind.
 
+Destroying the parent while a one-shot plays is fine: the sound goes with it, and nothing is reported.
+
 :::info
 `Sound.Played` fires as soon as the sound is played, which can be before its audio has loaded. If your code needs the sound to actually be audible, wait for `Sound.Loaded`.
 :::
@@ -109,6 +111,8 @@ VluxySF.OneShot("DoorCreak", workspace.Door)
 
 A sound fetched without a parent goes into a Configuration named `UnattachedSounds` in `SoundService`, where it plays everywhere at the same volume. It stays there until it is destroyed, so destroy sounds you fetched with `Fetch` once you are done with them. `OneShot` does that for you.
 
+A parent that is not an Instance is ignored with a warning, and a parent that refuses the sound (a locked or destroyed Instance) sends it to `UnattachedSounds` with a warning. Neither throws into your code.
+
 ---
 
 ## Using presets
@@ -121,8 +125,10 @@ local quiet = VluxySF.Presets.Volume(0.2)
 VluxySF.OneShot("UIClick", nil, quiet)
 ```
 
+Something that is not a function is ignored with a warning. An error thrown inside your own preset is yours and propagates; the sound it was applied to is destroyed first.
+
 ---
 
 ## Before the library has started
 
-Fetching before the library has started does not error. `Fetch` gives you an unparented blank sound, `TryFetch` gives you `nil` and `OneShot` plays nothing. The first time this happens a warning is printed, so you can find the script that needs to [wait for the library](./Setup.md#3-use-it-from-other-scripts).
+Fetching before the library has started does not error. `Fetch` gives you a blank sound, `TryFetch` gives you `nil` and `OneShot` plays nothing. The blank sound is parented to the parent you gave, so nothing lands in the wrong place, and stays unparented otherwise; the preset is not applied to it. The first time this happens a warning is printed, so you can find the script that needs to [wait for the library](./Setup.md#3-use-it-from-other-scripts).

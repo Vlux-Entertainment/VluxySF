@@ -24,7 +24,7 @@ sound:Play()
 - **Low memory use.** Sounds are compiled into a compact schema and created only when you ask for them.
 - **Preloading and warming.** Keep the sounds that matter ready to play without a delay.
 - **Presets and jitter.** Reusable functions that set up a sound, with natural volume and pitch variation.
-- **Stays out of your way.** Mistakes like a misspelled name, a bad volume or deleted audio print a warning; the library never throws into your game code.
+- **Stays out of your way.** Mistakes like a misspelled name, a bad volume, a bad argument or deleted audio print a warning; the library never throws into your game code, and a server that could not start never holds a client's script forever.
 
 ## Installation
 

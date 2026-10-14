@@ -18,7 +18,8 @@ local Templates = require(script.Parent.Parent.Core.Templates)
 	sounds that matter during one part of the game, and chill them when that part is over.
 
 	Keeping the `Sound` also makes Roblox start downloading its audio, but warming does not wait for that; to have
-	audio loaded before it is needed, see `Preload`.
+	audio loaded before it is needed, see `Preload`. The kept copy is silent: it never plays, and `PlayOnRemove` is off
+	on it and restored on the clones `Fetch` hands out.
 
 	Called on the server or before the library has started, every function here warns once and does nothing.
 ]=]

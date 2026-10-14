@@ -19,6 +19,7 @@ Measured in Studio with 10,000 sounds that use real asset ids:
 | Size of all sound definitions | About 30 to 35 bytes per sound, compressed |
 | Fetching a sound on the client | About 10 to 60 µs, mostly Roblox creating the `Sound` |
 | Fetching a sound on the server | About 10 to 15 µs |
+| `OneShot` on the client | About 200 µs, most of it Roblox starting playback of a real asset |
 
 A frame at 60 FPS lasts about 16,700 µs, so even a busy moment with dozens of fetches is a small fraction of one.
 

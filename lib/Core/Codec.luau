@@ -74,9 +74,13 @@ local STORED_TYPES: { [string]: boolean } = {
 	NumberRange = true,
 }
 
---Resolved EnumItems keyed by enum string id * 65536 + item string id. false marks a pair that does not exist here.
---String ids belong to one buffer, so every loaded schema has its own.
+--Resolved EnumItems keyed by enum string id * ENUM_KEY_SCALE + item string id. false marks a pair that does not exist
+--here. String ids belong to one buffer, so every loaded schema has its own.
 type EnumCache = { [number]: EnumItem | false }
+
+--Keeps the two ids apart in one key: an item id can never reach 2^32, and the key stays an exact integer while the
+--enum id is below 2^21 (ids are indices into the string table, which never gets near either).
+local ENUM_KEY_SCALE = 2 ^ 32
 
 local function resolveEnum(enumName: string, itemName: string): EnumItem
 	return (Enum :: any)[enumName][itemName]
@@ -494,7 +498,7 @@ local function readValue(
 		local enumId = readVarint(cursor)
 		local itemId = readVarint(cursor)
 
-		local cacheKey = enumId * 65536 + itemId
+		local cacheKey = enumId * ENUM_KEY_SCALE + itemId
 		local cached = enumCache[cacheKey]
 		if cached then
 			return true, cached

@@ -11,8 +11,13 @@ local Transport = require(script.Parent.Parent.Core.Transport)
 
 local DEFAULT_PRELOAD_TIMEOUT = 5
 
+--how long a client waits for the server's schema and instances, separate from the preload timeout
+local SCHEMA_TIMEOUT = 30
+
 --set as soon as an Init call starts, so a second call during the first one's yields is refused
 local starting = false
+--set when an Init call gave up, so a later call explains that instead of claiming the first one is still running
+local failed = false
 
 --[=[
 	@class Startup
@@ -24,7 +29,8 @@ local starting = false
 	or empty results, so other scripts should wait with `WaitUntilReady` or `OnReady`.
 
 	Nothing here throws into your game code: calling an `Init` function twice, on the wrong side or with a bad
-	argument prints a warning, and a failure while starting turns sounds off with a warning.
+	argument prints a warning, and a failure while starting turns sounds off with a warning. A client gives up on
+	the schema after 30 seconds, so a server that could not start never holds a client's script forever.
 ]=]
 local Startup = {}
 
@@ -32,6 +38,26 @@ local startServer: (soundFolder: Configuration) -> ()
 local startClient: () -> ()
 
 ------------------------------------------------------------------------------------------------------------------------
+
+--[[
+	Returns the timeout when it is usable. A timeout that is not a number of 0 or more warns and becomes nil, which
+	waits without a limit, so a bad argument never throws.
+]]
+local function checkTimeout(timeout: any, functionName: string): number?
+	if timeout == nil then
+		return nil
+	end
+
+	if type(timeout) ~= "number" or timeout ~= timeout or timeout < 0 then
+		FormatMessage.Warn(
+			`Startup.{functionName} needs a timeout of 0 seconds or more, got {tostring(timeout)}. It waits without one.`
+		)
+
+		return nil
+	end
+
+	return timeout
+end
 
 --[[
 	@yields
@@ -53,7 +79,10 @@ local function waitFor(isDone: () -> boolean, signal: typeof(SchemaStore.Initial
 		end
 		finished = true
 
-		task.spawn(thread, success)
+		--the waiting thread may have been cancelled or closed with its script by now; resuming it then would error
+		if coroutine.status(thread) == "suspended" then
+			task.spawn(thread, success)
+		end
 	end
 
 	local disconnect = signal:Once(function()
@@ -102,6 +131,13 @@ function Startup.InitServer(soundFolder: Configuration)
 
 		return
 	end
+	if failed then
+		FormatMessage.Warn(
+			"Startup.InitServer already failed earlier in this session, so sounds stay off for this server. See the warning above. This call was ignored."
+		)
+
+		return
+	end
 	if starting or SchemaStore.IsInitialized() then
 		FormatMessage.Warn("Startup.InitServer was already called. The second call was ignored.")
 
@@ -119,6 +155,7 @@ function Startup.InitServer(soundFolder: Configuration)
 	--anything that goes wrong while starting turns sounds off instead of breaking the script that called this
 	local success, reason = pcall(startServer :: any, soundFolder)
 	if not success then
+		failed = true
 		FormatMessage.Warn(`The library could not start, so sounds are off for this server: {reason}`)
 	end
 end
@@ -139,9 +176,10 @@ startServer = function(soundFolder: Configuration)
 		soundFolder:Destroy()
 	end)
 
+	--published first: if publishing fails, no SoundGroups or holders are left half-made for clients to wait on
 	clock = os.clock()
-	SchemaStore.LoadServer(schemaBuffer)
 	Transport.Publish(schemaBuffer)
+	SchemaStore.LoadServer(schemaBuffer)
 	timings.Publish = os.clock() - clock
 
 	SchemaStore.SetInitialized()
@@ -159,6 +197,8 @@ end
 
 	Receives the schema from the server, then builds and preloads every sound tagged for preloading. It can be
 	called from `ReplicatedFirst`, for example to play sounds on a loading screen; it waits for the schema to arrive.
+	If the schema has not arrived after 30 seconds, because the server could not start, it warns and returns with
+	sounds off for this player.
 
 	The library is ready as soon as the schema is received, so `WaitUntilReady` and `OnReady` in other scripts resume
 	then. This call itself yields until the preloads finish or `timeout` seconds pass, whichever comes first, and
@@ -185,6 +225,13 @@ function Startup.InitClient(timeout: number?)
 
 		return
 	end
+	if failed then
+		FormatMessage.Warn(
+			"Startup.InitClient already failed earlier in this session, so sounds stay off for this player. See the warning above. This call was ignored."
+		)
+
+		return
+	end
 	if starting or SchemaStore.IsInitialized() then
 		FormatMessage.Warn("Startup.InitClient was already called. The second call was ignored.")
 
@@ -202,6 +249,7 @@ function Startup.InitClient(timeout: number?)
 
 	local success, reason = pcall(startClient :: any)
 	if not success then
+		failed = true
 		FormatMessage.Warn(`The library could not start, so sounds are off for this player: {reason}`)
 
 		return
@@ -216,11 +264,17 @@ startClient = function()
 	local timings = SchemaStore.Timings
 	local clock = os.clock()
 
-	local schemaBuffer = Transport.Receive()
+	--one deadline for the schema and the instances it needs; raised errors land in InitClient's pcall and its warning
+	local deadline = clock + SCHEMA_TIMEOUT
+
+	local schemaBuffer, reason = Transport.Receive(deadline)
+	if not schemaBuffer then
+		error(`after {SCHEMA_TIMEOUT} seconds, {reason}`, 0)
+	end
 	timings.Receive = os.clock() - clock
 
 	clock = os.clock()
-	SchemaStore.LoadClient(schemaBuffer)
+	SchemaStore.LoadClient(schemaBuffer, deadline)
 
 	--the templates keep the assets referenced so they stay loaded for the session
 	local sounds = Preloading.Register(SchemaStore.GetPreloadNames(), false)
@@ -284,7 +338,7 @@ end
 	@return boolean -- `true` once ready, `false` if the timeout passed first.
 ]=]
 function Startup.WaitUntilReady(timeout: number?): boolean
-	return waitFor(SchemaStore.IsInitialized, SchemaStore.Initialized, timeout)
+	return waitFor(SchemaStore.IsInitialized, SchemaStore.Initialized, checkTimeout(timeout, "WaitUntilReady"))
 end
 
 --[=[
@@ -354,7 +408,7 @@ end
 	@return boolean -- `true` once preloaded, `false` if the timeout passed first.
 ]=]
 function Startup.WaitUntilPreloaded(timeout: number?): boolean
-	return waitFor(SchemaStore.IsPreloaded, SchemaStore.Preloaded, timeout)
+	return waitFor(SchemaStore.IsPreloaded, SchemaStore.Preloaded, checkTimeout(timeout, "WaitUntilPreloaded"))
 end
 
 return Startup

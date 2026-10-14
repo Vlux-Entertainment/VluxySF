@@ -8,19 +8,12 @@ local Templates = require(script.Parent.Parent.Core.Templates)
 local Types = require(script.Parent.Parent.Types)
 
 type SoundDefinitionInstanced = Types.SoundDefinitionInstanced
-
-local BLANK_SOUND_NAME = "VluxySF_Blank_Sound"
+type Preset = (Sound) -> ()
 
 --Seconds OneShot gives an asset to load before it gives up and destroys the sound.
 local ONE_SHOT_LOAD_TIMEOUT = 10
 
-local blankDefinition: Types.SoundDefinition = table.freeze({
-	Properties = table.freeze({
-		Name = BLANK_SOUND_NAME,
-	}) :: any,
-	Effects = table.freeze({}) :: any,
-	EffectsCount = 0,
-})
+local blankDefinition: Types.SoundDefinition = table.freeze(Converters.NewBlankDefinition())
 
 local Fetch = {}
 
@@ -31,32 +24,95 @@ local Fetch = {}
 	name is not in the schema.
 ]]
 local function resolve(name: string): Sound?
-	local sound = Templates.Clone(name)
-	if sound then
-		return sound
-	end
-
 	local definition = SchemaStore.GetDefinition(name)
 	if not definition then
 		return nil
+	end
+
+	local sound = Templates.Clone(name)
+	if sound then
+		--templates have PlayOnRemove forced off so they stay silent in SoundService; the clone gets the real value back
+		if definition.Properties.PlayOnRemove then
+			sound.PlayOnRemove = true
+		end
+
+		return sound
 	end
 
 	return Converters.DefinitionToSound(definition)
 end
 
 --[[
-	Applies the preset, then parents the sound. An explicit parent wins; otherwise a sound the preset left unparented
-	goes to UnattachedSounds.
+	Returns the parent when it is usable, otherwise warns and returns nil so the sound goes where an unparented one
+	would. Setting Parent to a non-Instance throws, and that must never reach game code.
 ]]
-local function place(sound: Sound, parent: Instance?, preset: ((Sound) -> ())?)
-	if preset then
-		preset(sound)
+local function checkParent(parent: any, functionName: string): Instance?
+	if parent == nil or typeof(parent) == "Instance" then
+		return parent
 	end
 
-	if parent then
-		sound.Parent = parent
-	elseif sound.Parent == nil then
-		sound.Parent = SchemaStore.GetSchema().UnattachedSounds
+	FormatMessage.Warn(
+		`{functionName} was given {typeof(parent)} as the parent instead of an Instance. It was ignored.`
+	)
+
+	return nil
+end
+
+--[[
+	Returns the preset when it is a function, otherwise warns and returns nil so no preset is applied.
+]]
+local function checkPreset(preset: any, functionName: string): Preset?
+	if preset == nil or type(preset) == "function" then
+		return preset
+	end
+
+	FormatMessage.Warn(`{functionName} was given {typeof(preset)} as the preset instead of a function. It was ignored.`)
+
+	return nil
+end
+
+local function setParent(sound: Sound, parent: Instance)
+	sound.Parent = parent
+end
+
+--[[
+	Parents the sound, warning and returning false when the parent refuses it (locked, destroyed or not allowed to
+	hold a Sound) so the caller can fall back.
+]]
+local function tryParent(sound: Sound, parent: Instance, functionName: string): boolean
+	local success, reason = pcall(setParent :: any, sound, parent)
+	if success then
+		return true
+	end
+
+	FormatMessage.Warn(`{functionName} could not parent "{sound.Name}" to "{parent:GetFullName()}": {reason}`)
+
+	return false
+end
+
+--[[
+	Applies the preset, then parents the sound. An explicit parent wins; otherwise a sound the preset left unparented
+	goes to UnattachedSounds, as does one whose parent refused it.
+
+	The preset is the developer's own code, so an error in it propagates to them; the half-built sound is destroyed
+	first so nothing is left behind.
+]]
+local function place(sound: Sound, parent: Instance?, preset: Preset?, functionName: string)
+	if preset then
+		local success, reason = pcall(preset :: any, sound)
+		if not success then
+			sound:Destroy()
+			error(reason, 0)
+		end
+	end
+
+	if parent and tryParent(sound, parent, functionName) then
+		return
+	end
+
+	--pcalled too: a preset that destroyed the sound leaves it with a locked Parent
+	if sound.Parent == nil then
+		tryParent(sound, SchemaStore.GetSchema().UnattachedSounds, functionName)
 	end
 end
 
@@ -76,9 +132,13 @@ end
 
 	:::info
 	- A warmed sound (see `Cache`) is cloned from its template.
-	- A sound fetched without a parent is placed in `SoundService.UnattachedSounds`.
-	- Called before the library has started, it warns once and returns an unparented blank `Sound` instead of
-	erroring, so early game code keeps running.
+	- A sound fetched without a parent is placed in `SoundService.UnattachedSounds`. So is one whose parent refused
+	it (a locked or destroyed Instance), with a warning. A parent that is not an Instance, or a preset that is not a
+	function, is warned about and ignored.
+	- Called before the library has started, it warns once and returns a blank `Sound` instead of erroring, so early
+	game code keeps running. The blank is parented to `parent` when one was given and stays unparented otherwise;
+	the preset is not applied to it.
+	- An error thrown by the preset is yours and propagates; the sound it was applied to is destroyed first.
 	:::
 
 	```lua
@@ -100,9 +160,15 @@ end
 	@return Sound -- The new `Sound`.
 ]=]
 function Fetch.Fetch(name: string, parent: Instance?, preset: ((Sound) -> ())?): SoundDefinitionInstanced
+	local checkedParent = checkParent(parent, "Fetch")
+
 	if not SchemaStore.CheckReady("Fetch") then
 		local blank = blankSound()
-		blank.Parent = parent
+
+		--there is no UnattachedSounds to fall back to yet, so a refused parent leaves the blank unparented
+		if checkedParent then
+			tryParent(blank, checkedParent, "Fetch")
+		end
 
 		return blank :: SoundDefinitionInstanced
 	end
@@ -113,7 +179,7 @@ function Fetch.Fetch(name: string, parent: Instance?, preset: ((Sound) -> ())?):
 		sound = blankSound()
 	end
 
-	place(sound :: Sound, parent, preset)
+	place(sound :: Sound, checkedParent, checkPreset(preset, "Fetch"), "Fetch")
 
 	return sound :: SoundDefinitionInstanced
 end
@@ -152,7 +218,7 @@ function Fetch.TryFetch(name: string, parent: Instance?, preset: ((Sound) -> ())
 		return nil
 	end
 
-	place(sound, parent, preset)
+	place(sound, checkParent(parent, "TryFetch"), checkPreset(preset, "TryFetch"), "TryFetch")
 
 	return sound :: SoundDefinitionInstanced
 end
@@ -168,7 +234,8 @@ end
 	Nothing has to wait for the audio to load: Roblox holds a played sound until its audio arrives and starts it from
 	the beginning. If the audio has not loaded within 10 seconds (deleted, moderated or private audio never does), a
 	warning is printed and the sound is destroyed. With a name that is not in the schema, or before the library has
-	started, a warning is printed and nothing plays.
+	started, a warning is printed and nothing plays. Destroying the parent while the sound plays is fine: the sound
+	goes with it and nothing is reported.
 
 	```lua
 	VluxySF.OneShot("Hit", character.HumanoidRootPart)
@@ -204,19 +271,32 @@ function Fetch.OneShot(name: string, parent: Instance?, preset: ((Sound) -> ())?
 		return function() end
 	end
 
-	--a destroyed sound reads IsLoaded as false, so the watchdog needs to know the sound already finished
-	local ended = false
+	--a destroyed sound reads IsLoaded as false and Destroy drops the Ended connection, so the watchdog has to be told
+	--when the sound is finished by any route: Ended, the stop function, or game code destroying it or an ancestor
+	--(Destroying fires for both)
+	local finished = false
+	local watchdog: thread? = nil
+
+	local function finish()
+		finished = true
+
+		if watchdog and coroutine.status(watchdog) == "suspended" then
+			task.cancel(watchdog)
+		end
+	end
+
+	sound.Destroying:Once(finish)
 
 	sound.Ended:Once(function()
-		ended = true
+		finish()
 		sound:Destroy()
 	end)
 
 	sound:Play()
 
 	--an asset that never loads never fires Ended either, so without this the sound would stay forever
-	local watchdog = task.delay(ONE_SHOT_LOAD_TIMEOUT, function()
-		if ended or sound.IsLoaded then
+	watchdog = task.delay(ONE_SHOT_LOAD_TIMEOUT, function()
+		if finished or sound.IsLoaded then
 			return
 		end
 
@@ -227,10 +307,7 @@ function Fetch.OneShot(name: string, parent: Instance?, preset: ((Sound) -> ())?
 	end)
 
 	return function()
-		if coroutine.status(watchdog) == "suspended" then
-			task.cancel(watchdog)
-		end
-
+		finish()
 		sound:Destroy()
 	end
 end

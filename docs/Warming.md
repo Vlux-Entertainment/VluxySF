@@ -27,6 +27,8 @@ VluxySF.Cache.Chill("BossTheme", "BossRoar", "BossStomp")
 
 Chilling only removes the kept copy. Sounds you already fetched keep playing.
 
+The kept copy is silent: it never plays, and `PlayOnRemove` is off on it so chilling makes no sound. The clones `Fetch` hands out get the authored `PlayOnRemove` back.
+
 To check what is warm:
 
 ```lua

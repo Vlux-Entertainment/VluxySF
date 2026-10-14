@@ -35,15 +35,17 @@ local PLAYABLE_SAMPLE = 100
 --Seconds the asset check waits before reporting.
 local PLAYABLE_TIMEOUT = 20
 
---Microseconds per item above which a line is marked SLOW. Several times the 2.0 measurements (Fetch was 11 to 13 us).
+--Microseconds per item above which a line is marked SLOW, set about twice the 3.0 numbers on the stress fixture with
+--real asset ids (client: Fetch 36 to 61, clone 40 to 80, OneShot about 210 because it includes Play). Parenting and
+--playing a Sound with a real asset is Roblox's work and is most of the cost, so these are well above the library's own.
 local BUDGETS = {
 	Decode = 25,
 	Build = 50,
 	FirstFetch = 75,
-	Fetch = 50,
-	WrappedFetch = 55,
-	Clone = 50,
-	PlayOnce = 100,
+	Fetch = 120,
+	WrappedFetch = 130,
+	Clone = 160,
+	PlayOnce = 400,
 }
 
 local side = if RunService:IsServer() then "Server" else "Client"

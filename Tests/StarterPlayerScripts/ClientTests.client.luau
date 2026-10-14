@@ -4,6 +4,8 @@ local LogService = game:GetService("LogService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
+local Codec = require(ReplicatedStorage.VluxySF.Core.Codec)
+local Compression = require(ReplicatedStorage.VluxySF.Core.Compression)
 local InternalCases = require(ReplicatedStorage.InternalCases)
 local SharedCases = require(ReplicatedStorage.SharedCases)
 local TestHarness = require(ReplicatedStorage.TestHarness)
@@ -18,7 +20,39 @@ local PRELOAD_TIMEOUT = 5
 --OneShot gives an asset this long to load before destroying the sound, plus a margin.
 local PLAY_ONCE_WATCHDOG_SECONDS = 11
 
+--How many times one player may ask the server for the schema through the fallback RemoteFunction.
+local SCHEMA_REQUEST_LIMIT = 3
+
 local suite = TestHarness.new("Client")
+
+--Finds the instance the server made, by its mark, ignoring anything else with the same name.
+local function findOwned(parent: Instance, name: string): Instance?
+	for _, child in ipairs(parent:GetChildren()) do
+		if child.Name == name and child:GetAttribute("VluxySF") == true then
+			return child
+		end
+	end
+
+	return nil
+end
+
+------------------------------------------------------------------------------------------------------------------------
+--DECOYS----------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+--Unmarked instances with the library's names, as a game migrating from its own SoundGroups might have in SoundService.
+--They are made before InitClient so the client has to tell the server's instances from them by their mark.
+local decoys: { Instance } = {}
+for _, spec in ipairs({
+	{ "VluxySF_Schema", "Configuration" },
+	{ "SOUNDS", "SoundGroup" },
+	{ "UnattachedSounds", "Configuration" },
+}) do
+	local decoy = Instance.new(spec[2])
+	decoy.Name = spec[1]
+	decoy.Parent = SoundService
+	table.insert(decoys, decoy)
+end
 
 ------------------------------------------------------------------------------------------------------------------------
 --INIT------------------------------------------------------------------------------------------------------------------
@@ -62,6 +96,12 @@ end)
 
 VluxySF.OneShot("Click", nil, VluxySF.Presets.Volume(0))
 
+--A one-shot whose parent the game destroys right away goes with it; that must not count as "did not load" either.
+local doomed = Instance.new("Folder")
+doomed.Parent = workspace
+VluxySF.OneShot("Click", doomed, VluxySF.Presets.Volume(0))
+doomed:Destroy()
+
 local unloadable: Sound? = nil
 local unloadableStart = os.clock()
 print(
@@ -88,11 +128,45 @@ suite.Test("InitClient makes the schema ready", function()
 	print(`[VluxySF Tests] Lua memory grew about {memoryAfter - memoryBefore} KB during InitClient.`)
 end)
 
-suite.Test("InitClient cleared its copy of the schema attribute", function()
-	local published = SoundService:FindFirstChild("VluxySF_Schema")
-	assert(published, "VluxySF_Schema should have replicated")
+suite.Test("InitClient found the server's instances by their mark, not the same-named decoys", function()
+	local schema = assert(VluxySF.Schema.Get(), "The schema should be ready")
 
-	ExpectEqual(published:GetAttribute("Schema"), nil, "Schema attribute")
+	for _, decoy in ipairs(decoys) do
+		Expect(schema.SoundGroupContainer ~= decoy, "The SOUNDS decoy was skipped")
+		Expect(schema.UnattachedSounds ~= decoy, "The UnattachedSounds decoy was skipped")
+		decoy:Destroy()
+	end
+
+	ExpectEqual(schema.SoundGroupContainer:GetAttribute("VluxySF"), true, "SOUNDS is the marked one")
+	ExpectEqual(schema.UnattachedSounds:GetAttribute("VluxySF"), true, "UnattachedSounds is the marked one")
+	ExpectEqual((VluxySF.Groups.Get("MUSIC") :: SoundGroup):GetAttribute("VluxySF"), true, "MUSIC is marked")
+end)
+
+suite.Test("InitClient leaves the schema attribute in place for other readers", function()
+	local published = findOwned(SoundService, "VluxySF_Schema")
+	assert(published, "The marked VluxySF_Schema should have replicated")
+
+	ExpectEqual(type(published:GetAttribute("Schema")), "string", "Schema attribute")
+end)
+
+suite.Test("The schema request fallback hands out the schema a few times per player", function()
+	local published = assert(findOwned(SoundService, "VluxySF_Schema"), "VluxySF_Schema should have replicated")
+	local request = published:WaitForChild("Request", 5)
+	assert(request and request:IsA("RemoteFunction"), "A Request RemoteFunction should sit under the container")
+
+	--InitClient may already have used one request when the attribute could not be read, so only the first and the
+	--one past the limit are fixed
+	local results: { any } = {}
+	for index = 1, SCHEMA_REQUEST_LIMIT + 1 do
+		results[index] = request:InvokeServer()
+	end
+
+	ExpectEqual(type(results[1]), "buffer", "The first request gets the schema")
+
+	--the remote sends the compressed schema, the same bytes the attribute carries
+	local schemaBuffer = Compression.Decompress(results[1])
+	ExpectEqual(Codec.Load(schemaBuffer).Count, #VluxySF.Schema.GetNames(), "Sounds in the requested schema")
+	ExpectEqual(results[SCHEMA_REQUEST_LIMIT + 1], nil, "A request past the limit gets nothing")
 end)
 
 suite.Test("A cancelled OnReady callback never runs", function()
@@ -133,6 +207,16 @@ suite.Test("Tagged sounds are preloaded by InitClient", function()
 
 	ExpectEqual(VluxySF.Preload.Has("MainTheme"), false, "MainTheme is not tagged")
 	ExpectContains(VluxySF.Preload.GetNames(), { "BattleOne", "BattleTwo", "Click" }, "Preload.GetNames")
+end)
+
+suite.Test("Preloaded templates are silent", function()
+	for _, name in ipairs({ "BattleOne", "BattleTwo", "Click" }) do
+		local kept = schema.PreloadedSounds:FindFirstChild(name)
+		assert(kept and kept:IsA("Sound"), `{name} should be kept in PreloadedSounds`)
+
+		ExpectEqual(kept.Playing, false, `{name} template is not playing`)
+		ExpectEqual(kept.PlayOnRemove, false, `{name} template has PlayOnRemove off`)
+	end
 end)
 
 suite.Test("Fetching a preloaded sound builds a new one", function()
@@ -177,6 +261,24 @@ suite.Test("Cache warms and chills a sound", function()
 	ExpectEqual(warmed.Parent, nil, "Warmed sound parent after Chill")
 end)
 
+suite.Test("Warmed templates are silent and clones get PlayOnRemove back", function()
+	--Whoosh is authored with PlayOnRemove on, so its template must have it off or chilling it would make a sound
+	VluxySF.Cache.Warm("Whoosh")
+
+	local warmed = schema.WarmedSounds:FindFirstChild("Whoosh")
+	assert(warmed and warmed:IsA("Sound"), "Whoosh should be kept in WarmedSounds")
+	ExpectEqual(warmed.Playing, false, "Template is not playing")
+	ExpectEqual(warmed.PlayOnRemove, false, "Template has PlayOnRemove off")
+
+	local sound: Sound = VluxySF.Fetch("Whoosh")
+	ExpectEqual(sound.PlayOnRemove, true, "The clone gets the authored PlayOnRemove back")
+	ExpectEqual(sound.Playing, false, "The clone is not playing")
+	sound:Destroy()
+
+	VluxySF.Cache.Chill("Whoosh")
+	ExpectEqual(VluxySF.Cache.IsWarmed("Whoosh"), false, "IsWarmed after Chill")
+end)
+
 ------------------------------------------------------------------------------------------------------------------------
 --PLAY_ONCE_WATCHDOG----------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
@@ -193,7 +295,7 @@ suite.Test("OneShot destroys a sound whose asset never loads", function()
 	ExpectEqual(sound.Parent, nil, "Parent after the load timeout")
 end)
 
-suite.Test("OneShot does not flag a sound that loaded and ended", function()
+suite.Test("OneShot does not flag a sound that loaded and ended, or one destroyed with its parent", function()
 	ExpectEqual(loadWarnings, 1, '"did not load" warnings (only the unloadable sound should warn)')
 end)
 
