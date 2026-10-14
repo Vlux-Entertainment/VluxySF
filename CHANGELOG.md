@@ -2,7 +2,7 @@
 
 ## 3.0.0
 
-3.0 renames several functions and changes a few parameters; the [migration guide](docs/Migration.md) lists every old name next to its replacement. It also changes how the library behaves when something goes wrong: nothing called at runtime throws anymore.
+3.0 renames several functions and changes a few parameters; the [migration guide](https://Vlux-Entertainment.github.io/VluxySF/docs/Migration) lists every old name next to its replacement. It also changes how the library behaves when something goes wrong: nothing called at runtime throws anymore.
 
 ### Breaking
 

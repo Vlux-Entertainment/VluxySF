@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 15
 ---
 
 # Migrating to 3.0

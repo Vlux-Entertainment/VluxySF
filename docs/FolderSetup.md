@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 ---
 
 # Folder Setup
@@ -68,58 +68,7 @@ The hierarchy inside a group does not affect the library. Sounds are always fetc
 
 ## Preloading sounds
 
-Want certain sounds to be ready instantly? Give an instance the tag `VluxySF_Preload`, and every `Sound` under it is preloaded when the client starts.
-
-- Tag a **Sound** to preload that one sound.
-- Tag a **Folder** or any other container to preload every sound inside it.
-- Tag a **group Configuration** to preload the whole group.
-
-```
-SOUNDS⚙️
-  ├─ MUSIC⚙️
-  │    ├─ mainTheme🔊
-  │    └─ battles📁                      ← Tagged "VluxySF_Preload": both sounds inside preload
-  │         ├─ importantSound1🔊
-  │         └─ importantSound2🔊
-  └─ SFX⚙️
-        ├─ click🔊
-        └─ explosions📁
-             ├─ commonExplosion🔊         ← Tagged "VluxySF_Preload": only this sound preloads
-             └─ uncommonLongExplosion🔊
-```
-
-You can add a tag in Studio from the **Tags** section at the bottom of the Properties window.
-
-:::warning
-Only preload the sounds that need it. A preloaded sound stays in memory for the whole session, and there is no way to undo it. See [Advice](./Advice.md#memory-optimizations) for more.
-:::
-
-### Preload timeout
-
-`InitClient` yields until the tagged sounds are preloaded or the timeout passes. The timeout is in seconds and defaults to 5. If the timeout passes first, a warning is printed, `InitClient` returns, and the sounds keep loading in the background.
-
-```lua
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local VluxySF = require(ReplicatedStorage.Packages.VluxySF)
-
-local preloadTimeout = 10
-VluxySF.Startup.InitClient(preloadTimeout)
-
--- Reaches this line once the sounds are preloaded or the timeout is reached.
-```
-
-Pass `0` to not wait at all. No warning is printed. Check on the preloads later with `Startup.IsPreloaded()` or `Startup.WaitUntilPreloaded()`.
-
-```lua
-VluxySF.Startup.InitClient(0)
-
--- Do other startup work here.
-
-VluxySF.Startup.WaitUntilPreloaded()
-```
-
-See [Startup](/api/Startup) for the full reference.
+Tag a `Sound`, a Folder or a whole group Configuration with `VluxySF_Preload` to have its sounds downloaded when a client starts, so they play instantly the first time. [Preloading](./Preloading.md) explains how it works and what to tag.
 
 ---
 
@@ -153,4 +102,4 @@ Once `InitServer` has compiled it, the Configuration is detached right away and 
 
 ## Next step
 
-Your sounds are ready. Continue to [Initialization](./Setup.md) to start the library.
+Your sounds are ready. Continue to [Starting the Library](./Setup.md).

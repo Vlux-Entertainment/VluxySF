@@ -1,8 +1,8 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 ---
 
-# Initialization
+# Starting the Library
 
 VluxySF has to be started once on the server and once on each client. After that, every script can fetch sounds.
 
@@ -49,7 +49,7 @@ VluxySF.Startup.InitClient() -- Yields until the tagged sounds are preloaded, or
 -- The schema can be used from here on.
 ```
 
-`InitClient` receives the schema, then builds and preloads the sounds you tagged for [preloading](./FolderSetup.md#preloading-sounds).
+`InitClient` receives the schema, then preloads the sounds you tagged for [preloading](./Preloading.md).
 
 ### The preload timeout
 
@@ -196,4 +196,4 @@ If your loader does not want `Init` to yield, call `InitClient(0)` there instead
 
 ## Next step
 
-The library is running. Continue to [Examples](./Examples.md) to start playing sounds.
+The library is running. Continue to [Fetching Sounds](./Fetching.md) to play your first sound.
