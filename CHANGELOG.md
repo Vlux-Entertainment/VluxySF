@@ -21,6 +21,10 @@
 - A failed `ContentProvider:PreloadAsync` only warns. Before, it could make `Preload.Selected` throw and leave `WaitForPreload` waiting forever.
 - Enums decoded from one schema can no longer be mixed up with another schema's. The enum lookup cache is kept per loaded schema instead of shared.
 
+### Removed
+
+- The `GeneratedSoundNames` type, kept in 2.0 only for code that annotated sound names with it. Use `string`. This is a type-only change: running code is unaffected, but annotations that name the type no longer type-check.
+
 ## 2.0.0
 
 The core was rewritten for speed and scale. The public API is the same shape as 1.x, with the changes below.

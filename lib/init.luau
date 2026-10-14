@@ -20,9 +20,6 @@ local Types = require(script.Types)
 --TYPES-----------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
 
---Kept for code that annotated sound names with it. Sound names are plain strings.
-export type GeneratedSoundNames = string
-
 export type SoundSchema = Types.SoundSchema
 
 export type SoundGroups = Types.SoundGroups
