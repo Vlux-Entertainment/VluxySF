@@ -12,6 +12,7 @@ local Preload = require(api.Preload)
 local Presets = require(api.Presets)
 local Schema = require(api.Schema)
 local Startup = require(api.Startup)
+local Wrapping = require(api.Wrapping)
 
 local Types = require(script.Types)
 
@@ -45,6 +46,8 @@ export type PitchShiftSoundEffectSerialized = Types.PitchShiftSoundEffectSeriali
 export type ReverbSoundEffectSerialized = Types.ReverbSoundEffectSerialized
 export type TremoloSoundEffectSerialized = Types.TremoloSoundEffectSerialized
 
+export type Wrapped<T> = Wrapping.Wrapped<T>
+
 ------------------------------------------------------------------------------------------------------------------------
 --LIBRARY---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------------------
@@ -67,6 +70,7 @@ local VluxySF = {
 	Fetch = Fetch.Fetch,
 	FetchStrict = Fetch.FetchStrict,
 	FetchPlayOnce = Fetch.FetchPlayOnce,
+	WithWrapper = Wrapping.WithWrapper,
 
 	Startup = Startup,
 	Schema = Schema,

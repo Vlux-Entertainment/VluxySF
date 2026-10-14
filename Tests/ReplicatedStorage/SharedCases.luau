@@ -9,6 +9,7 @@ local VluxySF = require(ReplicatedStorage.VluxySF)
 local Expect = TestHarness.Expect
 local ExpectContains = TestHarness.ExpectContains
 local ExpectEqual = TestHarness.ExpectEqual
+local ExpectError = TestHarness.ExpectError
 local ExpectNear = TestHarness.ExpectNear
 
 --The sounds and groups authored in Tests/ServerStorage/TEST_SOUNDS.model.json
@@ -212,6 +213,152 @@ function SharedCases.Run(suite: TestHarness.Suite)
 
 		cleanup()
 		ExpectEqual(sound.Parent, nil, "Parent after cleanup")
+	end)
+
+	--------------------------------------------------------------------------------------------------------------------
+	--WRAPPING----------------------------------------------------------------------------------------------------------
+	--------------------------------------------------------------------------------------------------------------------
+
+	type FakeWrapper = { Sound: Sound, Kind: string }
+
+	local function fakeWrap(sound: Sound): FakeWrapper
+		return { Sound = sound, Kind = "FakeWrapper" }
+	end
+
+	local Wrapped = VluxySF.WithWrapper(fakeWrap)
+
+	suite.Test("WithWrapper passes fetched sounds through the wrapper", function()
+		local wrapped = Wrapped.Fetch("MainTheme")
+
+		ExpectEqual(wrapped.Kind, "FakeWrapper", "Kind")
+		ExpectEqual(wrapped.Sound.Name, "MainTheme", "Wrapped sound")
+		ExpectEqual(wrapped.Sound.Parent, schema.UnattachedSounds, "Parent of a sound fetched without one")
+
+		wrapped.Sound:Destroy()
+	end)
+
+	suite.Test("WithWrapper applies presets and parents before wrapping", function()
+		local parent = Instance.new("Folder")
+		local wrapped = Wrapped.Fetch("Click", parent, VluxySF.Presets.Volume(0.2))
+
+		ExpectNear(wrapped.Sound.Volume, 0.2, "Volume")
+		ExpectEqual(wrapped.Sound.Parent, parent, "Parent")
+
+		parent:Destroy()
+	end)
+
+	suite.Test("WithWrapper wraps the blank sound for an unknown name (warnings expected)", function()
+		local wrapped = Wrapped.Fetch("NotARealSound")
+
+		ExpectEqual(wrapped.Kind, "FakeWrapper", "Kind")
+		ExpectEqual(wrapped.Sound.Name, "VluxySF_Blank_Sound", "Wrapped sound")
+
+		wrapped.Sound:Destroy()
+	end)
+
+	suite.Test("WithWrapper FetchStrict returns nil without calling the wrapper (warnings expected)", function()
+		local calls = 0
+		local counting = VluxySF.WithWrapper(function(sound: Sound): Sound
+			calls += 1
+
+			return sound
+		end)
+
+		ExpectEqual(counting.FetchStrict("NotARealSound"), nil, "Unknown sound")
+		ExpectEqual(calls, 0, "Wrapper calls for an unknown sound")
+
+		local sound = counting.FetchStrict("Click")
+		assert(sound, "FetchStrict should find Click")
+		ExpectEqual(calls, 1, "Wrapper calls for a known sound")
+
+		sound:Destroy()
+	end)
+
+	suite.Test("WithWrapper leaves the library itself unchanged", function()
+		Expect(table.isfrozen(Wrapped), "The wrapped library should be frozen")
+		ExpectEqual(Wrapped.Startup, VluxySF.Startup, "Startup")
+		ExpectEqual(Wrapped.Groups, VluxySF.Groups, "Groups")
+		ExpectEqual(Wrapped.FetchPlayOnce, VluxySF.FetchPlayOnce, "FetchPlayOnce")
+
+		local sound = VluxySF.Fetch("Click")
+		Expect(sound:IsA("Sound"), "VluxySF.Fetch should still return a Sound")
+
+		sound:Destroy()
+	end)
+
+	suite.Test("WithWrapper refuses something that is not a function", function()
+		ExpectError(function()
+			VluxySF.WithWrapper(nil :: any)
+		end, "WithWrapper(nil)")
+	end)
+
+	--------------------------------------------------------------------------------------------------------------------
+	--FAILURES_AND_LEAKS------------------------------------------------------------------------------------------------
+	--------------------------------------------------------------------------------------------------------------------
+
+	local function unattachedCount(): number
+		return #schema.UnattachedSounds:GetChildren()
+	end
+
+	suite.Test("Fetching and destroying many sounds leaves nothing behind", function()
+		local before = unattachedCount()
+
+		for _ = 1, 200 do
+			VluxySF.Fetch("Explosion"):Destroy()
+		end
+
+		ExpectEqual(unattachedCount(), before, "UnattachedSounds count")
+	end)
+
+	suite.Test("FetchPlayOnce cleanups leave nothing behind", function()
+		local before = unattachedCount()
+		local mute = VluxySF.Presets.Volume(0)
+
+		local cleanups: { () -> () } = {}
+		for _ = 1, 50 do
+			table.insert(cleanups, VluxySF.FetchPlayOnce("Click", nil, mute))
+		end
+		for _, cleanup in ipairs(cleanups) do
+			cleanup()
+		end
+
+		ExpectEqual(unattachedCount(), before, "UnattachedSounds count")
+	end)
+
+	suite.Test("A preset that errors raises to the caller and leaves nothing behind", function()
+		local before = unattachedCount()
+
+		ExpectError(function()
+			VluxySF.Fetch("Click", nil, function()
+				error("preset failed")
+			end)
+		end, "Fetch with a failing preset")
+
+		ExpectEqual(unattachedCount(), before, "UnattachedSounds count")
+	end)
+
+	suite.Test("WithWrapper destroys the sound when the wrapper errors", function()
+		local failing = VluxySF.WithWrapper(function(_sound: Sound): Sound
+			error("wrapper failed")
+		end)
+		local before = unattachedCount()
+
+		ExpectError(function()
+			failing.Fetch("Click")
+		end, "Fetch with a failing wrapper")
+		ExpectError(function()
+			failing.FetchStrict("Click")
+		end, "FetchStrict with a failing wrapper")
+
+		ExpectEqual(unattachedCount(), before, "UnattachedSounds count")
+	end)
+
+	suite.Test("Fetch with a name that is not a string does not throw (warnings expected)", function()
+		local sound = VluxySF.Fetch(nil :: any)
+		ExpectEqual(sound.Name, "VluxySF_Blank_Sound", "Fetch(nil)")
+		sound:Destroy()
+
+		ExpectEqual(VluxySF.FetchStrict(42 :: any), nil, "FetchStrict(42)")
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------

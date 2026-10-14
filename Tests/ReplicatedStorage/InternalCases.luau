@@ -7,10 +7,14 @@ local TestHarness = require(ReplicatedStorage.TestHarness)
 local library = ReplicatedStorage.VluxySF
 local Codec = require(library.Core.Codec)
 local Compile = require(library.Core.Compile)
+local Compression = require(library.Core.Compression)
 local Converters = require(library.Core.Converters)
 local Properties = require(library.Core.Properties)
+local Transport = require(library.Core.Transport)
+local Types = require(library.Types)
 
 local Expect = TestHarness.Expect
+local ExpectContains = TestHarness.ExpectContains
 local ExpectEqual = TestHarness.ExpectEqual
 local ExpectError = TestHarness.ExpectError
 local ExpectNear = TestHarness.ExpectNear
@@ -24,6 +28,27 @@ local LARGE_SCHEMA_SOUNDS = 2000
 local InternalCases = {}
 
 ------------------------------------------------------------------------------------------------------------------------
+
+--Decodes a definition that the case expects to exist.
+local function readDefinition(loaded: Codec.Loaded, name: string): (Types.SoundDefinition, number)
+	local definition, groupIndex = Codec.ReadDefinition(loaded, name)
+	assert(definition, `{name} should be in the schema`)
+
+	return definition, groupIndex
+end
+
+--A schema with one sound, "Rolled", whose only stored property besides Name is the given RollOffMode.
+local function loadRolled(rollOffMode: Enum.RollOffMode): Codec.Loaded
+	local writer = Codec.NewWriter()
+
+	Codec.WriteDefinition(writer, "Rolled", 0, {
+		Properties = { Name = "Rolled", RollOffMode = rollOffMode } :: any,
+		Effects = {} :: any,
+		EffectsCount = 0,
+	})
+
+	return Codec.Load(Codec.Finish(writer, {}, {}))
+end
 
 local function makeSound(name: string): Sound
 	local sound = Instance.new("Sound")
@@ -74,7 +99,7 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(loaded.PreloadNames[1], "Full", "PreloadNames")
 		ExpectEqual(loaded.Names[1], "Full", "Names order")
 
-		local full, fullGroup = Codec.ReadDefinition(loaded, loaded.Offsets.Full)
+		local full, fullGroup = readDefinition(loaded, "Full")
 		local properties = full.Properties :: { [string]: any }
 		ExpectEqual(fullGroup, 2, "Group index")
 		ExpectEqual(properties.Name, "Full", "Name")
@@ -91,7 +116,7 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		ExpectNear(echo.Delay, 0.75, "Effect delay")
 		ExpectEqual(echo.Enabled, false, "Effect enabled")
 
-		local bare, bareGroup = Codec.ReadDefinition(loaded, loaded.Offsets.Bare)
+		local bare, bareGroup = readDefinition(loaded, "Bare")
 		ExpectEqual(bareGroup, 0, "No group")
 		ExpectEqual((bare.Properties :: any).Name, "Bare", "Bare name")
 		ExpectEqual(bare.EffectsCount, 0, "Bare effects")
@@ -103,12 +128,6 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(loaded.Count, 0, "Count")
 		ExpectEqual(#loaded.GroupNames, 0, "Groups")
 		ExpectEqual(#loaded.PreloadNames, 0, "Preloads")
-	end)
-
-	suite.Test("Codec rejects a buffer that is not a schema", function()
-		ExpectError(function()
-			Codec.Load(buffer.fromstring("not a schema"))
-		end, "Load on garbage")
 	end)
 
 	suite.Test(`Codec grows past its first chunk with {LARGE_SCHEMA_SOUNDS} sounds`, function()
@@ -129,9 +148,195 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		local loaded = Codec.Load(schemaBuffer)
 		ExpectEqual(loaded.Count, LARGE_SCHEMA_SOUNDS, "Count")
 
-		local last = Codec.ReadDefinition(loaded, loaded.Offsets[`Big{LARGE_SCHEMA_SOUNDS}`])
+		local last = readDefinition(loaded, `Big{LARGE_SCHEMA_SOUNDS}`)
 		ExpectEqual((last.Properties :: any).SoundId, longId, "Last SoundId")
 		ExpectNear((last.Properties :: any).Volume, 1, "Last Volume")
+	end)
+
+	suite.Test("Codec keeps enums apart between two loaded schemas", function()
+		--Both buffers have the same string ids, so a cache shared between them would hand one the other's enum.
+		local linear = loadRolled(Enum.RollOffMode.Linear)
+		local inverse = loadRolled(Enum.RollOffMode.Inverse)
+
+		local fromInverse = readDefinition(inverse, "Rolled")
+		local fromLinear = readDefinition(linear, "Rolled")
+
+		ExpectEqual((fromInverse.Properties :: any).RollOffMode, Enum.RollOffMode.Inverse, "Inverse schema")
+		ExpectEqual((fromLinear.Properties :: any).RollOffMode, Enum.RollOffMode.Linear, "Linear schema")
+	end)
+
+	suite.Test("Codec skips an enum that does not exist here (warnings expected)", function()
+		local loaded = loadRolled(Enum.RollOffMode.Linear)
+
+		--Stands in for an enum item that a newer engine had and this one does not.
+		local index = table.find(loaded.Strings, "Linear")
+		assert(index, "The string table should hold the enum item name")
+		loaded.Strings[index] = "NotARealRollOffMode"
+
+		local definition = readDefinition(loaded, "Rolled")
+		ExpectEqual((definition.Properties :: any).RollOffMode, nil, "RollOffMode")
+		ExpectEqual((definition.Properties :: any).Name, "Rolled", "The rest of the definition")
+	end)
+
+	suite.Test("Codec stores asset ids, numbers and booleans exactly", function()
+		local properties = {
+			Name = "Packed",
+			SoundId = "rbxassetid://1234567890123",
+			Volume = 0.5, --fits f32
+			PlaybackSpeed = 0.1, --does not fit f32, so it must come back as the same double
+			TimePosition = 1e300, --far outside f32
+			Looped = true,
+			PlayOnRemove = false,
+			LoopRegion = NumberRange.new(1.5, 2.5),
+		}
+		local stringsThatStayStrings = {
+			"rbxasset://sounds/clickfast.wav", --not an rbxassetid
+			"rbxassetid://0123", --leading zero would not survive as a number
+			"rbxassetid://123456789012345678901234", --past 2^53
+			"rbxassetid://", --no number
+			"rbxassetid://12abc",
+			"",
+		}
+
+		local writer = Codec.NewWriter()
+		Codec.WriteDefinition(
+			writer,
+			"Packed",
+			1,
+			{ Properties = properties :: any, Effects = {} :: any, EffectsCount = 0 }
+		)
+		for index, value in ipairs(stringsThatStayStrings) do
+			Codec.WriteDefinition(writer, `Text{index}`, 0, {
+				Properties = { Name = `Text{index}`, SoundId = value } :: any,
+				Effects = {} :: any,
+				EffectsCount = 0,
+			})
+		end
+
+		local loaded = Codec.Load(Codec.Finish(writer, { "SFX" }, {}))
+
+		local packed = readDefinition(loaded, "Packed").Properties :: any
+		for name, value in pairs(properties) do
+			ExpectEqual(packed[name], value, name)
+		end
+
+		for index, value in ipairs(stringsThatStayStrings) do
+			local text = readDefinition(loaded, `Text{index}`).Properties :: any
+			ExpectEqual(text.SoundId, value, `String {index}`)
+		end
+	end)
+
+	suite.Test("Codec stores names of any length and any UTF-8", function()
+		local names = { string.rep("N", 300), "Звук_🔊_サウンド", "A" }
+
+		local writer = Codec.NewWriter()
+		for _, name in ipairs(names) do
+			Codec.WriteDefinition(
+				writer,
+				name,
+				300, --a group index past one varint byte
+				{ Properties = { Name = name } :: any, Effects = {} :: any, EffectsCount = 0 }
+			)
+		end
+
+		local loaded = Codec.Load(Codec.Finish(writer, {}, names))
+		ExpectContains(loaded.Names, names, "Names")
+		ExpectContains(loaded.PreloadNames, names, "Preload names")
+
+		for _, name in ipairs(names) do
+			local definition, groupIndex = readDefinition(loaded, name)
+			ExpectEqual((definition.Properties :: any).Name, name, `Name of {#name} bytes`)
+			ExpectEqual(groupIndex, 300, "Group index")
+		end
+	end)
+
+	--------------------------------------------------------------------------------------------------------------------
+	--COMPRESSION-------------------------------------------------------------------------------------------------------
+	--------------------------------------------------------------------------------------------------------------------
+
+	suite.Test("Compression round trips every kind of input", function()
+		local random = Random.new(2)
+
+		local function randomBytes(length: number): buffer
+			local bytes = buffer.create(length)
+			for offset = 0, length - 1 do
+				buffer.writeu8(bytes, offset, random:NextInteger(0, 255))
+			end
+
+			return bytes
+		end
+
+		local inputs: { [string]: buffer } = {
+			Empty = buffer.create(0),
+			["One byte"] = buffer.fromstring("x"),
+			Short = buffer.fromstring("rbxassetid://"),
+			["Random 100 KB"] = randomBytes(100000),
+			["One byte repeated"] = buffer.fromstring(string.rep("a", 70000)),
+			["Short pattern repeated"] = buffer.fromstring(string.rep("abc", 30000)),
+			["Long match lengths"] = buffer.fromstring(string.rep("0123456789", 5000) .. "end"),
+		}
+
+		local mixed = buffer.create(60000)
+		for offset = 0, 59999 do
+			buffer.writeu8(mixed, offset, if offset % 7 == 0 then random:NextInteger(0, 255) else offset % 13)
+		end
+		inputs.Mixed = mixed
+
+		for label, input in pairs(inputs) do
+			local output = Compression.Decompress(Compression.Compress(input))
+			ExpectEqual(buffer.tostring(output), buffer.tostring(input), label)
+		end
+
+		local repeated = Compression.Compress(inputs["Short pattern repeated"])
+		Expect(buffer.len(repeated) < 1000, `Repeated data should shrink, got {buffer.len(repeated)} bytes`)
+	end)
+
+	suite.Test("Compression refuses damaged input", function()
+		local compressed = Compression.Compress(buffer.fromstring(string.rep("abcdefgh", 1000)))
+
+		local truncated = buffer.create(buffer.len(compressed) - 3)
+		buffer.copy(truncated, 0, compressed, 0, buffer.len(truncated))
+		ExpectError(function()
+			Compression.Decompress(truncated)
+		end, "Truncated input")
+
+		local lying = buffer.create(buffer.len(compressed))
+		buffer.copy(lying, 0, compressed)
+		buffer.writeu32(lying, 0, 5) --claims a shorter original
+		ExpectError(function()
+			Compression.Decompress(lying)
+		end, "Wrong length")
+	end)
+
+	--------------------------------------------------------------------------------------------------------------------
+	--TRANSPORT---------------------------------------------------------------------------------------------------------
+	--------------------------------------------------------------------------------------------------------------------
+
+	suite.Test("Transport base64 round trips every padding case", function()
+		ExpectEqual(Transport.Encode(buffer.fromstring("Man")), "TWFu", "3 bytes")
+		ExpectEqual(Transport.Encode(buffer.fromstring("Ma")), "TWE=", "2 bytes")
+		ExpectEqual(Transport.Encode(buffer.fromstring("M")), "TQ==", "1 byte")
+		ExpectEqual(Transport.Encode(buffer.create(0)), "", "0 bytes")
+
+		--random bytes, zeros included: a zero byte is what cuts raw strings short when they replicate
+		local random = Random.new(1)
+
+		for _, length in ipairs({ 0, 1, 2, 3, 4, 5, 255, 256, 257, 100000 }) do
+			local source = buffer.create(length)
+			for offset = 0, length - 1 do
+				buffer.writeu8(source, offset, random:NextInteger(0, 255))
+			end
+
+			local decoded = Transport.Decode(Transport.Encode(source))
+			assert(decoded, `{length} bytes should decode`)
+			ExpectEqual(buffer.tostring(decoded), buffer.tostring(source), `{length} bytes`)
+		end
+	end)
+
+	suite.Test("Transport refuses damaged base64", function()
+		ExpectEqual(Transport.Decode("TWF"), nil, "Length that is not a multiple of 4")
+		ExpectEqual(Transport.Decode("TW!u"), nil, "Character outside the alphabet")
+		ExpectEqual(Transport.Decode("TQ==TWFu"), nil, "Padding in the middle")
 	end)
 
 	--------------------------------------------------------------------------------------------------------------------
@@ -293,7 +498,7 @@ function InternalCases.Run(suite: TestHarness.Suite)
 		ExpectEqual(count, 1, "Sound count")
 
 		local loaded = Codec.Load(schemaBuffer)
-		local twin = Codec.ReadDefinition(loaded, loaded.Offsets.Twin)
+		local twin = readDefinition(loaded, "Twin")
 		ExpectNear((twin.Properties :: any).Volume, 0.1, "The first Twin is kept")
 
 		root:Destroy()

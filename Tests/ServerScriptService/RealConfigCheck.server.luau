@@ -15,6 +15,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local library = ReplicatedStorage.VluxySF
 local Codec = require(library.Core.Codec)
 local Compile = require(library.Core.Compile)
+local Compression = require(library.Core.Compression)
 local Converters = require(library.Core.Converters)
 local Properties = require(library.Core.Properties)
 
@@ -95,13 +96,12 @@ for _, sound in ipairs(sounds) do
 	end
 	seenNames[name] = true
 
-	local offset = loaded.Offsets[name]
-	if not offset then
+	local definition = Codec.ReadDefinition(loaded, name)
+	if not definition then
 		report(`{name}: missing from the schema`)
 		continue
 	end
 
-	local definition = Codec.ReadDefinition(loaded, offset)
 	local rebuilt = Converters.DefinitionToSound(definition)
 
 	compareTables(name, Properties.ReadChanged(sound), Properties.ReadChanged(rebuilt))
@@ -153,6 +153,32 @@ print(
 		schemaBuffer
 	)} bytes; rebuilt and compared in {math.round(rebuildSeconds * 1000)} ms.`
 )
+
+do
+	local rawBytes = buffer.len(schemaBuffer)
+
+	local sizeClock = os.clock()
+	local compressed = Compression.Compress(schemaBuffer)
+	local compressSeconds = os.clock() - sizeClock
+
+	sizeClock = os.clock()
+	Compression.Decompress(compressed)
+	local decompressSeconds = os.clock() - sizeClock
+
+	print(
+		string.format(
+			"[VluxySF Tests] %s: %.1f bytes per sound raw, %.1f compressed (%d -> %d bytes, %.0f%%); compress %.2f ms, decompress %.2f ms.",
+			CONFIG_NAME,
+			rawBytes / math.max(compiledCount, 1),
+			buffer.len(compressed) / math.max(compiledCount, 1),
+			rawBytes,
+			buffer.len(compressed),
+			buffer.len(compressed) / math.max(rawBytes, 1) * 100,
+			compressSeconds * 1000,
+			decompressSeconds * 1000
+		)
+	)
+end
 
 if #mismatches == 0 then
 	print(`[VluxySF Tests] {CONFIG_NAME}: every sound and effect round-tripped exactly.`)

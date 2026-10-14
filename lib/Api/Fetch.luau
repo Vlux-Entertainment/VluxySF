@@ -11,6 +11,9 @@ type SoundDefinitionInstanced = Types.SoundDefinitionInstanced
 
 local BLANK_SOUND_NAME = "VluxySF_Blank_Sound"
 
+--Seconds FetchPlayOnce gives an asset to load before it gives up and destroys the sound.
+local PLAY_ONCE_LOAD_TIMEOUT = 10
+
 local blankDefinition: Types.SoundDefinition = table.freeze({
 	Properties = table.freeze({
 		Name = BLANK_SOUND_NAME,
@@ -146,7 +149,8 @@ end
 	@tag RequiresSchema
 
 	Fetches a `Sound`, plays it once, and destroys it when it ends. Looping is turned off. If the name is not in the
-	schema, a warning is printed, nothing plays, and nothing is left behind.
+	schema, a warning is printed, nothing plays, and nothing is left behind. If the asset has not loaded within 10
+	seconds (deleted, moderated or private audio never loads), a warning is printed and the sound is destroyed.
 
 	```lua
 	VluxySF.FetchPlayOnce("MySound")
@@ -172,21 +176,45 @@ function Fetch.FetchPlayOnce(name: string, parent: Instance?, preset: ((Sound) -
 		return function() end
 	end
 
+	--a destroyed sound reads IsLoaded as false, so the watchdog needs to know the sound already finished
+	local ended = false
+
 	local playThread = task.spawn(function()
 		if waitOnLoad and not sound.IsLoaded then
 			sound.Loaded:Wait()
 		end
 
 		sound.Ended:Once(function()
+			ended = true
 			sound:Destroy()
 		end)
 
 		sound:Play()
 	end)
 
+	--an asset that never loads never fires Ended either, so without this the sound would stay forever
+	local watchdog = task.delay(PLAY_ONCE_LOAD_TIMEOUT, function()
+		if ended or sound.IsLoaded then
+			return
+		end
+
+		FormatMessage.Warn(
+			`"{name}" did not load within {PLAY_ONCE_LOAD_TIMEOUT} seconds and was destroyed. Check that its asset is available.`
+		)
+
+		if coroutine.status(playThread) == "suspended" then
+			task.cancel(playThread)
+		end
+
+		sound:Destroy()
+	end)
+
 	return function()
 		if coroutine.status(playThread) == "suspended" then
 			task.cancel(playThread)
+		end
+		if coroutine.status(watchdog) == "suspended" then
+			task.cancel(watchdog)
 		end
 
 		sound:Destroy()

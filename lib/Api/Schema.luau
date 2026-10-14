@@ -14,6 +14,11 @@ local Types = require(script.Parent.Parent.Types)
 
 	Definitions are decoded out of the compiled schema the first time they are asked for. `GetDefinition` decodes one.
 	`Get` and `GetDefinitions` decode every remaining one and then freeze the definitions table.
+
+	:::caution
+	With a large schema, `Get` and `GetDefinitions` cost time and keep every definition in memory. Use them for
+	tooling and debugging, not on hot paths; use `GetDefinition` for one sound.
+	:::
 ]=]
 local Schema = {}
 

@@ -1,6 +1,8 @@
 --!strict
 
+local LogService = game:GetService("LogService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 
 local InternalCases = require(ReplicatedStorage.InternalCases)
 local SharedCases = require(ReplicatedStorage.SharedCases)
@@ -13,6 +15,9 @@ local ExpectError = TestHarness.ExpectError
 
 local PRELOAD_TIMEOUT = 5
 
+--FetchPlayOnce gives an asset this long to load before destroying the sound, plus a margin.
+local PLAY_ONCE_WATCHDOG_SECONDS = 11
+
 local suite = TestHarness.new("Client")
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -24,14 +29,49 @@ VluxySF.Startup.ConnectForSchema(function()
 	connectedBeforeInit = true
 end)
 
+local cancelledRan = false
+local cancelConnection = VluxySF.Startup.ConnectForSchema(function()
+	cancelledRan = true
+end)
+cancelConnection()
+
+--A game callback that errors must not stop InitClient or the other callbacks.
+VluxySF.Startup.ConnectForSchema(function()
+	error("[VluxySF Tests] Client: this error is expected, from a ConnectForSchema callback that errors on purpose.")
+end)
+
 suite.Test("The schema is not ready before InitClient", function()
 	ExpectEqual(VluxySF.Startup.IsInitialized(), false, "IsInitialized")
 end)
 
 --Yields until the schema arrives and the tagged sounds are preloaded, or the timeout is reached.
+local memoryBefore = gcinfo()
 local initStart = os.clock()
 VluxySF.Startup.InitClient(PRELOAD_TIMEOUT)
 local initSeconds = os.clock() - initStart
+local memoryAfter = gcinfo()
+
+--Started now and checked at the end, so the wait overlaps the other cases. A muted Click plays and ends normally at
+--the same time: only the unloadable sound may produce a "did not load" warning.
+local loadWarnings = 0
+local logConnection = LogService.MessageOut:Connect(function(message: string)
+	if string.find(message, "did not load within", 1, true) then
+		loadWarnings += 1
+	end
+end)
+
+VluxySF.FetchPlayOnce("Click", nil, VluxySF.Presets.Volume(0), true)
+
+local unloadable: Sound? = nil
+local unloadableStart = os.clock()
+print(
+	`[VluxySF Tests] Client: a warning that "Click" did not load is expected about {PLAY_ONCE_WATCHDOG_SECONDS - 1} seconds from now.`
+)
+VluxySF.FetchPlayOnce("Click", nil, function(sound: Sound)
+	sound.SoundId = "rbxassetid://1" --not an audio asset, so it never loads
+	sound.Volume = 0
+	unloadable = sound
+end)
 
 suite.Test("InitClient makes the schema ready", function()
 	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
@@ -45,6 +85,23 @@ suite.Test("InitClient makes the schema ready", function()
 	print(
 		`[VluxySF Tests] InitClient took {total} ms for {#VluxySF.Schema.GetNames()} sounds (receive {received}, load {loaded}, preload {preloaded}).`
 	)
+	print(`[VluxySF Tests] Lua memory grew about {memoryAfter - memoryBefore} KB during InitClient.`)
+end)
+
+suite.Test("InitClient cleared its copy of the schema attribute", function()
+	local published = SoundService:FindFirstChild("VluxySF_Schema")
+	assert(published, "VluxySF_Schema should have replicated")
+
+	ExpectEqual(published:GetAttribute("Schema"), nil, "Schema attribute")
+end)
+
+suite.Test("A cancelled ConnectForSchema callback never runs", function()
+	ExpectEqual(cancelledRan, false, "Cancelled callback ran")
+end)
+
+suite.Test("A ConnectForSchema callback that errors does not stop startup", function()
+	ExpectEqual(VluxySF.Startup.IsInitialized(), true, "IsInitialized")
+	ExpectEqual(connectedBeforeInit, true, "The other callback ran")
 end)
 
 suite.Test("InitClient refuses to run twice", function()
@@ -119,6 +176,28 @@ suite.Test("Cache warms and chills a sound", function()
 	ExpectEqual(warmed.Parent, nil, "Warmed sound parent after Chill")
 end)
 
+------------------------------------------------------------------------------------------------------------------------
+--PLAY_ONCE_WATCHDOG----------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------
+
+local remaining = PLAY_ONCE_WATCHDOG_SECONDS - (os.clock() - unloadableStart)
+if remaining > 0 then
+	task.wait(remaining)
+end
+
+suite.Test("FetchPlayOnce destroys a sound whose asset never loads", function()
+	local sound = unloadable
+	assert(sound, "The preset should have received the sound")
+
+	ExpectEqual(sound.Parent, nil, "Parent after the load timeout")
+end)
+
+suite.Test("FetchPlayOnce does not flag a sound that loaded and ended", function()
+	ExpectEqual(loadWarnings, 1, '"did not load" warnings (only the unloadable sound should warn)')
+end)
+
+logConnection:Disconnect()
+
 suite.Finish()
 
 ------------------------------------------------------------------------------------------------------------------------
@@ -132,5 +211,5 @@ VluxySF.FetchPlayOnce("Click", nil, nil, true)
 --With a stress group compiled, time the fetch path too. Run from here, not the command bar: the command bar has its
 --own module cache in Studio, so its copy of the library never initializes.
 if #VluxySF.Schema.GetNames() >= 1000 then
-	require(ReplicatedStorage.FetchBenchmark).Run(3)
+	require(ReplicatedStorage.Benchmarks).Run()
 end

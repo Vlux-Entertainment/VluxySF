@@ -133,7 +133,8 @@ end
 
 	@yields
 
-	Receives the schema from the server, then builds and preloads every sound tagged for preloading.
+	Receives the schema from the server, then builds and preloads every sound tagged for preloading. It can be
+	called from `ReplicatedFirst`, for example to play sounds on a loading screen; it waits for the schema to arrive.
 
 	The schema is ready as soon as it is received, so `WaitForSchema` and `ConnectForSchema` in other scripts resume
 	then. This call itself yields until the preloads finish or `timeout` seconds pass, whichever comes first, and

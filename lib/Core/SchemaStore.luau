@@ -174,12 +174,11 @@ function SchemaStore.GetDefinition(name: string): Types.SoundDefinition?
 		return nil
 	end
 
-	local offset = loadedSchema.Offsets[name]
-	if not offset then
+	local decoded, groupIndex = Codec.ReadDefinition(loadedSchema, name)
+	if not decoded then
 		return nil
 	end
 
-	local decoded, groupIndex = Codec.ReadDefinition(loadedSchema, offset)
 	if groupIndex > 0 then
 		(decoded.Properties :: any).SoundGroup = groupList[groupIndex]
 	end
@@ -216,6 +215,13 @@ function SchemaStore.GetDefinitions(): Types.SoundDefinitions
 	table.freeze(definitions)
 
 	return definitions
+end
+
+--[[
+	@return Codec.Loaded? -- The loaded schema buffer and its header, or nil before load. For tests and benchmarks.
+]]
+function SchemaStore.GetLoaded(): Codec.Loaded?
+	return loaded
 end
 
 --[[

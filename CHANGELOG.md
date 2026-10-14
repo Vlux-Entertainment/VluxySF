@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.1.0
+
+### Added
+
+- `VluxySF.WithWrapper(wrap)` returns a copy of the library whose `Fetch` and `FetchStrict` return your own class instead of a `Sound`. It is fully typed, and `VluxySF` itself is unchanged. See the Wrapping Sounds guide.
+
+### Changed
+
+- The schema replicates as one string attribute named `Schema` on a `VluxySF_Schema` Configuration in `SoundService`, so it is visible in the Explorer. It used to be split across StringValues in a folder under the library module. The client clears its copy of the attribute after decoding it.
+- `InitServer` errors if Roblox refuses or shortens the schema attribute, instead of leaving clients waiting.
+- The schema buffer no longer starts with a magic byte and a format version. Server and client always run the same copy of the library, so the check could never fail.
+- The schema is about half the size. Counts, ids and lengths are variable-length integers, `rbxassetid://` ids are stored as numbers, numbers that fit 32-bit floats take 4 bytes, booleans fit in their tag, and the index stores the gap between definitions. A 180-sound game config went from 15,765 to 8,037 bytes.
+- The schema is compressed (LZ4-style, built for speed) before it is published. The same config shrinks to 5,459 bytes; compressing took 0.3 ms and decompressing 0.05 ms. At 10,000 realistic sounds decompressing takes about 3 to 4 ms.
+- Names and string values have no length limit in the schema; the old format capped names at 65,535 bytes and a schema at 65,535 unique names.
+
+### Fixed
+
+- `FetchPlayOnce` destroys the sound, with a warning, when its asset has not loaded within 10 seconds. Deleted, moderated or private audio never loads and never fires `Ended`, so these sounds used to stay in `UnattachedSounds` forever.
+- A failed `ContentProvider:PreloadAsync` only warns. Before, it could make `Preload.Selected` throw and leave `WaitForPreload` waiting forever.
+- Enums decoded from one schema can no longer be mixed up with another schema's. The enum lookup cache is kept per loaded schema instead of shared.
+
 ## 2.0.0
 
 The core was rewritten for speed and scale. The public API is the same shape as 1.x, with the changes below.

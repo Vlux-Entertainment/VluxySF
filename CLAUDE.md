@@ -51,7 +51,8 @@ failed case. `Tests/` mirrors where each file lands in the place:
   init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
 - `ServerScriptService/StressFixture.luau` — `Create(folders, sounds)` / `Remove()` from the command bar
   in edit mode; with 1000+ sounds compiled, both test scripts also run
-  `ReplicatedStorage/FetchBenchmark.luau` and print startup timings. Do not call anything that needs
+  `ReplicatedStorage/Benchmarks.luau` (codec, build, fetch, clone, wrapper, FetchPlayOnce and base64
+  timings; numbers only, lines over a budget print as SLOW warnings) and print startup timings. Do not call anything that needs
   `WaitForSchema` from the command bar: it has its own module cache in Studio and never initializes.
 - `ServerScriptService/RealConfigCheck.server.luau` — runs only when a Configuration named `SOUNDS` is
   in ServerStorage next to `TEST_SOUNDS`; compiles it and compares every rebuilt sound and effect
@@ -73,9 +74,10 @@ A few cases trigger library warnings on purpose (unknown sound names); those cas
    `lib/Core/Properties.luau`) and writes them straight into one **schema buffer**
    (`lib/Core/Codec.luau`). `lib/Core/SchemaStore.luau` loads the buffer, creates the SoundGroups
    and holder Configurations in SoundService, and `lib/Core/Transport.luau` publishes the buffer
-   as chunked attributes under the library module so it replicates with the place. The
+   as one base64 string attribute (`Schema`) on a `VluxySF_Schema` Configuration in SoundService, so it
+   replicates with the place and is visible in Explorer; the client clears its copy after decoding. The
    Configuration is detached immediately and destroyed on the next frame.
-3. Client calls `VluxySF.Startup.InitClient(timeout?)` once. It waits for the chunks to replicate,
+3. Client calls `VluxySF.Startup.InitClient(timeout?)` once. It waits for the schema attribute to replicate,
    loads the buffer, builds the preload templates, and yields until they are loaded or the timeout
    passes. `0` means do not wait and do not warn. Gate schema-dependent code with
    `Startup.WaitForSchema()` / `ConnectForSchema()` / `IsInitialized()`; preload status is
@@ -88,7 +90,9 @@ frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freez
 
 - `lib/init.luau` assembles the public table and re-exports types. Nothing else.
 - `lib/Api/` — one file per documented class: `Fetch` (the three fetch functions, `@within
-  VluxySF`), `Startup`, `Schema`, `Groups`, `Preload`, `Cache`, `Conversions`, `Presets`, `Jitter`.
+  VluxySF`), `Startup`, `Schema`, `Groups`, `Preload`, `Cache`, `Conversions`, `Presets`, `Jitter`,
+  `Wrapping` (`WithWrapper`, `@within VluxySF`: a frozen copy of the API whose fetches return a
+  user wrapper class; the docs guide is `docs/Wrapping.md`).
 - `lib/Core/` — the machinery with state: `SchemaStore` (single owner of schema state and the
   initialized/preloaded flags), `Codec`, `Compile`, `Transport`, `Templates` (preloaded and warmed
   template registries that `Fetch` clones from), `Preloading`, `Converters`, `Properties`.
@@ -102,8 +106,12 @@ frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freez
   loop with no per-property pcall. Keep new property exclusions in its deny list.
 - `Properties.Apply` and `ReadChanged` try the whole table without pcall first and fall back to
   per-property pcall with a warning only when something fails.
-- The codec interns names in a string table; string values stay inline. Bumping the format means
-  bumping `VERSION` in `Codec.luau`; server and client must run the same library version.
+- The codec interns names in a string table; string values stay inline. Counts, ids, lengths and the
+  index's definition gaps are varints; numbers use f32 when that round-trips exactly; `rbxassetid://`
+  ids are stored as varint numbers (only when formatting back gives the identical string); booleans
+  live in the tag. The buffer has no magic or version header: only this library writes it, and server
+  and client always run the same copy. `Transport` compresses it with `Core/Compression.luau`
+  (LZ4-style block format) before base64.
 
 ## Conventions
 
