@@ -109,14 +109,24 @@ suite.Test("InitServer published the schema in SoundService", function()
 	assert(published, "VluxySF_Schema should exist in SoundService")
 
 	local value = published:FindFirstChild("Schema")
+	local pieces = published:GetAttribute("SchemaPieces")
 	ExpectEqual(value ~= nil and value:IsA("StringValue"), true, "Schema StringValue")
-	ExpectEqual(value ~= nil and #(value :: StringValue).Value > 0, true, "Schema text")
+	ExpectEqual(type(pieces) == "number" and pieces >= 1, true, "SchemaPieces count")
+	local length = 0
+	for index = 1, if type(pieces) == "number" then pieces else 0 do
+		local piece = published:FindFirstChild(if index == 1 then "Schema" else `Schema#{index}`)
+		ExpectEqual(piece ~= nil and piece:IsA("StringValue"), true, `Schema piece {index}`)
+		if piece and piece:IsA("StringValue") then
+			length += #piece.Value
+		end
+	end
+	ExpectEqual(length > 0, true, "Schema text")
 	ExpectEqual(published:GetAttribute("VluxySF"), true, "The container carries the library's mark")
 	local attributeCount = 0
 	for _ in pairs(published:GetAttributes()) do
 		attributeCount += 1
 	end
-	ExpectEqual(attributeCount, 1, "Attribute count (the mark only)")
+	ExpectEqual(attributeCount, 2, "Attribute count (the mark and the piece count)")
 
 	--the fallback for a client that cannot read the attribute
 	local request = published:FindFirstChild("Request")
@@ -130,9 +140,7 @@ suite.Test("InitServer published the schema in SoundService", function()
 			timings.Compile
 		)}, publish {TestHarness.Milliseconds(timings.Publish)}).`
 	)
-	print(
-		`[VluxySF Tests] Schema is {if value then #(value :: StringValue).Value else 0} base64 characters in one StringValue.`
-	)
+	print(`[VluxySF Tests] Schema is {length} base64 characters in {pieces} StringValue(s).`)
 end)
 
 suite.Test("Every instance the server made in SoundService carries the VluxySF mark", function()

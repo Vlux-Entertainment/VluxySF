@@ -5,15 +5,15 @@
 --[[
 	Gets the schema buffer from the server to every client.
 
-	The server compresses the buffer (Compression, LZ4-style) and base64-encodes it into a StringValue named `Schema`
-	under a Configuration in SoundService. It replicates to every client as part of joining, so the client normally
-	just waits for it and decodes it: nothing is serialized per player and no remote round trip happens. (It used to be
-	a string attribute; Roblox now caps those at 50 characters and throws past it, and a StringValue holds up to
-	199,999.)
+	The server compresses the buffer (Compression, LZ4-style) and base64-encodes it into StringValues under a
+	Configuration in SoundService: `Schema`, then `Schema#2`, `Schema#3` ... for a schema longer than one holds (199,999
+	characters; 10,000 sounds take about 470,000), with the piece count in the `SchemaPieces` attribute. They replicate
+	to every client as part of joining, so the client normally just waits for them and decodes them: nothing is
+	serialized per player and no remote round trip happens. (The schema used to be one string attribute; Roblox now
+	caps those at 50 characters and throws past it.)
 
-	A RemoteFunction under the same Configuration is the fallback. A client whose StringValue is missing, cut short or
-	damaged (or a schema too long for one) asks the server for the compressed buffer instead, a few times at most per
-	player. Every client wait here is bounded by a deadline, so a server that never published cannot hold a client
+	A RemoteFunction under the same Configuration is the fallback. A client whose pieces are missing, cut short or
+	damaged asks the server for the compressed buffer instead, a few times at most per player. Every client wait here is bounded by a deadline, so a server that never published cannot hold a client
 	forever.
 
 	Base64 is used because buffer attributes are refused and replicated strings are not binary safe: a raw buffer
@@ -29,6 +29,7 @@ local Owned = require(script.Parent.Parent.Utility.Owned)
 
 local CONTAINER_NAME = "VluxySF_Schema"
 local SCHEMA_NAME = "Schema"
+local PIECES_ATTRIBUTE = "SchemaPieces"
 -- The longest string a StringValue holds.
 local MAX_TEXT = 199999
 local REQUEST_NAME = "Request"
@@ -211,9 +212,8 @@ end
 
 	Publishes the schema so clients can read it. Call once on the server.
 
-	The schema goes into one StringValue, which replicates with the place. A RemoteFunction next to it hands out the
-	compressed buffer to a client that could not read it (or when the schema is too long for one), so the StringValue
-	is the fast path and never the only one.
+	The schema goes into StringValue pieces, which replicate with the place. A RemoteFunction next to them hands out
+	the compressed buffer to a client that could not read them, so the pieces are the fast path and never the only one.
 ]]
 function Transport.Publish(schemaBuffer: buffer)
 	local container = Instance.new("Configuration")
@@ -223,21 +223,30 @@ function Transport.Publish(schemaBuffer: buffer)
 	--the remote below hands out the same compressed bytes, so the fallback is as small as the attribute
 	local compressed = Compression.Compress(schemaBuffer)
 	local text = Transport.Encode(compressed)
-	local stored = false
-	if #text <= MAX_TEXT then
+	local pieces: { StringValue } = {}
+	local stored = true
+	for at = 1, #text, MAX_TEXT do
+		local piece = string.sub(text, at, at + MAX_TEXT - 1)
 		local value = Instance.new("StringValue")
-		value.Name = SCHEMA_NAME
-		stored = pcall(function()
-			value.Value = text
-		end) and value.Value == text
-		if stored then
+		value.Name = if at == 1 then SCHEMA_NAME else `{SCHEMA_NAME}#{#pieces + 1}`
+		if not pcall(function()
+			value.Value = piece
+		end) or value.Value ~= piece then
+			stored = false
+			break
+		end
+		table.insert(pieces, value)
+	end
+	if stored then
+		for _, value in pieces do
 			Owned.Mark(value)
 			value.Parent = container
-		else
+		end
+		container:SetAttribute(PIECES_ATTRIBUTE, #pieces)
+	else
+		for _, value in pieces do
 			value:Destroy()
 		end
-	end
-	if not stored then
 		FormatMessage.Warn(
 			`Roblox did not store the {#text} character schema, so every client will ask the server for the schema instead.`
 		)
@@ -270,8 +279,19 @@ end
 	it is missing, cut short or damaged.
 ]]
 local function readPublished(container: Instance): buffer?
-	local value = container:FindFirstChild(SCHEMA_NAME)
-	local text: any = if value and value:IsA("StringValue") then value.Value else container:GetAttribute(SCHEMA_NAME)
+	local text: any = container:GetAttribute(SCHEMA_NAME)
+	local count = container:GetAttribute(PIECES_ATTRIBUTE)
+	if type(count) == "number" and count >= 1 then
+		local parts: { string } = {}
+		for index = 1, count do
+			local value = container:FindFirstChild(if index == 1 then SCHEMA_NAME else `{SCHEMA_NAME}#{index}`)
+			if not (value and value:IsA("StringValue")) then
+				return nil
+			end
+			table.insert(parts, (value :: StringValue).Value)
+		end
+		text = table.concat(parts)
+	end
 	if type(text) ~= "string" or text == "" then
 		return nil
 	end

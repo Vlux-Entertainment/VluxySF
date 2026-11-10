@@ -15,7 +15,7 @@ When the server calls `Startup.InitServer(SOUNDS)`, the library walks your `SOUN
 1. Each group Configuration becomes a `SoundGroup` in `SoundService`.
 2. Each `Sound` becomes a **definition**: its name, its group, every property that differs from a new `Sound`, and its effects. Properties left at their defaults are not stored at all.
 3. All definitions are written into one compact block of bytes, the **schema**. Property names, enum names and sound names are stored once and referred to by number, asset ids are stored as numbers, and most numbers take four bytes.
-4. The schema is compressed with a fast compressor, made text-safe, and stored in one `StringValue` named `Schema` under a `Configuration` named `VluxySF_Schema` in `SoundService` (a StringValue, not a string attribute: Roblox caps string attributes at 50 characters). A `RemoteFunction` named `Request` sits under it as a fallback.
+4. The schema is compressed with a fast compressor, made text-safe, and stored in `StringValue`s under a `Configuration` named `VluxySF_Schema` in `SoundService`: `Schema`, then `Schema#2`, `Schema#3` ... when it is longer than one holds (199,999 characters), with the count in its `SchemaPieces` attribute. StringValues, not a string attribute: Roblox caps string attributes at 50 characters. A `RemoteFunction` named `Request` sits under it as a fallback.
 
 Your `SOUNDS` Configuration is then removed. The schema is locked from here on: sounds and SoundGroups cannot be added while the game runs.
 
@@ -27,7 +27,7 @@ Every instance the library creates in `SoundService` carries an attribute named 
 
 `SoundService` replicates to every player as they join, so the schema normally arrives with the rest of the game. The client requests nothing from the server, and the server does no work per player.
 
-If a client cannot read the `Schema` value, because it is missing, cut short or damaged (or the schema was too long for one StringValue, 199,999 characters), it asks the server for the schema through the `Request` RemoteFunction instead. The server answers a few requests per player and ignores the rest, so a misbehaving client cannot make it resend the schema over and over.
+If a client cannot read the `Schema` value, because it is missing, cut short or damaged it asks the server for the schema through the `Request` RemoteFunction instead. The server answers a few requests per player and ignores the rest, so a misbehaving client cannot make it resend the schema over and over.
 
 `Startup.InitClient` waits for the schema, decompresses it and reads its index of sound names. That takes a few milliseconds even with 10,000 sounds. The value is left as it is, so other code on the client can still read it. `InitClient` then starts the [preloads](./Preloading.md).
 
