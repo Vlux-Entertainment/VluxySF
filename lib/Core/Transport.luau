@@ -5,14 +5,16 @@
 --[[
 	Gets the schema buffer from the server to every client.
 
-	The server compresses the buffer (Compression, LZ4-style) and base64-encodes it into one string attribute on a
-	Configuration in SoundService. It replicates to every client as part of joining, so the client normally just
-	waits for it and decodes it: nothing is serialized per player and no remote round trip happens.
+	The server compresses the buffer (Compression, LZ4-style) and base64-encodes it into a StringValue named `Schema`
+	under a Configuration in SoundService. It replicates to every client as part of joining, so the client normally
+	just waits for it and decodes it: nothing is serialized per player and no remote round trip happens. (It used to be
+	a string attribute; Roblox now caps those at 50 characters and throws past it, and a StringValue holds up to
+	199,999.)
 
-	A RemoteFunction under the same Configuration is the fallback. A client whose attribute is missing, cut short or
-	damaged (NextGenerationReplication limits script-set string attributes) asks the server for the compressed buffer
-	instead, a few times at most per player. Every client wait here is bounded by a deadline, so a server that never
-	published cannot hold a client forever.
+	A RemoteFunction under the same Configuration is the fallback. A client whose StringValue is missing, cut short or
+	damaged (or a schema too long for one) asks the server for the compressed buffer instead, a few times at most per
+	player. Every client wait here is bounded by a deadline, so a server that never published cannot hold a client
+	forever.
 
 	Base64 is used because buffer attributes are refused and replicated strings are not binary safe: a raw buffer
 	string is cut at its first zero byte. Text survives.
@@ -26,7 +28,9 @@ local FormatMessage = require(script.Parent.Parent.Utility.FormatMessage)
 local Owned = require(script.Parent.Parent.Utility.Owned)
 
 local CONTAINER_NAME = "VluxySF_Schema"
-local SCHEMA_ATTRIBUTE = "Schema"
+local SCHEMA_NAME = "Schema"
+-- The longest string a StringValue holds.
+local MAX_TEXT = 199999
 local REQUEST_NAME = "Request"
 
 --how many times one player may ask the server for the schema
@@ -207,9 +211,9 @@ end
 
 	Publishes the schema so clients can read it. Call once on the server.
 
-	The schema goes into one string attribute, which replicates with the place. A RemoteFunction next to it hands out
-	the compressed buffer to a client that could not read the attribute, for example when NextGenerationReplication limits
-	string attributes, so the attribute is the fast path and never the only one.
+	The schema goes into one StringValue, which replicates with the place. A RemoteFunction next to it hands out the
+	compressed buffer to a client that could not read it (or when the schema is too long for one), so the StringValue
+	is the fast path and never the only one.
 ]]
 function Transport.Publish(schemaBuffer: buffer)
 	local container = Instance.new("Configuration")
@@ -219,12 +223,23 @@ function Transport.Publish(schemaBuffer: buffer)
 	--the remote below hands out the same compressed bytes, so the fallback is as small as the attribute
 	local compressed = Compression.Compress(schemaBuffer)
 	local text = Transport.Encode(compressed)
-	container:SetAttribute(SCHEMA_ATTRIBUTE, text)
-
-	if container:GetAttribute(SCHEMA_ATTRIBUTE) ~= text then
-		container:SetAttribute(SCHEMA_ATTRIBUTE, nil)
+	local stored = false
+	if #text <= MAX_TEXT then
+		local value = Instance.new("StringValue")
+		value.Name = SCHEMA_NAME
+		stored = pcall(function()
+			value.Value = text
+		end) and value.Value == text
+		if stored then
+			Owned.Mark(value)
+			value.Parent = container
+		else
+			value:Destroy()
+		end
+	end
+	if not stored then
 		FormatMessage.Warn(
-			`Roblox did not store the {#text} character schema attribute, so every client will ask the server for the schema instead.`
+			`Roblox did not store the {#text} character schema, so every client will ask the server for the schema instead.`
 		)
 	end
 
@@ -251,11 +266,13 @@ function Transport.Publish(schemaBuffer: buffer)
 end
 
 --[[
-	Decodes the attribute's text, or returns nil when it is missing, cut short or damaged.
+	Decodes the published text (the `Schema` StringValue, or the attribute an older server wrote), or returns nil when
+	it is missing, cut short or damaged.
 ]]
-local function readAttribute(container: Instance): buffer?
-	local text = container:GetAttribute(SCHEMA_ATTRIBUTE)
-	if type(text) ~= "string" then
+local function readPublished(container: Instance): buffer?
+	local value = container:FindFirstChild(SCHEMA_NAME)
+	local text: any = if value and value:IsA("StringValue") then value.Value else container:GetAttribute(SCHEMA_NAME)
+	if type(text) ~= "string" or text == "" then
 		return nil
 	end
 
@@ -324,8 +341,8 @@ end
 	@return buffer? -- The schema the server published, or nil when it did not arrive before the deadline.
 	@return string? -- Why it did not arrive.
 
-	Reads the published schema from its attribute, or asks the server for it when the attribute cannot be read. The
-	attribute is left as it is, so a second reader on this client (another copy of the library, a tool) still finds
+	Reads the published schema from its StringValue, or asks the server for it when that cannot be read. The
+	StringValue is left as it is, so a second reader on this client (another copy of the library, a tool) still finds
 	it. Call once on the client.
 ]]
 function Transport.Receive(deadline: number): (buffer?, string?)
@@ -334,14 +351,14 @@ function Transport.Receive(deadline: number): (buffer?, string?)
 		return nil, "the server did not publish the schema in time. Check the server output for a VluxySF warning."
 	end
 
-	local schemaBuffer = readAttribute(container)
+	local schemaBuffer = readPublished(container)
 	if schemaBuffer then
 		return schemaBuffer
 	end
 
 	schemaBuffer = requestSchema(container, deadline)
 	if not schemaBuffer then
-		return nil, "the schema attribute could not be read and the server did not answer a request for it in time."
+		return nil, "the published schema could not be read and the server did not answer a request for it in time."
 	end
 
 	return schemaBuffer

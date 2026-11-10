@@ -142,11 +142,12 @@ suite.Test("InitClient found the server's instances by their mark, not the same-
 	ExpectEqual((VluxySF.Groups.Get("MUSIC") :: SoundGroup):GetAttribute("VluxySF"), true, "MUSIC is marked")
 end)
 
-suite.Test("InitClient leaves the schema attribute in place for other readers", function()
+suite.Test("InitClient leaves the schema in place for other readers", function()
 	local published = findOwned(SoundService, "VluxySF_Schema")
 	assert(published, "The marked VluxySF_Schema should have replicated")
 
-	ExpectEqual(type(published:GetAttribute("Schema")), "string", "Schema attribute")
+	local value = published:FindFirstChild("Schema")
+	ExpectEqual(value ~= nil and value:IsA("StringValue"), true, "Schema StringValue")
 end)
 
 suite.Test("The schema request fallback hands out the schema a few times per player", function()

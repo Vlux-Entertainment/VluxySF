@@ -108,14 +108,15 @@ suite.Test("InitServer published the schema in SoundService", function()
 	local published = game:GetService("SoundService"):FindFirstChild("VluxySF_Schema")
 	assert(published, "VluxySF_Schema should exist in SoundService")
 
-	local text = published:GetAttribute("Schema")
-	ExpectEqual(type(text), "string", "Schema attribute type")
+	local value = published:FindFirstChild("Schema")
+	ExpectEqual(value ~= nil and value:IsA("StringValue"), true, "Schema StringValue")
+	ExpectEqual(value ~= nil and #(value :: StringValue).Value > 0, true, "Schema text")
 	ExpectEqual(published:GetAttribute("VluxySF"), true, "The container carries the library's mark")
 	local attributeCount = 0
 	for _ in pairs(published:GetAttributes()) do
 		attributeCount += 1
 	end
-	ExpectEqual(attributeCount, 2, "Attribute count (the schema and the mark)")
+	ExpectEqual(attributeCount, 1, "Attribute count (the mark only)")
 
 	--the fallback for a client that cannot read the attribute
 	local request = published:FindFirstChild("Request")
@@ -129,7 +130,9 @@ suite.Test("InitServer published the schema in SoundService", function()
 			timings.Compile
 		)}, publish {TestHarness.Milliseconds(timings.Publish)}).`
 	)
-	print(`[VluxySF Tests] Schema is {#text} base64 characters in one attribute.`)
+	print(
+		`[VluxySF Tests] Schema is {if value then #(value :: StringValue).Value else 0} base64 characters in one StringValue.`
+	)
 end)
 
 suite.Test("Every instance the server made in SoundService carries the VluxySF mark", function()

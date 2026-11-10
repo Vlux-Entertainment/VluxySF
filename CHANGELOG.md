@@ -1,5 +1,9 @@
 # Changelog
 
+## 3.0.1
+
+- The schema is published in a `Schema` StringValue under `SoundService.VluxySF_Schema` instead of a string attribute. Roblox now caps string attributes at 50 characters and throws past it, which stopped `InitServer` ("the library could not start"). A client still reads the old attribute from an older server, and a schema too long for a StringValue (199,999 characters) goes through the `Request` fallback.
+
 ## 3.0.0
 
 3.0 renames several functions, makes the schema about a third of its old size, and changes how the library behaves when something goes wrong: nothing it does at runtime throws into your game code anymore. Code written for 2.x needs the renames below.

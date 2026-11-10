@@ -15,7 +15,7 @@ When the server calls `Startup.InitServer(SOUNDS)`, the library walks your `SOUN
 1. Each group Configuration becomes a `SoundGroup` in `SoundService`.
 2. Each `Sound` becomes a **definition**: its name, its group, every property that differs from a new `Sound`, and its effects. Properties left at their defaults are not stored at all.
 3. All definitions are written into one compact block of bytes, the **schema**. Property names, enum names and sound names are stored once and referred to by number, asset ids are stored as numbers, and most numbers take four bytes.
-4. The schema is compressed with a fast compressor, made text-safe, and stored in one attribute on a `Configuration` named `VluxySF_Schema` in `SoundService`. A `RemoteFunction` named `Request` sits under it as a fallback.
+4. The schema is compressed with a fast compressor, made text-safe, and stored in one `StringValue` named `Schema` under a `Configuration` named `VluxySF_Schema` in `SoundService` (a StringValue, not a string attribute: Roblox caps string attributes at 50 characters). A `RemoteFunction` named `Request` sits under it as a fallback.
 
 Your `SOUNDS` Configuration is then removed. The schema is locked from here on: sounds and SoundGroups cannot be added while the game runs.
 
@@ -27,9 +27,9 @@ Every instance the library creates in `SoundService` carries an attribute named 
 
 `SoundService` replicates to every player as they join, so the schema normally arrives with the rest of the game. The client requests nothing from the server, and the server does no work per player.
 
-If a client cannot read the attribute, because it is missing, cut short or damaged (`NextGenerationReplication` limits how long a script-set string attribute can be), it asks the server for the schema through the `Request` RemoteFunction instead. The server answers a few requests per player and ignores the rest, so a misbehaving client cannot make it resend the schema over and over.
+If a client cannot read the `Schema` value, because it is missing, cut short or damaged (or the schema was too long for one StringValue, 199,999 characters), it asks the server for the schema through the `Request` RemoteFunction instead. The server answers a few requests per player and ignores the rest, so a misbehaving client cannot make it resend the schema over and over.
 
-`Startup.InitClient` waits for the schema, decompresses it and reads its index of sound names. That takes a few milliseconds even with 10,000 sounds. The attribute is left as it is, so other code on the client can still read it. `InitClient` then starts the [preloads](./Preloading.md).
+`Startup.InitClient` waits for the schema, decompresses it and reads its index of sound names. That takes a few milliseconds even with 10,000 sounds. The value is left as it is, so other code on the client can still read it. `InitClient` then starts the [preloads](./Preloading.md).
 
 The wait is bounded. If the schema and the library's instances have not arrived after 30 seconds, because the server could not start, `InitClient` prints a warning and returns with sounds off for that player, so the script that called it keeps running.
 
@@ -69,7 +69,7 @@ VluxySF is built to stay out of your game's way. The rule is that nothing the li
 | A `SOUNDS` child that is not a Configuration, or a group name used twice | That part is skipped with a warning; the rest works |
 | A sound with a property or effect that cannot be stored | That part is skipped with a warning |
 | Your own `SOUNDS` or `UnattachedSounds` already in `SoundService` | Nothing; the library finds its own instances by their `VluxySF` mark |
-| The schema attribute cannot be read on a client | The client asks the server for the schema instead |
+| The schema value cannot be read on a client | The client asks the server for the schema instead |
 | `InitServer` or `InitClient` called twice or on the wrong side | A warning; the extra call is ignored |
 | Something fails while starting | A warning; sounds stay off, and the script that called `Init` keeps running. A later `Init` call says the first one failed |
 | The schema never arrives on a client | After 30 seconds, a warning; sounds stay off for that player, and the script keeps running |
