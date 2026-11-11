@@ -88,11 +88,12 @@ A few cases trigger library warnings on purpose (unknown sound names); those cas
    `lib/Core/Properties.luau`) and writes them straight into one **schema buffer**
    (`lib/Core/Codec.luau`). `Playing` and `TimePosition` are runtime state and are never read or
    stored (`Properties` deny list): a Sound in `SOUNDS` is never playing. `lib/Core/Transport.luau`
-   publishes the buffer first, as one base64 string attribute (`Schema`) on a `VluxySF_Schema`
-   Configuration in SoundService, so it replicates with the place and is visible in Explorer, with a
-   `Request` RemoteFunction under it that hands the compressed buffer to a client that cannot read the
-   attribute (missing, cut short or damaged, e.g. under NextGenerationReplication's string-attribute
-   cap), at most 3 times per player. If Roblox refuses to store the attribute the server warns and
+   publishes the buffer first, as base64 text in a `Schema` StringValue on a `VluxySF_Schema`
+   Configuration in SoundService (longer than one StringValue's 199,999 characters: `Schema`, `Schema#2`, ...
+   with the count in a `SchemaPieces` attribute), so it replicates with the place and is visible in Explorer,
+   with a `Request` RemoteFunction under it that hands the compressed buffer to a client that cannot read it
+   (missing, cut short or damaged), at most 3 times per player. Not a string attribute: Studio and Server
+   Authority limit those to 50 characters. If Roblox refuses to store the text the server warns and
    relies on the fallback. Then `lib/Core/SchemaStore.luau` loads the buffer and creates the
    SoundGroups and holder Configurations in SoundService. Everything the library creates there is
    marked with a `VluxySF = true` attribute (`lib/Utility/Owned.luau`) before it is parented. The
