@@ -30,6 +30,9 @@ Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `aft
 3. **`Owned.Mark` before parenting**, so the mark replicates with the instance.
 4. **Version bumps** go in `wally.toml` and the commit message ("Version 2.0.0! …"). No git tags.
 5. **Never hand-edit `build/`** (the generated docs site).
+6. **PRs: open and merge your own.** This repo has no Greptile review, so an agent opens its PR and
+   merges it once lint, format and the type check pass. Say in the PR when the tests were not run in
+   Studio. Publishing to Wally still needs the user.
 
 ## Commands
 
