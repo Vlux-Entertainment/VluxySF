@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-Guidance for Claude Code when working in this repository.
+Guidance for Claude Code when working in this repository. This file is the hub: `ARCHITECTURE.md`
+(repo root, not published) holds the detail; `grep -n '^#' ARCHITECTURE.md` lists its sections.
 
 ## What this project is
 
@@ -9,7 +10,7 @@ library**, published to Wally as `greenviper126/vluxysf` (MIT). It turns a Studi
 Sound instances into a compact, frozen "schema" that both server and client consume, so game code
 fetches sounds by name instead of holding instance references. TheLaundryShift (sibling repo) is one
 consumer; the library also runs in a live Roblox games, so treat the published API as production-facing:
-breaking changes and behavior changes need real version bumps, and leak/perf fixes matter more than they 
+breaking changes and behavior changes need real version bumps, and leak/perf fixes matter more than they
 look in Studio. Target scale is up to ~10k sounds.
 
 Two deliverables live here:
@@ -18,8 +19,20 @@ Two deliverables live here:
 2. **Docs** — Moonwave/Docusaurus site (`moonwave.toml`, `docs/*.md`, generated `build/`).
 
 Language: **Luau**, `--!strict`. Managed with **Rojo**; toolchain pinned in `aftman.toml`
-(rojo, wally, selene, stylua). The former companion VS Code extension and its generated sound-name
-type were removed in 2.0; sound names are plain strings.
+(rojo, wally, selene, stylua). Sound names are plain strings.
+
+## Rules
+
+1. **Never in the way:** nothing a game calls at runtime may throw. Every API function starts with
+   `SchemaStore.CheckReady(name)` and returns a blank sound, `nil` or an empty value on misuse. Read
+   ARCHITECTURE.md "Gotchas" before adding an API function.
+2. **The schema is locked after init.** No sounds or groups can be registered at runtime.
+3. **`Owned.Mark` before parenting**, so the mark replicates with the instance.
+4. **Version bumps** go in `wally.toml` and the commit message ("Version 2.0.0! …"). No git tags.
+5. **Never hand-edit `build/`** (the generated docs site).
+6. **PRs: open and merge your own.** This repo has no Greptile review, so an agent opens its PR and
+   merges it once lint, format and the type check pass. Say in the PR when the tests were not run in
+   Studio. Publishing to Wally still needs the user.
 
 ## Commands
 
@@ -34,88 +47,12 @@ type were removed in 2.0; sound names are plain strings.
 | Doc comments | `moonwave-extractor extract lib` must print JSON, not an error |
 | Docs preview | `moonwave dev` |
 
-### Tests
+**Tests** have no automated runner: press Play in the test place; each side prints one
+`[VluxySF Tests] Server: ...` / `Client: ...` line and a warning per failed case. The fixture, the
+case files, the stress fixture and what Studio cannot test: ARCHITECTURE.md "Tests". Change
+`TEST_SOUNDS` and `SharedCases` together.
 
-There is no automated test runner; the tests run when you press Play in the test place and print
-one summary line per side (`[VluxySF Tests] Server: ...` / `Client: ...`), with a warning per
-failed case. `Tests/` mirrors where each file lands in the place:
-
-- `ServerStorage/TEST_SOUNDS.model.json` — the sound fixture (two groups, tagged preloads, a sound
-  with effects, a sound with an enum and a NumberRange property, and `Whoosh`: silent, `PlayOnRemove`
-  on and a saved `TimePosition`, for the playback-state and silent-template cases). It is named
-  `TEST_SOUNDS`, not `SOUNDS`, so syncing never replaces a `SOUNDS` Configuration saved in someone's
-  place file. Change the fixture and `SharedCases` together.
-- `ReplicatedStorage/TestHarness.luau` — the tiny suite/expectation helper.
-- `ReplicatedStorage/SharedCases.luau` — cases that must pass on both server and client, including the
-  bad-argument cases for `Fetch`, `Conversions`, `Presets` and `Jitter`.
-- `ReplicatedStorage/InternalCases.luau` — cases that require `lib/Core` and `lib/Utility` modules
-  directly (codec round trips including the 65k-string enum cache case, property rules, compile errors,
-  base64, `Owned.WaitFor` deadlines); schema-free, run on both sides.
-- `ServerScriptService/ServerTests.server.luau`, `StarterPlayerScripts/ClientTests.client.luau` —
-  init the library, run the shared cases plus the side-specific ones (`Preload`/`Cache` on the client).
-  The client makes unmarked decoys named `VluxySF_Schema`, `SOUNDS` and `UnattachedSounds` in
-  SoundService before `InitClient` to prove the marks are honored, invokes the `Request` fallback, and
-  destroys a one-shot's parent to prove the watchdog stays quiet.
-- Not testable in Studio: a server whose `InitServer` failed (the 30-second client give-up and the
-  "already failed" message) and the fallback transport with an unreadable attribute. Check those by hand.
-- `Stress/` + `stress-place.project.json` — the fixed stress fixture for comparable benchmarks: 9,999 sounds
-  (8,000 unique public asset ids, 1,999 variants reusing ids with other properties, ~20% with an effect) in 11
-  SoundGroups of 5000, 2500, ... 5, synced into `TEST_SOUNDS` by the default `stress-place.project.json`
-  (`test-place.project.json` leaves them out). A full Play takes about a minute on the client. The files come from
-  `Tests/Stress/generate.py` (seeded, byte-identical every run); regenerate only to change the fixture on purpose.
-- `ServerScriptService/StressFixture.luau` — `Create(folders, sounds)` / `Remove()` from the command bar
-  in edit mode; with 1000+ sounds compiled, both test scripts also run
-  `ReplicatedStorage/Benchmarks.luau` (codec, build, fetch, clone, wrapper, OneShot and base64
-  timings; numbers only, lines over a budget print as SLOW warnings) and print startup timings. Do not call anything that needs
-  `WaitUntilReady` from the command bar: it has its own module cache in Studio and never initializes.
-- `ServerScriptService/RealConfigCheck.server.luau` — runs only when a Configuration named `SOUNDS` is
-  in ServerStorage next to `TEST_SOUNDS`; compiles it and compares every rebuilt sound and effect
-  against the original without touching library state.
-
-A few cases trigger library warnings on purpose (unknown sound names); those cases say so in their name.
-
-## Architecture
-
-### The schema pipeline
-
-1. The game author builds a `Configuration` named **`SOUNDS`** in ServerStorage. Every direct
-   child must be a `Configuration` and becomes a SoundGroup of the same name (anything else directly
-   under `SOUNDS` throws). Folders and Configurations below that are organization only. Sound
-   instances are definitions, keyed by Name (names must be unique; they are the global lookup keys).
-   The tag `VluxySF_Preload` on a Sound or any container above it marks it for client preloading.
-2. Server calls `VluxySF.Startup.InitServer(soundsConfig)` once. `lib/Core/Compile.luau` walks the
-   tree once, converts every Sound and its effects (`lib/Core/Converters.luau`,
-   `lib/Core/Properties.luau`) and writes them straight into one **schema buffer**
-   (`lib/Core/Codec.luau`). `Playing` and `TimePosition` are runtime state and are never read or
-   stored (`Properties` deny list): a Sound in `SOUNDS` is never playing. `lib/Core/Transport.luau`
-   publishes the buffer first, as base64 text in a `Schema` StringValue on a `VluxySF_Schema`
-   Configuration in SoundService (longer than one StringValue's 199,999 characters: `Schema`, `Schema#2`, ...
-   with the count in a `SchemaPieces` attribute), so it replicates with the place and is visible in Explorer,
-   with a `Request` RemoteFunction under it that hands the compressed buffer to a client that cannot read it
-   (missing, cut short or damaged), at most 3 times per player. Not a string attribute: Studio and Server
-   Authority limit those to 50 characters. If Roblox refuses to store the text the server warns and
-   relies on the fallback. Then `lib/Core/SchemaStore.luau` loads the buffer and creates the
-   SoundGroups and holder Configurations in SoundService. Everything the library creates there is
-   marked with a `VluxySF = true` attribute (`lib/Utility/Owned.luau`) before it is parented. The
-   `SOUNDS` Configuration is detached immediately and destroyed on the next frame.
-3. Client calls `VluxySF.Startup.InitClient(timeout?)` once. `Transport.Receive` finds the marked
-   container, reads the attribute or falls back to the `Request`, then `SchemaStore.LoadClient` finds
-   the marked SoundGroups and holders by name, class and mark (`Owned.WaitFor`), so a game's own
-   same-named instance in SoundService is ignored. All of these waits share one 30-second deadline
-   (`SCHEMA_TIMEOUT` in `Startup`); past it, `InitClient` warns that sounds are off for this player and
-   returns. The attribute is left in place on the client. It then builds the preload templates and
-   yields until they are loaded or `timeout` passes. `0` means do not wait and do not warn. Gate
-   schema-dependent code with `Startup.WaitUntilReady(timeout?)` / `OnReady()` / `IsReady()`;
-   preload status is `IsPreloaded()` / `WaitUntilPreloaded(timeout?)`.
-
-Definitions are decoded out of the buffer lazily, one per `GetDefinition`/`Fetch`, and cached
-frozen. `Schema.Get()` and `Schema.GetDefinitions()` decode everything and freeze the table.
-
-Templates in `PreloadedSounds`/`WarmedSounds` are silenced when stored (`Templates.Set` forces
-`Playing = false`, `PlayOnRemove = false`); `Fetch.resolve` restores `PlayOnRemove` from the
-definition on the clones it hands out.
-
-### Layout
+## Layout
 
 - `lib/init.luau` assembles the public table and re-exports types. Nothing else.
 - `lib/Api/` — one file per documented class: `Fetch` (`Fetch`, `TryFetch`, `OneShot`, `@within
@@ -124,24 +61,14 @@ definition on the clones it hands out.
   user wrapper class; the docs guide is `docs/Wrapping.md`).
 - `lib/Core/` — the machinery with state: `SchemaStore` (single owner of schema state and the
   initialized/preloaded flags), `Codec`, `Compile`, `Transport`, `Templates` (preloaded and warmed
-  template registries that `Fetch` clones from), `Preloading`, `Converters`, `Properties`.
+  template registries that `Fetch` clones from), `Preloading`, `Converters`, `Properties`,
+  `Compression`.
 - `lib/Utility/` — stateless helpers: `FormatMessage`, `Tables`, `Signal`, `Owned` (marks the
   instances the library creates and finds them again by name, class and mark with a deadline).
 - `lib/Types.luau` — exported types (schema, serialized effects).
 
-### Hot paths
-
-- `Properties.GetClassInfo` learns the storable properties of a class once (ReflectionService,
-  probed on a fresh instance, deprecated aliases and runtime state denied) so reads are a plain
-  loop with no per-property pcall. Keep new property exclusions in its deny list.
-- `Properties.Apply` and `ReadChanged` try the whole table without pcall first and fall back to
-  per-property pcall with a warning only when something fails.
-- The codec interns names in a string table; string values stay inline. Counts, ids, lengths and the
-  index's definition gaps are varints; numbers use f32 when that round-trips exactly; `rbxassetid://`
-  ids are stored as varint numbers (only when formatting back gives the identical string); booleans
-  live in the tag. The buffer has no magic or version header: only this library writes it, and server
-  and client always run the same copy. `Transport` compresses it with `Core/Compression.luau`
-  (LZ4-style block format) before base64.
+How the schema gets from `SOUNDS` to the client: ARCHITECTURE.md "The schema pipeline". Codec and
+property fast paths: "Hot paths".
 
 ## Conventions
 
@@ -149,38 +76,18 @@ definition on the clones it hands out.
 - Moonwave doc comments on all public API (`@class` per API section), with `@tag RequiresSchema` /
   `@client` / `@server` markers. Keep tags accurate; they drive the docs site.
 - User-facing warnings/errors go through `FormatMessage` (prefixes messages with the library name).
-- Version bumps happen in `wally.toml` and are mentioned in the commit message
-  ("Version 2.0.0! …"). No git tags currently.
-- The docs home page is built from `moonwave.toml` (`[home]` features, `includeReadme = false`);
-  `README.md` is for GitHub and the Wally package. Guide pages in `docs/` are ordered by
-  `sidebar_position` and link to each other with relative `./Page.md` links; keep their code
-  samples in line with the real API in `lib/Api/`. The guides follow the Cmdr / Promise docs
-  style: one topic per page, ordered by importance after Installation (Introduction, Why VluxySF?,
-  Installation, Folder Setup, Starting, Fetching, SoundGroups, Preloading, Presets, Cookbook,
-  Warming, Performance, Wrapping, How It Works); renames between versions live in the changelog,
-  not a migration page, concepts and examples in the guides, exact signatures left
-  to the API pages, and complete recipes in `Cookbook.md`. A new feature gets its own page or a
-  section on the matching one, not a catch-all page. `moonwave build --out-dir ../somewhere`
-  checks for broken links (delete the output after).
+- Docs guides in `docs/`: one topic per page, code samples in line with `lib/Api/`. Full style:
+  ARCHITECTURE.md "Docs site style".
 - Text files are LF (`.gitattributes`, `.editorconfig`, `stylua.toml`).
 
-## Gotchas
+## Facts that catch people
 
-- **Schema is locked after init.** No sounds or groups can be registered at runtime.
-- **Never in the way:** nothing a game calls at runtime may throw. Every API function starts with
-  `SchemaStore.CheckReady(name)` (and `CheckClient(name)` for `Preload`/`Cache`), which warn once
-  per function and return false; the function then returns a blank sound, `nil` or an empty value.
-  Arguments are validated at the API boundary (`Fetch` parent/preset, `Conversions` input,
-  `Presets`/`Jitter` builder arguments) with a `FormatMessage.Warn` and a safe fallback, and any
-  `Instance.Parent` assignment to a caller-supplied instance is pcalled. `Init*` warn on misuse and
-  pcall their startup work; after a failure a later `Init*` prints an "already failed" message. Keep
-  new API functions to this rule; the only errors left are from the developer's own code (a preset
-  or `WithWrapper` wrap that errors, or `WithWrapper` given a non-function).
-- `Transport.Publish` runs before `SchemaStore.LoadServer` on purpose: if publishing fails, no
-  SoundGroups or holders are left half-made for clients to wait on. `Owned.Mark` must be called
-  before an instance is parented so the mark replicates with it.
-- `wally.toml`'s `exclude` list is what keeps repo-only files (tests, docs, tool configs,
-  `CLAUDE.md`) out of the published package. A new top-level file ships unless it is added there.
-- `build/` is the generated docs site. Never edit it by hand.
-- Two docs URLs exist historically (`Vlux-Entertainment.github.io/VluxySF` in README); keep new
-  links consistent with the README.
+- The schema travels as base64 in `Schema` StringValues (`Schema#2`, ... past 199,999 characters), not
+  a string attribute: Studio and Server Authority cap those at 50 characters.
+- `Transport.Publish` runs before `SchemaStore.LoadServer` on purpose.
+- Every client wait shares one 30-second deadline (`SCHEMA_TIMEOUT` in `Startup`).
+- `Playing` and `TimePosition` are never read or stored; templates are silenced when stored.
+- Do not call anything that needs `WaitUntilReady` from the command bar: it never initializes there.
+- `wally.toml`'s `include` is a whitelist; `exclude` is the second guard for repo-only files.
+- Two docs URLs exist historically (`Vlux-Entertainment.github.io/VluxySF` in README); keep new links
+  consistent with the README.

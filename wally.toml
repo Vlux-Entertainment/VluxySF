@@ -19,6 +19,7 @@ exclude = [
     "Tests",
     "CLAUDE.md",
     "AGENTS.md",
+    "ARCHITECTURE.md",
     "CHANGELOG.md",
     "aftman.toml",
     "moonwave.toml",
